@@ -1,0 +1,41 @@
+name: Build DMG
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dmg-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and package (Apple silicon)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Run tests
+        run: make test
+      - name: Build and verify DMG
+        run: make dmg
+      - name: Upload DMG and checksum
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: Terso-macOS-arm64
+          path: |
+            build/*.dmg
+            build/*.dmg.sha256
+          if-no-files-found: error
+          retention-days: 30

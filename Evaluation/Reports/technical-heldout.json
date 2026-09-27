@@ -1,0 +1,1394 @@
+{
+  "bands" : "Sources\/TersoStyle\/Resources\/bands-technical.json",
+  "createdAt" : 812213982.065881,
+  "documents" : [
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "cpython-bugs.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 530
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "headings_1k"
+      ],
+      "file" : "cpython-distutils-apiref.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1066
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "cpython-distutils-builtdist.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1960
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "repeated_openers"
+      ],
+      "file" : "cpython-distutils-configfile.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 643
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "commas_1k"
+      ],
+      "file" : "cpython-distutils-examples.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 863
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "contractions_1k"
+      ],
+      "file" : "cpython-distutils-extending.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 567
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "repeated_openers",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "cpython-distutils-introduction.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 1155
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "commas_1k",
+        "participles_1k"
+      ],
+      "file" : "cpython-extending-building.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 616
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "cpython-extending-embedding.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1375
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "cpython-extending-newtypes.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2496
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "repeated_openers",
+        "participles_1k"
+      ],
+      "file" : "cpython-extending-windows.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 723
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "mattr50"
+      ],
+      "file" : "cpython-howto-argparse.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1504
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "cpython-howto-instrumentation.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 540
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k"
+      ],
+      "file" : "cpython-howto-ipaddress.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1126
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "commas_1k"
+      ],
+      "file" : "cpython-howto-sorting.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 689
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "cpython-howto-urllib2.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2012
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "nominalizations_1k"
+      ],
+      "file" : "cpython-reference-executionmodel.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 611
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "ly_adverbs_1k"
+      ],
+      "file" : "cpython-reference-introduction.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 874
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "contractions_1k"
+      ],
+      "file" : "cpython-reference-toplevel-components.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 350
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k"
+      ],
+      "file" : "cpython-tutorial-appendix.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 584
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "mattr50",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "cpython-tutorial-appetite.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 737
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "cpython-tutorial-datastructures.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2039
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "ly_adverbs_1k"
+      ],
+      "file" : "cpython-tutorial-errors.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1664
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k"
+      ],
+      "file" : "cpython-tutorial-floatingpoint.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1479
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "mattr50"
+      ],
+      "file" : "cpython-tutorial-index.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 300
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "mean_word_len"
+      ],
+      "file" : "django-howto-auth-remote-user.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 410
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "cv_sentence_len"
+      ],
+      "file" : "django-howto-custom-file-storage.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 553
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "django-howto-custom-lookups.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1316
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "nominalizations_1k"
+      ],
+      "file" : "django-howto-custom-management-commands.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 735
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "para_words"
+      ],
+      "file" : "django-howto-custom-template-backend.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 372
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "django-howto-error-reporting.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 805
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "para_words"
+      ],
+      "file" : "django-topics-auth-index.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 326
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "django-topics-auth-passwords.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2053
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "k8s-concepts-configuration-configmap.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1170
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "k8s-concepts-configuration-organize-cluster-access-kubeconfig.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 787
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k"
+      ],
+      "file" : "k8s-concepts-configuration-overview.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 816
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "mattr50",
+        "participles_1k",
+        "headings_1k"
+      ],
+      "file" : "k8s-concepts-overview-components.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 498
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "contractions_1k",
+        "triads_1k"
+      ],
+      "file" : "k8s-concepts-overview-kubernetes-api.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 704
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "k8s-concepts-overview-what-is-kubernetes.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 1303
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "k8s-concepts-overview-working-with-objects-annotations.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 454
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "cv_sentence_len"
+      ],
+      "file" : "k8s-concepts-overview-working-with-objects-common-labels.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 414
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "ly_adverbs_1k"
+      ],
+      "file" : "k8s-concepts-overview-working-with-objects-finalizers.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 455
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "k8s-concepts-services-networking-connect-applications-service.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1583
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "k8s-concepts-services-networking-dns-pod-service.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1454
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "contractions_1k",
+        "participles_1k"
+      ],
+      "file" : "k8s-concepts-services-networking-dual-stack.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 1056
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "mean_word_len"
+      ],
+      "file" : "k8s-concepts-services-networking-endpoint-slices.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1295
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "para_words"
+      ],
+      "file" : "k8s-concepts-services-networking-ingress-controllers.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 468
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "em_dashes_1k"
+      ],
+      "file" : "k8s-concepts-services-networking-network-policies.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1901
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "ly_adverbs_1k",
+        "mattr50",
+        "repeated_openers",
+        "triads_1k",
+        "para_words"
+      ],
+      "file" : "apple-cpython-bugs.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 526
+    },
+    {
+      "aiSideCount" : 11,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-distutils-apiref.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 575
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-distutils-builtdist.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 788
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "triads_1k",
+        "participles_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-distutils-configfile.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 532
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "repeated_openers",
+        "triads_1k",
+        "participles_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-distutils-examples.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 315
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "ly_adverbs_1k",
+        "mattr50",
+        "repeated_openers",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k"
+      ],
+      "file" : "apple-cpython-distutils-extending.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 422
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-cpython-distutils-introduction.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 928
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-extending-building.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 518
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-cpython-extending-embedding.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 952
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-cpython-extending-newtypes.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 848
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "repeated_openers",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-extending-windows.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 477
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-howto-argparse.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 685
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "mean_word_len",
+        "ly_adverbs_1k",
+        "mattr50",
+        "contractions_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-cpython-howto-instrumentation.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 537
+    },
+    {
+      "aiSideCount" : 11,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "repeated_openers",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-howto-ipaddress.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 457
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-howto-sorting.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 672
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "mean_word_len",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-cpython-howto-urllib2.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 728
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "repeated_openers",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k"
+      ],
+      "file" : "apple-cpython-reference-executionmodel.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1501
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-django-howto-auth-remote-user.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 455
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "repeated_openers",
+        "commas_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-django-howto-custom-file-storage.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 528
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-django-howto-custom-lookups.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 527
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "mean_word_len",
+        "ly_adverbs_1k",
+        "mattr50",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-django-howto-custom-management-commands.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 356
+    },
+    {
+      "aiSideCount" : 11,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "repeated_openers",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-django-howto-custom-template-backend.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 376
+    },
+    {
+      "aiSideCount" : 11,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "repeated_openers",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-django-howto-error-reporting.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 686
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "mean_word_len",
+        "nominalizations_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-django-topics-auth-index.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 325
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "ly_adverbs_1k",
+        "mattr50",
+        "repeated_openers",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-django-topics-auth-passwords.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 786
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-k8s-concepts-configuration-configmap.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 879
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "contractions_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k"
+      ],
+      "file" : "apple-k8s-concepts-configuration-organize-cluster-access-kubeconfig.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 602
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words"
+      ],
+      "file" : "apple-k8s-concepts-configuration-overview.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 784
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k"
+      ],
+      "file" : "apple-k8s-concepts-overview-components.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 587
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "contractions_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k"
+      ],
+      "file" : "apple-k8s-concepts-overview-kubernetes-api.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 661
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k"
+      ],
+      "file" : "apple-k8s-concepts-overview-what-is-kubernetes.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1460
+    },
+    {
+      "aiSideCount" : 11,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-k8s-concepts-overview-working-with-objects-annotations.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 437
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "ly_adverbs_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "para_words"
+      ],
+      "file" : "apple-k8s-concepts-overview-working-with-objects-common-labels.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 556
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "ly_adverbs_1k",
+        "mattr50",
+        "repeated_openers",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k"
+      ],
+      "file" : "apple-k8s-concepts-overview-working-with-objects-finalizers.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 481
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "para_words"
+      ],
+      "file" : "apple-k8s-concepts-services-networking-connect-applications-service.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 725
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "mattr50",
+        "repeated_openers",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-k8s-concepts-services-networking-dns-pod-service.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 843
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "contractions_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-k8s-concepts-services-networking-dual-stack.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 612
+    },
+    {
+      "aiSideCount" : 11,
+      "aiSideFeatures" : [
+        "mean_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "para_words",
+        "headings_1k"
+      ],
+      "file" : "apple-k8s-concepts-services-networking-endpoint-slices.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 851
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-k8s-concepts-services-networking-ingress-controllers.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 505
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "participles_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-k8s-concepts-services-networking-network-policies.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 883
+    }
+  ],
+  "features" : {
+    "commas_1k" : {
+      "aiMedian" : 57.513563440287584,
+      "auc" : 0.7721354166666666,
+      "humanMedian" : 45.94898086782544,
+      "humanOutsideRate" : 0.22916666666666666
+    },
+    "connective_openers" : {
+      "aiMedian" : 0,
+      "auc" : 0.24453125,
+      "humanMedian" : 3.6165577342047928,
+      "humanOutsideRate" : 0
+    },
+    "contractions_1k" : {
+      "aiMedian" : 2.516026854445875,
+      "auc" : 0.3026041666666667,
+      "humanMedian" : 7.194616977225673,
+      "humanOutsideRate" : 0.10416666666666667
+    },
+    "cv_sentence_len" : {
+      "aiMedian" : 0.4845967210079737,
+      "auc" : 0.3927083333333333,
+      "humanMedian" : 0.505548902824248,
+      "humanOutsideRate" : 0.14583333333333334
+    },
+    "em_dashes_1k" : {
+      "aiMedian" : 4.850184918197204,
+      "auc" : 0.8567708333333334,
+      "humanMedian" : 0,
+      "humanOutsideRate" : 0.041666666666666664
+    },
+    "first_person_1k" : {
+      "aiMedian" : 0,
+      "auc" : 0.509375,
+      "humanMedian" : 0,
+      "humanOutsideRate" : 0.041666666666666664
+    },
+    "headings_1k" : {
+      "aiMedian" : 21.895956106482423,
+      "auc" : 0.94375,
+      "humanMedian" : 6.8950490734963505,
+      "humanOutsideRate" : 0.2916666666666667
+    },
+    "long_words_1k" : {
+      "aiMedian" : 416.64322477936287,
+      "auc" : 0.971875,
+      "humanMedian" : 265.50123191729836,
+      "humanOutsideRate" : 0.125
+    },
+    "ly_adverbs_1k" : {
+      "aiMedian" : 10.789513058802015,
+      "auc" : 0.46822916666666664,
+      "humanMedian" : 10.279493395379813,
+      "humanOutsideRate" : 0.3333333333333333
+    },
+    "mattr50" : {
+      "aiMedian" : 0.8524328784768345,
+      "auc" : 0.9916666666666667,
+      "humanMedian" : 0.7635969269601657,
+      "humanOutsideRate" : 0.25
+    },
+    "mean_sentence_len" : {
+      "aiMedian" : 11.09753466872111,
+      "auc" : 0.07760416666666667,
+      "humanMedian" : 16.77207977207977,
+      "humanOutsideRate" : 0.3541666666666667
+    },
+    "mean_word_len" : {
+      "aiMedian" : 5.8747511343896175,
+      "auc" : 0.9901041666666667,
+      "humanMedian" : 4.883243366846312,
+      "humanOutsideRate" : 0.22916666666666666
+    },
+    "nominalizations_1k" : {
+      "aiMedian" : 82.16686873140085,
+      "auc" : 0.9119791666666667,
+      "humanMedian" : 38.704804213199736,
+      "humanOutsideRate" : 0.1875
+    },
+    "para_words" : {
+      "aiMedian" : 14.283088235294118,
+      "auc" : 0.06666666666666667,
+      "humanMedian" : 34.89830508474576,
+      "humanOutsideRate" : 0.5
+    },
+    "parens_1k" : {
+      "aiMedian" : 5.8900050589000505,
+      "auc" : 0.39401041666666664,
+      "humanMedian" : 7.734178729513101,
+      "humanOutsideRate" : 0.3333333333333333
+    },
+    "participles_1k" : {
+      "aiMedian" : 6.3774127087399695,
+      "auc" : 0.9166666666666666,
+      "humanMedian" : 1.4955331521650015,
+      "humanOutsideRate" : 0.08333333333333333
+    },
+    "passive_1k" : {
+      "aiMedian" : 10.958246680531115,
+      "auc" : 0.3098958333333333,
+      "humanMedian" : 14.928767165347683,
+      "humanOutsideRate" : 0.08333333333333333
+    },
+    "questions_1k" : {
+      "aiMedian" : 0,
+      "auc" : 0.46171875,
+      "humanMedian" : 0,
+      "humanOutsideRate" : 0.10416666666666667
+    },
+    "repeated_openers" : {
+      "aiMedian" : 2.6334026334026333,
+      "auc" : 0.17109375,
+      "humanMedian" : 7.890271493212669,
+      "humanOutsideRate" : 0.16666666666666666
+    },
+    "semicolons_1k" : {
+      "aiMedian" : 0,
+      "auc" : 0.2796875,
+      "humanMedian" : 1.0862299465240643,
+      "humanOutsideRate" : 0.2916666666666667
+    },
+    "triads_1k" : {
+      "aiMedian" : 13.470456838978151,
+      "auc" : 0.9677083333333333,
+      "humanMedian" : 1.0528591242670038,
+      "humanOutsideRate" : 0.125
+    }
+  },
+  "label" : "technical-bands"
+}

@@ -1,0 +1,13 @@
+.build/
+build/
+.swiftpm/
+*.xcodeproj/
+DerivedData/
+.DS_Store
+# Evaluation corpora are fetched, never committed (licensing).
+Evaluation/Corpora/**/*.md
+Evaluation/Corpora/**/*.txt
+Evaluation/Corpora/**/*.tsv
+!Evaluation/Corpora/**/README.md
+Evaluation/Corpora/**/*.part
+__pycache__/

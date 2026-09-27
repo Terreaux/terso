@@ -1,0 +1,15 @@
+Terso
+Copyright (C) 2026 Terso contributors
+
+Terso is free software under the GNU Affero General Public License, version 3
+only (see LICENSE).
+
+Terso uses the same reference-range parameters as Quirón (per-feature human
+percentiles, AI medians, AUCs and directions, in
+Sources/TersoStyle/Resources/bands-*.json). Those parameters are AGPL-3.0 and
+carry this attribution:
+
+    Based on Quirón by ilien
+    https://github.com/ilien-dev/quiron
+
+All code, including the feature implementations, is Terso's own.

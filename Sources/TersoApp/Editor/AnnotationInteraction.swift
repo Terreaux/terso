@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+import AppKit
+import SwiftUI
+import TersoCore
+
+extension EditorCoordinator {
+    /// Hover: stronger underline plus a small tooltip. Never opens UI.
+    func handleHover(at index: Int?) {
+        let cluster = index.flatMap { i in clusters.first { $0.contains(i) } }
+        guard cluster?.id != model.hoveredClusterID else { return }
+        model.hoveredClusterID = cluster?.id
+        textView?.toolTip = cluster.map { c in
+            let names = c.annotationIDs.compactMap { model.annotation(id: $0)?.message }
+            let unique = names.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
+            return unique.joined(separator: " · ") + " — click to review"
+        }
+        applyHighlights()
+    }
+
+    /// Click on a finding: select it everywhere. With the inspector open the
+    /// Review list follows; otherwise a compact card appears at the text.
+    func handleClick(at index: Int) {
+        let inCluster = clusters.contains { $0.contains(index) }
+        let candidates = model.drawnAnnotations.filter { !AnnotationLayout.isBlockLevel($0) }
+        let scienceCandidates = model.inspectorTab == .science ? candidates.filter { $0.metadata["scienceDiagnosticID"] != nil } : []
+        guard inCluster, let hit = AnnotationLayout.primary(at: index, in: scienceCandidates)
+                ?? AnnotationLayout.primary(at: index, in: candidates) else {
+            popover?.close()
+            // Placing the caret elsewhere clears the selection, except while
+            // stepping through Focused Review.
+            if model.activeAnnotationID != nil, !model.focusedReview { model.select(nil, reveal: false) }
+            return
+        }
+        if model.showInspector, model.inspectorTab == .science,
+           model.selectScienceAnnotation(hit, reveal: false) {
+            popover?.close()
+            return
+        }
+        model.select(hit, reveal: false)
+        if model.showInspector {
+            model.inspectorTab = hit.category == .aiSuggestion && model.review.isReviewMode ? .ai : .review
+            popover?.close()
+        } else {
+            showPopover(for: hit, at: index)
+        }
+    }
+
+    /// Keyboard route to the finding at the caret (⌘').
+    func explainAtCaret() {
+        guard let tv = textView else { return }
+        let loc = tv.selectedRange().location
+        let candidates = model.visibleAnnotations.filter { !AnnotationLayout.isBlockLevel($0) }
+        let hit = AnnotationLayout.primary(at: loc, in: candidates) ?? (loc > 0 ? AnnotationLayout.primary(at: loc - 1, in: candidates) : nil)
+        guard let hit else { NSSound.beep(); return }
+        if model.showInspector, model.inspectorTab == .science,
+           model.selectScienceAnnotation(hit, reveal: false) { return }
+        model.select(hit, reveal: false)
+        if model.showInspector { model.inspectorTab = .review } else { showPopover(for: hit, at: hit.ranges.first?.location ?? loc) }
+    }
+
+    func showPopover(for annotation: TextAnnotation, at index: Int) {
+        guard let tv = textView, let lm = tv.layoutManager, let container = tv.textContainer else { return }
+        popover?.close()
+        let g = lm.glyphRange(forCharacterRange: NSRange(location: index, length: 1), actualCharacterRange: nil)
+        var rect = lm.boundingRect(forGlyphRange: g, in: container)
+        rect.origin.x += tv.textContainerOrigin.x
+        rect.origin.y += tv.textContainerOrigin.y
+        let p = NSPopover()
+        p.behavior = .transient
+        p.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        let close: () -> Void = { [weak p] in p?.close() }
+        p.contentViewController = NSHostingController(rootView: AnnotationCard(annotation: annotation, model: model, close: close))
+        p.show(relativeTo: rect, of: tv, preferredEdge: .maxY)
+        popover = p
+    }
+}
