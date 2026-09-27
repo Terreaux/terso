@@ -142,32 +142,39 @@ struct ScienceInspector: View {
     private func diagnosticRow(_ diagnostic: ScientificDiagnostic, science: ScientificDocumentModel, expanded: Bool) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Button { model.selectScienceDiagnostic(diagnostic) } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 7) {
-                    Circle().fill(diagnostic.severity == .info ? Color.secondary : Color(nsColor: HighlightStyle.color(.writing)).opacity(0.85))
-                        .frame(width: 5, height: 5).accessibilityHidden(true)
-                    Text(diagnostic.title).fontWeight(.medium).multilineTextAlignment(.leading)
-                }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        Circle().fill(diagnostic.severity == .info ? Color.secondary : Color(nsColor: HighlightStyle.color(.writing)).opacity(0.85))
+                            .frame(width: 5, height: 5).accessibilityHidden(true)
+                        ScienceText(diagnosticTitle(diagnostic)).font(.system(size: 12, weight: .medium))
+                    }
+                    ScienceText(model.editor?.currentSnapshot.substring(diagnostic.sourceRange) ?? "",
+                                math: science.symbols.contains { $0.occurrences.contains(diagnostic.sourceRange) }
+                                    || science.quantities.contains { $0.sourceRange == diagnostic.sourceRange })
+                        .foregroundStyle(.secondary)
+                    ScienceText(diagnosticExplanation(diagnostic, science: science))
+                        .font(.caption).foregroundStyle(.secondary)
+                }.multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain)
-            Text(model.editor?.currentSnapshot.substring(diagnostic.sourceRange) ?? "")
-                .lineLimit(expanded ? 4 : 2).foregroundStyle(.secondary)
             if expanded {
-                Text(diagnostic.explanation).fixedSize(horizontal: false, vertical: true)
                 Text("\(diagnostic.severity.rawValue.capitalized) · \(diagnostic.confidence.rawValue.capitalized) confidence")
                     .font(.caption).foregroundStyle(.secondary)
                 ForEach(diagnostic.relatedObjectIDs, id: \.self) { id in
                     if let node = science.nodes.first(where: { $0.id == id }) {
-                        Button("\(node.kind): \(node.title) · \(sourceLocation(node.sourceRange))") { open(node) }
-                            .buttonStyle(.borderless).lineLimit(2)
+                        Button { open(node) } label: {
+                            VStack(alignment: .leading, spacing: 3) {
+                                ScienceText(node.title, math: isMath(node, science: science))
+                                Text("\(node.kind) · \(sourceLocation(node.sourceRange))").foregroundStyle(.secondary)
+                            }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                        }.buttonStyle(.plain)
                     }
                 }
             }
-            if !expanded {
-                Text(diagnostic.explanation).lineLimit(2).font(.caption).foregroundStyle(.secondary)
+            if expanded {
+                Button("Ignore warning") { model.ignoreScienceDiagnostic(diagnostic) }
+                    .buttonStyle(.borderless).font(.caption)
             }
-            HStack(spacing: 14) {
-                Button("Go to text") { model.selectScienceDiagnostic(diagnostic) }.buttonStyle(.borderless)
-                if expanded { Button("Ignore warning") { model.ignoreScienceDiagnostic(diagnostic) }.buttonStyle(.borderless) }
-            }.font(.caption)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 6)
@@ -215,19 +222,22 @@ private extension ScienceInspector {
         ForEach(items) { node in
             VStack(alignment: .leading, spacing: 8) {
                 Button { model.navigateScience(objectID: node.id, range: node.sourceRange) } label: {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(node.title).fontWeight(.medium).lineLimit(model.selectedScienceObjectID == node.id ? nil : 3).multilineTextAlignment(.leading)
-                        Spacer(minLength: 4)
-                        if model.selectedScienceObjectID != node.id { Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary) }
+                    VStack(alignment: .leading, spacing: 5) {
+                        HStack(alignment: .firstTextBaseline) {
+                            ScienceText(node.title, math: isMath(node, science: science)).font(.system(size: 12, weight: .medium)).multilineTextAlignment(.leading)
+                            Spacer(minLength: 4)
+                            if model.selectedScienceObjectID != node.id { Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary) }
+                        }
+                        if let symbol = science.symbols.first(where: { node.id == "symbol:\($0.id)" }) {
+                            Text("\(symbol.usageCount) occurrences · \(definitionLabel(science.definitionStatus(for: symbol)))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text(node.kind).font(.caption).foregroundStyle(.secondary)
+                        }
                     }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
                 }.buttonStyle(.plain)
                 if model.selectedScienceObjectID == node.id {
                     objectDetail(node, science: science)
-                } else if let symbol = science.symbols.first(where: { node.id == "symbol:\($0.id)" }) {
-                    Text("\(symbol.usageCount) occurrences · \(definitionLabel(science.definitionStatus(for: symbol)))")
-                        .font(.caption).foregroundStyle(.secondary)
-                } else {
-                    Text(node.kind).font(.caption).foregroundStyle(.secondary)
                 }
             }
             .padding(9)
@@ -242,13 +252,13 @@ private extension ScienceInspector {
             Text("\(symbol.symbolType.rawValue.capitalized) · \(symbol.confidence.rawValue.capitalized) confidence")
                 .font(.caption).foregroundStyle(.secondary)
             Text(definitionLabel(science.definitionStatus(for: symbol))).font(.caption)
-            if let meaning = symbol.meaning { Text(meaning).fixedSize(horizontal: false, vertical: true) }
+            if let meaning = symbol.meaning { ScienceText(meaning).fixedSize(horizontal: false, vertical: true) }
             occurrenceActions(node, ranges: symbol.occurrences)
             if let definition = symbol.definitions.first {
                 Button("Go to definition") { model.navigateScience(objectID: node.id, range: definition) }.buttonStyle(.borderless)
             }
         } else if let definition = science.definitions.first(where: { $0.id == node.id }) {
-            Text(definition.text).fixedSize(horizontal: false, vertical: true)
+            ScienceText(definition.text).fixedSize(horizontal: false, vertical: true)
             Text(definition.usedBeforeDefinition ? "Used before this definition" : "Explicit definition detected")
                 .font(.caption).foregroundStyle(.secondary)
             occurrenceActions(node, ranges: definition.usages)
@@ -260,11 +270,11 @@ private extension ScienceInspector {
             let metadata = science.quantityMetadata(for: quantity)
             property("Unit family", metadata.unitDimension ?? "Unknown")
             property("Nearby citations", "\(metadata.nearbyCitationIDs.count)")
-            if let meaning = metadata.semanticMeaning { Text(meaning).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            if let meaning = metadata.semanticMeaning { ScienceText(meaning).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
             occurrenceActions(node, ranges: metadata.occurrences)
-            Text(quantity.context).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            ScienceText(quantity.context).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         } else if let equation = science.equations.first(where: { $0.id == node.id }) {
-            Text(equation.contents).font(.system(size: 11, design: .monospaced)).textSelection(.enabled)
+            ScienceText(equation.contents, math: true)
                 .fixedSize(horizontal: false, vertical: true)
             property("Label", equation.label ?? "Unlabeled")
             property("References", "\(equation.references.count)")
@@ -272,7 +282,7 @@ private extension ScienceInspector {
                 if let symbol = science.symbols.first(where: { "symbol:\($0.id)" == symbolID }),
                    let symbolNode = science.node(id: symbolID) {
                     Button { open(symbolNode) } label: {
-                        Text("\(symbol.displayForm) · \(definitionLabel(science.definitionStatus(for: symbol)))")
+                        ScienceText("$\(symbol.displayForm)$ · \(definitionLabel(science.definitionStatus(for: symbol)))")
                             .multilineTextAlignment(.leading)
                     }.buttonStyle(.borderless).font(.caption)
                 }
@@ -301,13 +311,11 @@ private extension ScienceInspector {
         let warnings = model.scienceDiagnostics.filter { $0.relatedObjectIDs.contains(where: relatedIDs.contains) }
         ForEach(warnings) { diagnostic in
             Button { model.selectScienceDiagnostic(diagnostic) } label: {
-                Text(diagnostic.title).multilineTextAlignment(.leading)
+                ScienceText(diagnosticTitle(diagnostic)).multilineTextAlignment(.leading)
             }.buttonStyle(.borderless)
         }
-        HStack(spacing: 12) {
-            Button("Go to text") { model.navigateScience(objectID: node.id, range: node.sourceRange) }
-            Button("Relationships") { model.scienceDetailSection = "Scientific Map" }
-        }.buttonStyle(.borderless).font(.caption)
+        Button("Relationships") { model.scienceDetailSection = "Scientific Map" }
+            .buttonStyle(.borderless).font(.caption)
     }
 
     func claimDetail(_ claim: ScientificClaim) -> some View {
@@ -330,7 +338,7 @@ private extension ScienceInspector {
         HStack(alignment: .firstTextBaseline) {
             Text(name).foregroundStyle(.secondary)
             Spacer(minLength: 8)
-            Text(value).multilineTextAlignment(.trailing)
+            ScienceText(value, math: (name == "Symbol" && value != "Not linked") || (name == "Unit" && value.contains("\\"))).multilineTextAlignment(.trailing)
         }.font(.caption)
     }
 
@@ -352,8 +360,11 @@ private extension ScienceInspector {
             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         if let selected = science.nodes.first(where: { $0.id == model.selectedScienceObjectID }) {
             SectionLabel(selected.kind)
-            Text(selected.title).fontWeight(.medium).fixedSize(horizontal: false, vertical: true)
-            Button("Go to text") { model.navigateScience(objectID: selected.id, range: selected.sourceRange) }.buttonStyle(.borderless)
+            Button { model.navigateScience(objectID: selected.id, range: selected.sourceRange) } label: {
+                ScienceText(selected.title, math: isMath(selected, science: science))
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain)
             let links = science.relationships.filter { $0.sourceID == selected.id || $0.targetID == selected.id }
             if links.isEmpty { empty("No explicit relationships detected for this object.") }
             ForEach(links) { link in
@@ -362,7 +373,7 @@ private extension ScienceInspector {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(relationshipLabel(link.kind, outgoing: outgoing)).font(.caption).foregroundStyle(.secondary)
                         Button { model.navigateScience(objectID: other.id, range: other.sourceRange) } label: {
-                            Text(other.title).lineLimit(3).multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
+                            ScienceText(other.title, math: isMath(other, science: science)).multilineTextAlignment(.leading).frame(maxWidth: .infinity, alignment: .leading)
                         }.buttonStyle(.plain)
                     }.padding(.vertical, 5)
                 }
@@ -376,11 +387,29 @@ private extension ScienceInspector {
                 Button { model.navigateScience(objectID: node.id, range: node.sourceRange) } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(node.kind).font(.caption).foregroundStyle(.secondary)
-                        Text(node.title).lineLimit(3).multilineTextAlignment(.leading)
+                        ScienceText(node.title, math: isMath(node, science: science)).multilineTextAlignment(.leading)
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.buttonStyle(.plain)
             }
         }
+    }
+
+    func diagnosticExplanation(_ diagnostic: ScientificDiagnostic, science: ScientificDocumentModel) -> String {
+        guard diagnostic.id.hasPrefix("science.notation.variants:"),
+              let separator = diagnostic.explanation.range(of: ": ") else { return diagnostic.explanation }
+        let forms = science.symbols.filter { diagnostic.relatedObjectIDs.contains("symbol:\($0.id)") }
+            .map { "$\($0.displayForm)$" }.joined(separator: ", ")
+        return forms + diagnostic.explanation[separator.lowerBound...]
+    }
+
+    func diagnosticTitle(_ diagnostic: ScientificDiagnostic) -> String {
+        guard [.notation, .definitions, .quantities].contains(diagnostic.category),
+              let separator = diagnostic.title.range(of: ": ", options: .backwards) else { return diagnostic.title }
+        return String(diagnostic.title[..<separator.upperBound]) + "$" + diagnostic.title[separator.upperBound...] + "$"
+    }
+
+    func isMath(_ node: ScientificNode, science: ScientificDocumentModel) -> Bool {
+        (node.kind == "Notation" || node.kind == "Quantity") || science.definitions.contains { $0.id == node.id && $0.symbolID.hasPrefix("symbol:") }
     }
 
     func open(_ node: ScientificNode) {
