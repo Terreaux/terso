@@ -4,8 +4,13 @@ Terso keeps its SwiftUI `DocumentGroup` / `FileDocument` architecture. Each
 Markdown or text document has a distinct system document window, editor and
 `WorkspaceModel`. `DocumentTabbing` configures only those windows with the shared
 `org.terso.document` tabbing identifier and AppKit's `.preferred` mode before
-ordering. New/Open normally join the current document tab group. Settings is
-excluded. There is no custom tab bar, window controller, delegate replacement,
+ordering. On first presentation, it also explicitly joins the frontmost eligible
+document window if AppKit has not already placed it in a tab group. This covers
+SwiftUI attaching the configuration view after automatic tab placement. New/Open
+therefore prefer an existing document tab group; with no eligible window they
+open a standalone window. Settings, minimized windows and windows showing a
+sheet are excluded. Grouping runs only once, so manually detached tabs stay
+detached when selected again. There is no custom tab bar, window controller, delegate replacement,
 close interception or session database.
 
 AppKit owns tab selection, drag detachment, merging, titles and Window commands.
