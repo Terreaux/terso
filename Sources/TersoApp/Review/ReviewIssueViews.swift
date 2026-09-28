@@ -251,6 +251,11 @@ struct FindingDetail: View {
                 .font(.caption)
                 .disabled(finding.revision != model.revision)
             }
+            if finding.category == .repetition {
+                Button("Alternatives…") { model.showAlternatives(for: finding, occurrence: occurrenceIndex) }
+                    .disabled(finding.revision != model.revision)
+                    .help("Look up offline synonyms for this occurrence")
+            }
             aiStatus
             actions
         }

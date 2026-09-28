@@ -41,6 +41,7 @@ struct DocumentWindow: View {
                     .help("Show or hide the inspector")
             }
         }
+        .sheet(item: $model.thesaurusRequest) { ThesaurusView(model: model, request: $0) }
         .sheet(isPresented: $model.showAskPanel) { AskPanel(model: model) }
         .focusedSceneValue(\.workspace, model)
         .onAppear { model.fileURL = fileURL }

@@ -124,6 +124,7 @@ final class WorkspaceModel {
     var showAskPanel = false
     var mapMarkers: [MapMarker] = []
 
+    var thesaurusRequest: ThesaurusRequest?
     let review = SuggestionReview()
     var exchanges: [AIExchange] = []
     private(set) var issueRequests: [String: IssueRequest] = [:]

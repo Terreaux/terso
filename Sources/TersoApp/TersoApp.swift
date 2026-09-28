@@ -62,6 +62,10 @@ struct TersoCommands: Commands {
             Divider()
         }
         CommandMenu("Writing") {
+            Button("Alternatives for Selection…") { model?.showAlternatives() }
+                .keyboardShortcut("t", modifiers: [.command, .option])
+                .disabled(model == nil)
+            Divider()
             Button(model?.focusedReview == true ? "End Review" : "Review Writing") {
                 if model?.focusedReview == true { model?.endFocusedReview() } else { model?.startFocusedReview() }
             }
