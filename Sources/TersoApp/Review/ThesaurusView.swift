@@ -36,7 +36,7 @@ extension WorkspaceModel {
             return "The text changed. Close this window and look up the word again."
         }
         let proposal = WritingSuggestion(documentRevision: request.snapshot.revision, anchor: anchor,
-            proposedText: word, explanation: nil, kind: "synonym", provider: ProviderID("local.wordnet"))
+            proposedText: word, explanation: nil, kind: "synonym", provider: ProviderID("local.thesaurus"))
         let gate = SuggestionReview()
         gate.add([proposal])
         do {
@@ -55,77 +55,132 @@ struct ThesaurusView: View {
     let request: ThesaurusRequest
     @Environment(\.dismiss) private var dismiss
     @State private var senses: [ThesaurusSense] = []
+    @State private var meaningID = ""
+    @State private var expanded = false
     @State private var selected: String?
     @State private var loading = true
     @State private var error: String?
 
+    private var sense: ThesaurusSense? { senses.first { $0.id == meaningID } ?? senses.first }
+    private var alternatives: [String] {
+        Array(NSOrderedSet(array: sense?.alternatives(for: request.original) ?? [])) as? [String] ?? []
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Alternatives").font(.title2.bold())
-            Text(request.isValid ? "“\(request.original)” · Offline thesaurus" : "Select a word or a short phrase in the editor, then choose Alternatives.")
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Alternatives for “\(request.original)”").font(.headline).lineLimit(2)
+                Spacer()
+                Text("Offline").font(.caption).foregroundStyle(.secondary)
+                    .help("Writing alternatives selected for Terso, with WordNet 3.0 for other entries. Alternatives can change nuance; check the preview.")
+            }
             if request.isValid {
-                Text("Choose the intended meaning. Technical terms may be best left unchanged.")
-                    .font(.callout).foregroundStyle(.secondary)
-                if loading { ProgressView("Looking up meanings…") }
+                if loading { ProgressView("Finding alternatives…") }
                 else if senses.isEmpty && error == nil {
-                    Text("No alternatives in the bundled dictionary. Try the base form of a word or a shorter phrase.")
-                        .padding(.vertical)
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            ForEach(senses) { sense in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(sense.partOfSpeech.capitalized).font(.caption).foregroundStyle(.secondary)
-                                    Text(sense.definition).font(.callout).textSelection(.enabled)
-                                    // A vertical list stays readable for long multiword alternatives.
-                                    ForEach(sense.alternatives(for: request.original), id: \.self) { word in
-                                        Button { selected = word } label: {
-                                            HStack {
-                                                Image(systemName: selected == word ? "checkmark.circle.fill" : "circle")
-                                                Text(word)
-                                            }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
-                                        }.buttonStyle(.plain).padding(.vertical, 2)
-                                            .accessibilityLabel("Preview \(word)")
-                                    }
-                                }
-                                Divider()
+                    Text("No alternatives found. Try Look Up in macOS or select a shorter phrase.")
+                        .foregroundStyle(.secondary)
+                } else if let sense {
+                    if senses.count > 1 {
+                        Picker("Meaning", selection: $meaningID) {
+                            ForEach(senses) { item in
+                                Text("\(item.partOfSpeech.capitalized) · \(item.meaning)").tag(item.id)
                             }
-                        }.padding(.trailing, 8)
+                        }.labelsHidden().help(sense.definition)
+                    } else {
+                        Text(sense.meaning).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 8) {
+                            ForEach(Array(alternatives.prefix(expanded ? alternatives.count : 6)), id: \.self) { word in
+                                Button { selected = word } label: {
+                                    HStack {
+                                        Text(word).multilineTextAlignment(.leading)
+                                        Spacer(minLength: 0)
+                                        if selected == word { Image(systemName: "checkmark") }
+                                    }
+                                    .padding(.horizontal, 10).padding(.vertical, 8)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(selected == word ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
+                                    .contentShape(Rectangle())
+                                }.buttonStyle(.plain).accessibilityLabel("Preview \(word)")
+                                    .accessibilityAddTraits(selected == word ? .isSelected : [])
+                            }
+                        }
+                    }.frame(maxHeight: 160)
+                    if alternatives.count > 6 {
+                        Button(expanded ? "Show fewer" : "More alternatives") { expanded.toggle() }
+                            .buttonStyle(.link).font(.callout)
                     }
                 }
+                Divider()
+                Text(selected == nil ? "Choose a word to preview the change." : "Preview · this occurrence only")
+                    .font(.caption).foregroundStyle(.secondary)
                 if let selected {
-                    Divider()
-                    Text("Preview · this occurrence only").font(.caption).foregroundStyle(.secondary)
                     ChangeView(original: preview.original, proposed: preview.proposed(selected))
+                } else {
+                    Text(preview.original).font(.system(size: 13, design: .serif)).foregroundStyle(.secondary)
                 }
+            } else {
+                Text("Select a word or a short phrase in the editor, then choose Alternatives.")
+                    .foregroundStyle(.secondary)
             }
             if let error { Text(error).foregroundStyle(.orange).font(.callout) }
+            if model.revision != request.snapshot.revision {
+                Text("The document changed. Close and reopen Alternatives.").font(.caption).foregroundStyle(.orange)
+            }
+            Spacer(minLength: 0)
             HStack {
-                Link("WordNet 3.0 · Princeton University", destination: URL(string: "https://wordnet.princeton.edu/")!)
-                    .font(.caption)
+                if request.isValid { SystemDictionaryButton(term: request.original).fixedSize() }
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
-                Button("Replace This Occurrence") {
+                Button("Replace") {
                     guard let selected else { return }
                     error = model.replaceAlternative(selected, request: request)
                     if error == nil { dismiss() }
                 }.keyboardShortcut(.defaultAction).disabled(selected == nil || model.revision != request.snapshot.revision)
-            }
-            if model.revision != request.snapshot.revision {
-                Text("The document changed. Close and reopen Alternatives.").font(.caption).foregroundStyle(.orange)
+                    .help("Replace only this occurrence. Undo restores it.")
             }
         }
-        .padding(20).frame(width: 560, height: 570)
+        .padding(20).frame(width: 500, height: 420)
+        .onChange(of: meaningID) { selected = nil; expanded = false }
         .task {
             defer { loading = false }
             guard request.isValid else { return }
-            do { senses = try await OfflineThesaurus.shared.lookup(request.original) }
-            catch { self.error = "The bundled dictionary could not be loaded." }
+            do {
+                senses = try await OfflineThesaurus.shared.lookup(request.original)
+                meaningID = senses.first?.id ?? ""
+            } catch { self.error = "The bundled dictionary could not be loaded." }
         }
     }
 
     private var preview: AlternativePreview { AlternativePreview(request: request) }
+}
+
+/// Uses Apple's public Look Up presentation; dictionary content stays in the
+/// native reference UI and is never parsed or presented as replacement data.
+struct SystemDictionaryButton: NSViewRepresentable {
+    let term: String
+    func makeNSView(context: Context) -> LookupButton { LookupButton() }
+    func updateNSView(_ button: LookupButton, context: Context) { button.term = term }
+
+    final class LookupButton: NSButton {
+        var term = ""
+        init() {
+            super.init(frame: .zero)
+            title = "Look Up in macOS"
+            bezelStyle = .inline
+            isBordered = false
+            font = .systemFont(ofSize: 12)
+            contentTintColor = .linkColor
+            target = self
+            action = #selector(lookUp)
+            toolTip = "Open the system dictionary. Available references depend on your macOS dictionaries."
+        }
+        required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+        @objc private func lookUp() {
+            showDefinition(for: NSAttributedString(string: term), at: NSPoint(x: bounds.minX, y: bounds.maxY))
+        }
+    }
 }
 
 /// Bounded surrounding text, using NSString offsets like the editor.

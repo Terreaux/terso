@@ -19,7 +19,7 @@ let package = Package(
         .target(name: "TersoCore"),
 
         // Deterministic local writing analysis (readability, style, complexity).
-        .target(name: "TersoAnalysis", dependencies: ["TersoCore"], resources: [.copy("Resources/WordNet")]),
+        .target(name: "TersoAnalysis", dependencies: ["TersoCore"], resources: [.copy("Resources/WordNet"), .copy("Resources/WritingAlternatives.json")]),
 
         // Statistical style engine: features, human reference bands, AI-style
         // signals, specificity.

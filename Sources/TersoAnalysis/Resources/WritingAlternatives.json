@@ -1,0 +1,1112 @@
+{
+  "explain": [
+    {
+      "id": "writing.explain.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something understandable",
+      "words": [
+        "explain",
+        "clarify",
+        "describe",
+        "illustrate",
+        "spell out",
+        "elucidate",
+        "expound"
+      ]
+    },
+    {
+      "id": "writing.explain.1",
+      "partOfSpeech": "verb",
+      "definition": "Give a reason",
+      "words": [
+        "explain",
+        "account for",
+        "justify"
+      ]
+    }
+  ],
+  "describe": [
+    {
+      "id": "writing.describe.0",
+      "partOfSpeech": "verb",
+      "definition": "Give an account of something",
+      "words": [
+        "describe",
+        "depict",
+        "portray",
+        "outline",
+        "detail",
+        "characterize",
+        "recount"
+      ]
+    }
+  ],
+  "clarify": [
+    {
+      "id": "writing.clarify.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something clearer",
+      "words": [
+        "clarify",
+        "explain",
+        "elucidate",
+        "spell out",
+        "clear up"
+      ]
+    }
+  ],
+  "show": [
+    {
+      "id": "writing.show.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something visible",
+      "words": [
+        "show",
+        "display",
+        "reveal",
+        "present",
+        "exhibit",
+        "depict",
+        "illustrate"
+      ]
+    },
+    {
+      "id": "writing.show.1",
+      "partOfSpeech": "verb",
+      "definition": "Establish that something is true",
+      "words": [
+        "show",
+        "demonstrate",
+        "establish",
+        "indicate",
+        "suggest",
+        "confirm"
+      ]
+    }
+  ],
+  "demonstrate": [
+    {
+      "id": "writing.demonstrate.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something clear or evident",
+      "words": [
+        "demonstrate",
+        "show",
+        "illustrate",
+        "establish",
+        "exhibit"
+      ]
+    }
+  ],
+  "suggest": [
+    {
+      "id": "writing.suggest.0",
+      "partOfSpeech": "verb",
+      "definition": "Put forward an idea",
+      "words": [
+        "suggest",
+        "propose",
+        "recommend",
+        "offer",
+        "advise"
+      ]
+    },
+    {
+      "id": "writing.suggest.1",
+      "partOfSpeech": "verb",
+      "definition": "Point toward a possibility",
+      "words": [
+        "suggest",
+        "indicate",
+        "imply",
+        "hint at"
+      ]
+    }
+  ],
+  "indicate": [
+    {
+      "id": "writing.indicate.0",
+      "partOfSpeech": "verb",
+      "definition": "Point out or signal",
+      "words": [
+        "indicate",
+        "show",
+        "signal",
+        "suggest",
+        "denote",
+        "point to"
+      ]
+    }
+  ],
+  "use": [
+    {
+      "id": "writing.use.0",
+      "partOfSpeech": "verb",
+      "definition": "Put something to work",
+      "words": [
+        "use",
+        "employ",
+        "apply",
+        "utilize",
+        "draw on"
+      ]
+    }
+  ],
+  "utilize": [
+    {
+      "id": "writing.utilize.0",
+      "partOfSpeech": "verb",
+      "definition": "Put something to work",
+      "words": [
+        "utilize",
+        "use",
+        "employ",
+        "apply"
+      ]
+    }
+  ],
+  "provide": [
+    {
+      "id": "writing.provide.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something available",
+      "words": [
+        "provide",
+        "supply",
+        "offer",
+        "give",
+        "furnish"
+      ]
+    }
+  ],
+  "improve": [
+    {
+      "id": "writing.improve.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something better",
+      "words": [
+        "improve",
+        "enhance",
+        "refine",
+        "strengthen",
+        "develop"
+      ]
+    }
+  ],
+  "change": [
+    {
+      "id": "writing.change.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something different",
+      "words": [
+        "change",
+        "alter",
+        "modify",
+        "adjust",
+        "revise",
+        "transform"
+      ]
+    }
+  ],
+  "develop": [
+    {
+      "id": "writing.develop.0",
+      "partOfSpeech": "verb",
+      "definition": "Build or improve something over time",
+      "words": [
+        "develop",
+        "create",
+        "build",
+        "refine",
+        "expand",
+        "advance"
+      ]
+    }
+  ],
+  "create": [
+    {
+      "id": "writing.create.0",
+      "partOfSpeech": "verb",
+      "definition": "Bring something into existence",
+      "words": [
+        "create",
+        "make",
+        "produce",
+        "build",
+        "generate",
+        "form"
+      ]
+    }
+  ],
+  "consider": [
+    {
+      "id": "writing.consider.0",
+      "partOfSpeech": "verb",
+      "definition": "Think about carefully",
+      "words": [
+        "consider",
+        "examine",
+        "weigh",
+        "reflect on",
+        "assess",
+        "review"
+      ]
+    }
+  ],
+  "discuss": [
+    {
+      "id": "writing.discuss.0",
+      "partOfSpeech": "verb",
+      "definition": "Talk or write about",
+      "words": [
+        "discuss",
+        "address",
+        "examine",
+        "explore",
+        "review",
+        "debate"
+      ]
+    }
+  ],
+  "analyze": [
+    {
+      "id": "writing.analyze.0",
+      "partOfSpeech": "verb",
+      "definition": "Examine in detail",
+      "words": [
+        "analyze",
+        "examine",
+        "investigate",
+        "study",
+        "assess",
+        "evaluate"
+      ]
+    }
+  ],
+  "understand": [
+    {
+      "id": "writing.understand.0",
+      "partOfSpeech": "verb",
+      "definition": "Grasp the meaning",
+      "words": [
+        "understand",
+        "comprehend",
+        "grasp",
+        "follow",
+        "recognize"
+      ]
+    }
+  ],
+  "find": [
+    {
+      "id": "writing.find.0",
+      "partOfSpeech": "verb",
+      "definition": "Come upon or establish",
+      "words": [
+        "find",
+        "discover",
+        "identify",
+        "locate",
+        "detect",
+        "determine"
+      ]
+    }
+  ],
+  "support": [
+    {
+      "id": "writing.support.0",
+      "partOfSpeech": "verb",
+      "definition": "Give evidence or justification",
+      "words": [
+        "support",
+        "substantiate",
+        "corroborate",
+        "reinforce",
+        "back"
+      ]
+    },
+    {
+      "id": "writing.support.1",
+      "partOfSpeech": "verb",
+      "definition": "Give help",
+      "words": [
+        "support",
+        "assist",
+        "help",
+        "sustain",
+        "aid"
+      ]
+    }
+  ],
+  "help": [
+    {
+      "id": "writing.help.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something easier",
+      "words": [
+        "help",
+        "assist",
+        "aid",
+        "facilitate",
+        "support"
+      ]
+    }
+  ],
+  "require": [
+    {
+      "id": "writing.require.0",
+      "partOfSpeech": "verb",
+      "definition": "Make necessary",
+      "words": [
+        "require",
+        "need",
+        "demand",
+        "necessitate",
+        "call for"
+      ]
+    }
+  ],
+  "ensure": [
+    {
+      "id": "writing.ensure.0",
+      "partOfSpeech": "verb",
+      "definition": "Make certain",
+      "words": [
+        "ensure",
+        "secure",
+        "guarantee",
+        "make sure of"
+      ]
+    }
+  ],
+  "include": [
+    {
+      "id": "writing.include.0",
+      "partOfSpeech": "verb",
+      "definition": "Contain as a part",
+      "words": [
+        "include",
+        "contain",
+        "incorporate",
+        "encompass",
+        "comprise"
+      ]
+    }
+  ],
+  "increase": [
+    {
+      "id": "writing.increase.0",
+      "partOfSpeech": "verb",
+      "definition": "Make greater",
+      "words": [
+        "increase",
+        "raise",
+        "expand",
+        "boost",
+        "grow",
+        "amplify"
+      ]
+    }
+  ],
+  "decrease": [
+    {
+      "id": "writing.decrease.0",
+      "partOfSpeech": "verb",
+      "definition": "Make smaller",
+      "words": [
+        "decrease",
+        "reduce",
+        "lower",
+        "diminish",
+        "lessen"
+      ]
+    }
+  ],
+  "reduce": [
+    {
+      "id": "writing.reduce.0",
+      "partOfSpeech": "verb",
+      "definition": "Make smaller",
+      "words": [
+        "reduce",
+        "decrease",
+        "lower",
+        "diminish",
+        "lessen",
+        "cut"
+      ]
+    }
+  ],
+  "important": [
+    {
+      "id": "writing.important.0",
+      "partOfSpeech": "adjective",
+      "definition": "Having significance",
+      "words": [
+        "important",
+        "significant",
+        "notable",
+        "consequential",
+        "meaningful",
+        "substantial"
+      ]
+    },
+    {
+      "id": "writing.important.1",
+      "partOfSpeech": "adjective",
+      "definition": "Central to the purpose",
+      "words": [
+        "important",
+        "key",
+        "essential",
+        "crucial",
+        "central",
+        "vital",
+        "fundamental"
+      ]
+    }
+  ],
+  "significant": [
+    {
+      "id": "writing.significant.0",
+      "partOfSpeech": "adjective",
+      "definition": "Worth attention",
+      "words": [
+        "significant",
+        "notable",
+        "substantial",
+        "meaningful",
+        "important",
+        "considerable"
+      ]
+    }
+  ],
+  "different": [
+    {
+      "id": "writing.different.0",
+      "partOfSpeech": "adjective",
+      "definition": "Not the same",
+      "words": [
+        "different",
+        "distinct",
+        "dissimilar",
+        "unlike",
+        "contrasting"
+      ]
+    }
+  ],
+  "similar": [
+    {
+      "id": "writing.similar.0",
+      "partOfSpeech": "adjective",
+      "definition": "Having things in common",
+      "words": [
+        "similar",
+        "comparable",
+        "alike",
+        "analogous",
+        "related"
+      ]
+    }
+  ],
+  "clear": [
+    {
+      "id": "writing.clear.0",
+      "partOfSpeech": "adjective",
+      "definition": "Easy to understand",
+      "words": [
+        "clear",
+        "plain",
+        "explicit",
+        "understandable",
+        "unambiguous",
+        "lucid"
+      ]
+    },
+    {
+      "id": "writing.clear.1",
+      "partOfSpeech": "adjective",
+      "definition": "Easy to see",
+      "words": [
+        "clear",
+        "evident",
+        "apparent",
+        "obvious",
+        "distinct"
+      ]
+    }
+  ],
+  "simple": [
+    {
+      "id": "writing.simple.0",
+      "partOfSpeech": "adjective",
+      "definition": "Easy to understand or do",
+      "words": [
+        "simple",
+        "straightforward",
+        "uncomplicated",
+        "plain",
+        "accessible"
+      ]
+    }
+  ],
+  "complex": [
+    {
+      "id": "writing.complex.0",
+      "partOfSpeech": "adjective",
+      "definition": "Having many connected parts",
+      "words": [
+        "complex",
+        "complicated",
+        "intricate",
+        "involved",
+        "multifaceted"
+      ]
+    }
+  ],
+  "useful": [
+    {
+      "id": "writing.useful.0",
+      "partOfSpeech": "adjective",
+      "definition": "Serving a purpose",
+      "words": [
+        "useful",
+        "helpful",
+        "practical",
+        "valuable",
+        "beneficial",
+        "effective"
+      ]
+    }
+  ],
+  "effective": [
+    {
+      "id": "writing.effective.0",
+      "partOfSpeech": "adjective",
+      "definition": "Producing the intended result",
+      "words": [
+        "effective",
+        "successful",
+        "productive",
+        "useful",
+        "efficacious"
+      ]
+    }
+  ],
+  "good": [
+    {
+      "id": "writing.good.0",
+      "partOfSpeech": "adjective",
+      "definition": "Of a desirable quality",
+      "words": [
+        "good",
+        "sound",
+        "strong",
+        "effective",
+        "suitable",
+        "valuable"
+      ]
+    }
+  ],
+  "bad": [
+    {
+      "id": "writing.bad.0",
+      "partOfSpeech": "adjective",
+      "definition": "Of an undesirable quality",
+      "words": [
+        "bad",
+        "poor",
+        "weak",
+        "unsuitable",
+        "harmful",
+        "unfavorable"
+      ]
+    }
+  ],
+  "large": [
+    {
+      "id": "writing.large.0",
+      "partOfSpeech": "adjective",
+      "definition": "Great in size or extent",
+      "words": [
+        "large",
+        "big",
+        "substantial",
+        "considerable",
+        "extensive",
+        "sizable"
+      ]
+    }
+  ],
+  "small": [
+    {
+      "id": "writing.small.0",
+      "partOfSpeech": "adjective",
+      "definition": "Limited in size or extent",
+      "words": [
+        "small",
+        "little",
+        "minor",
+        "modest",
+        "slight",
+        "limited"
+      ]
+    }
+  ],
+  "quick": [
+    {
+      "id": "writing.quick.0",
+      "partOfSpeech": "adjective",
+      "definition": "Moving or happening fast",
+      "words": [
+        "quick",
+        "fast",
+        "swift",
+        "rapid",
+        "speedy",
+        "prompt"
+      ]
+    }
+  ],
+  "result": [
+    {
+      "id": "writing.result.0",
+      "partOfSpeech": "noun",
+      "definition": "What follows from an action",
+      "words": [
+        "result",
+        "outcome",
+        "consequence",
+        "effect",
+        "finding"
+      ]
+    }
+  ],
+  "method": [
+    {
+      "id": "writing.method.0",
+      "partOfSpeech": "noun",
+      "definition": "A way of doing something",
+      "words": [
+        "method",
+        "approach",
+        "procedure",
+        "technique",
+        "process"
+      ]
+    }
+  ],
+  "problem": [
+    {
+      "id": "writing.problem.0",
+      "partOfSpeech": "noun",
+      "definition": "Something that needs resolution",
+      "words": [
+        "problem",
+        "issue",
+        "difficulty",
+        "challenge",
+        "obstacle"
+      ]
+    }
+  ],
+  "idea": [
+    {
+      "id": "writing.idea.0",
+      "partOfSpeech": "noun",
+      "definition": "A thought or proposal",
+      "words": [
+        "idea",
+        "concept",
+        "notion",
+        "proposal",
+        "thought"
+      ]
+    }
+  ],
+  "however": [
+    {
+      "id": "writing.however.0",
+      "partOfSpeech": "adverb",
+      "definition": "Introduce a contrast",
+      "words": [
+        "however",
+        "nevertheless",
+        "nonetheless",
+        "yet",
+        "still"
+      ]
+    }
+  ],
+  "therefore": [
+    {
+      "id": "writing.therefore.0",
+      "partOfSpeech": "adverb",
+      "definition": "Introduce a consequence",
+      "words": [
+        "therefore",
+        "thus",
+        "consequently",
+        "hence",
+        "accordingly"
+      ]
+    }
+  ],
+  "also": [
+    {
+      "id": "writing.also.0",
+      "partOfSpeech": "adverb",
+      "definition": "Add another point",
+      "words": [
+        "also",
+        "additionally",
+        "moreover",
+        "furthermore",
+        "too"
+      ]
+    }
+  ],
+  "in order to": [
+    {
+      "id": "writing.in order to.0",
+      "partOfSpeech": "phrase",
+      "definition": "Express a purpose",
+      "words": [
+        "in order to",
+        "to",
+        "so as to"
+      ]
+    }
+  ],
+  "due to the fact that": [
+    {
+      "id": "writing.due to the fact that.0",
+      "partOfSpeech": "phrase",
+      "definition": "Give a reason",
+      "words": [
+        "due to the fact that",
+        "because",
+        "since"
+      ]
+    }
+  ],
+  "as a result": [
+    {
+      "id": "writing.as a result.0",
+      "partOfSpeech": "phrase",
+      "definition": "Introduce a consequence",
+      "words": [
+        "as a result",
+        "consequently",
+        "therefore",
+        "thus"
+      ]
+    }
+  ],
+  "in addition": [
+    {
+      "id": "writing.in addition.0",
+      "partOfSpeech": "phrase",
+      "definition": "Add another point",
+      "words": [
+        "in addition",
+        "also",
+        "additionally",
+        "furthermore"
+      ]
+    }
+  ],
+  "for example": [
+    {
+      "id": "writing.for example.0",
+      "partOfSpeech": "phrase",
+      "definition": "Introduce an example",
+      "words": [
+        "for example",
+        "for instance",
+        "as an illustration"
+      ]
+    }
+  ],
+  "on the other hand": [
+    {
+      "id": "writing.on the other hand.0",
+      "partOfSpeech": "phrase",
+      "definition": "Introduce a contrast",
+      "words": [
+        "on the other hand",
+        "by contrast",
+        "alternatively",
+        "conversely"
+      ]
+    }
+  ],
+  "in terms of": [
+    {
+      "id": "writing.in terms of.0",
+      "partOfSpeech": "phrase",
+      "definition": "Specify the subject",
+      "words": [
+        "in terms of",
+        "regarding",
+        "with respect to",
+        "concerning"
+      ]
+    }
+  ],
+  "explained": [
+    {
+      "id": "writing.explained.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something understandable",
+      "words": [
+        "explained",
+        "clarified",
+        "described",
+        "illustrated",
+        "spelled out",
+        "elucidated",
+        "expounded"
+      ]
+    },
+    {
+      "id": "writing.explained.1",
+      "partOfSpeech": "verb",
+      "definition": "Give a reason",
+      "words": [
+        "explained",
+        "accounted for",
+        "justified"
+      ]
+    }
+  ],
+  "explaining": [
+    {
+      "id": "writing.explaining.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something understandable",
+      "words": [
+        "explaining",
+        "clarifying",
+        "describing",
+        "illustrating",
+        "spelling out",
+        "elucidating",
+        "expounding"
+      ]
+    },
+    {
+      "id": "writing.explaining.1",
+      "partOfSpeech": "verb",
+      "definition": "Give a reason",
+      "words": [
+        "explaining",
+        "accounting for",
+        "justifying"
+      ]
+    }
+  ],
+  "explains": [
+    {
+      "id": "writing.explains.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something understandable",
+      "words": [
+        "explains",
+        "clarifies",
+        "describes",
+        "illustrates",
+        "spells out",
+        "elucidates",
+        "expounds"
+      ]
+    },
+    {
+      "id": "writing.explains.1",
+      "partOfSpeech": "verb",
+      "definition": "Give a reason",
+      "words": [
+        "explains",
+        "accounts for",
+        "justifies"
+      ]
+    }
+  ],
+  "described": [
+    {
+      "id": "writing.described.0",
+      "partOfSpeech": "verb",
+      "definition": "Give an account of something",
+      "words": [
+        "described",
+        "depicted",
+        "portrayed",
+        "outlined",
+        "detailed",
+        "characterized",
+        "recounted"
+      ]
+    }
+  ],
+  "describing": [
+    {
+      "id": "writing.describing.0",
+      "partOfSpeech": "verb",
+      "definition": "Give an account of something",
+      "words": [
+        "describing",
+        "depicting",
+        "portraying",
+        "outlining",
+        "detailing",
+        "characterizing",
+        "recounting"
+      ]
+    }
+  ],
+  "describes": [
+    {
+      "id": "writing.describes.0",
+      "partOfSpeech": "verb",
+      "definition": "Give an account of something",
+      "words": [
+        "describes",
+        "depicts",
+        "portrays",
+        "outlines",
+        "details",
+        "characterizes",
+        "recounts"
+      ]
+    }
+  ],
+  "clarified": [
+    {
+      "id": "writing.clarified.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something clearer",
+      "words": [
+        "clarified",
+        "explained",
+        "elucidated",
+        "spelled out",
+        "cleared up"
+      ]
+    }
+  ],
+  "clarifying": [
+    {
+      "id": "writing.clarifying.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something clearer",
+      "words": [
+        "clarifying",
+        "explaining",
+        "elucidating",
+        "spelling out",
+        "clearing up"
+      ]
+    }
+  ],
+  "clarifies": [
+    {
+      "id": "writing.clarifies.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something clearer",
+      "words": [
+        "clarifies",
+        "explains",
+        "elucidates",
+        "spells out",
+        "clears up"
+      ]
+    }
+  ],
+  "improved": [
+    {
+      "id": "writing.improved.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something better",
+      "words": [
+        "improved",
+        "enhanced",
+        "refined",
+        "strengthened",
+        "developed"
+      ]
+    }
+  ],
+  "improving": [
+    {
+      "id": "writing.improving.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something better",
+      "words": [
+        "improving",
+        "enhancing",
+        "refining",
+        "strengthening",
+        "developing"
+      ]
+    }
+  ],
+  "improves": [
+    {
+      "id": "writing.improves.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something better",
+      "words": [
+        "improves",
+        "enhances",
+        "refines",
+        "strengthens",
+        "develops"
+      ]
+    }
+  ],
+  "changed": [
+    {
+      "id": "writing.changed.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something different",
+      "words": [
+        "changed",
+        "altered",
+        "modified",
+        "adjusted",
+        "revised",
+        "transformed"
+      ]
+    }
+  ],
+  "changing": [
+    {
+      "id": "writing.changing.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something different",
+      "words": [
+        "changing",
+        "altering",
+        "modifying",
+        "adjusting",
+        "revising",
+        "transforming"
+      ]
+    }
+  ],
+  "changes": [
+    {
+      "id": "writing.changes.0",
+      "partOfSpeech": "verb",
+      "definition": "Make something different",
+      "words": [
+        "changes",
+        "alters",
+        "modifies",
+        "adjusts",
+        "revises",
+        "transforms"
+      ]
+    }
+  ]
+}
