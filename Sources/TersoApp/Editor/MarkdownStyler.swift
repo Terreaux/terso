@@ -83,6 +83,10 @@ enum MarkdownStyler {
         let mono = NSFont.monospacedSystemFont(ofSize: c.fontSize * 0.88, weight: .regular)
         let syntax = syntaxColor(c)
         storage.setAttributes(baseAttributes(c), range: range)
+        if c.renderMode == .source {
+            storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: c.fontSize, weight: .regular), range: range)
+            return
+        }
         func each(_ r: NSRegularExpression, _ body: (NSTextCheckingResult) -> Void) {
             r.enumerateMatches(in: text, range: range) { m, _, _ in if let m { body(m) } }
         }

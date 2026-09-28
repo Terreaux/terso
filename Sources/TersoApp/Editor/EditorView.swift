@@ -10,6 +10,7 @@ struct EditorConfig: Equatable {
     var fontSize: Double
     var lineSpacing: Double
     var columnWidth: Double
+    var renderMode: RenderMode
     var syntax: SyntaxVisibility
     var smartQuotes: Bool
     var focusMode: Bool
@@ -17,6 +18,7 @@ struct EditorConfig: Equatable {
     var dimInactive: Bool
 
     @MainActor init(prefs: Preferences, model: WorkspaceModel) {
+        renderMode = model.renderMode
         font = prefs.font; fontSize = prefs.fontSize; lineSpacing = prefs.lineSpacing
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
@@ -26,6 +28,7 @@ struct EditorConfig: Equatable {
 final class TersoTextView: NSTextView {
     var columnWidth: CGFloat = 700 { didSet { updateInsets() } }
     var typewriter = false { didSet { updateInsets() } }
+    var onGeometryChange: (() -> Void)?
     var onClick: ((Int) -> Void)?
     /// Character index under the pointer (nil when not over text).
     var onHover: ((Int?) -> Void)?
@@ -59,8 +62,15 @@ final class TersoTextView: NSTextView {
     }
 
     override func setFrameSize(_ newSize: NSSize) {
+        let widthChanged = frame.width != newSize.width
         super.setFrameSize(newSize)
         updateInsets()
+        if widthChanged { DispatchQueue.main.async { [weak self] in self?.onGeometryChange?() } }
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        onGeometryChange?()
     }
 
     func updateInsets() {
@@ -118,7 +128,7 @@ struct EditorView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSScrollView {
         let storage = NSTextStorage()
-        let layout = NSLayoutManager()
+        let layout = MathLayoutManager()
         storage.addLayoutManager(layout)
         let container = NSTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
@@ -161,6 +171,7 @@ struct EditorView: NSViewRepresentable {
         tv.string = text
         storage.delegate = c
         tv.delegate = c
+        tv.onGeometryChange = { [weak c] in c?.updateMathPresentation() }
         tv.onClick = { [weak c] index in c?.handleClick(at: index) }
         tv.onHover = { [weak c] index in c?.handleHover(at: index) }
         c.applyConfig(config, force: true)
@@ -168,6 +179,11 @@ struct EditorView: NSViewRepresentable {
         model.scheduleAnalysis()
         DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
         return scroll
+    }
+
+    static func dismantleNSView(_ scroll: NSScrollView, coordinator: EditorCoordinator) {
+        coordinator.mathTask?.cancel()
+        coordinator.popover?.close()
     }
 
     func updateNSView(_ scroll: NSScrollView, context: Context) {
@@ -178,6 +194,7 @@ struct EditorView: NSViewRepresentable {
             // External change (revert, reload from disk).
             tv.string = text
             model.textDidChange()
+            c.updateMathPresentation()
         }
         c.applyConfig(config, force: false)
     }
@@ -191,6 +208,9 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
     weak var scrollView: NSScrollView?
     var config: EditorConfig?
     var popover: NSPopover?
+    let mathRenderer = MathImageRenderer()
+    var mathTask: Task<Void, Never>?
+    var mathSource = ""
     /// Clusters currently drawn, for hit-testing clicks and hovers.
     var clusters: [AnnotationCluster] = []
 
@@ -218,6 +238,10 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
 
     func reveal(_ range: TextSpan, select: Bool) {
         guard let tv = textView, range.upperBound <= (tv.string as NSString).length else { return }
+        if model.renderMode == .preview {
+            model.renderMode = .mixed
+            DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
+        }
         tv.scrollRangeToVisible(range.nsRange)
         if select { tv.setSelectedRange(range.nsRange) }
         // No find-indicator flash: the selected finding's fill marks the place.
@@ -265,9 +289,11 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         guard let tv = textView else { return }
         textBinding.wrappedValue = tv.string
         model.textDidChange()
+        updateMathPresentation()
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
+        updateMathPresentation()
         applyDimming()
         if model.typewriter { centerCaret() }
     }
@@ -277,6 +303,10 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         // Text storage delegate callbacks arrive on the main thread for a text view's storage.
         nonisolated(unsafe) let textStorage = textStorage
         MainActor.assumeIsolated {
+            if let layout = textView?.layoutManager as? MathLayoutManager {
+                layout.setRendered([])
+                layout.hiddenSyntax = []
+            }
             let full = textStorage.length < 150_000
             let ns = textStorage.string as NSString
             let r = full ? NSRange(location: 0, length: ns.length) : ns.paragraphRange(for: editedRange)
@@ -290,16 +320,21 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         guard let tv = textView else { return }
         let old = config
         config = new
+        tv.isEditable = new.renderMode != .preview
+        if old?.renderMode == .preview, new.renderMode != .preview {
+            DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
+        }
         tv.columnWidth = new.columnWidth
         tv.typewriter = new.typewriter
         tv.isAutomaticQuoteSubstitutionEnabled = new.smartQuotes
-        let styleChanged = force || old?.font != new.font || old?.fontSize != new.fontSize || old?.lineSpacing != new.lineSpacing || old?.syntax != new.syntax
+        let styleChanged = force || old?.renderMode != new.renderMode || old?.font != new.font || old?.fontSize != new.fontSize || old?.lineSpacing != new.lineSpacing || old?.syntax != new.syntax
         if styleChanged, let storage = tv.textStorage {
             storage.beginEditing()
             MarkdownStyler.style(storage, range: NSRange(location: 0, length: storage.length), config: new)
             storage.endEditing()
             tv.typingAttributes = MarkdownStyler.baseAttributes(new)
         }
+        if styleChanged || old?.columnWidth != new.columnWidth { updateMathPresentation() }
         if force || old?.focusMode != new.focusMode || old?.dimInactive != new.dimInactive || old?.typewriter != new.typewriter {
             popover?.close()
             refreshDecorations()

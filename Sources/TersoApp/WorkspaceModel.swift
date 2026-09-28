@@ -71,6 +71,7 @@ final class WorkspaceModel {
     let prefs = Preferences.shared
     weak var editor: (any EditorController)?
 
+    var renderMode: RenderMode = .mixed
     var scienceProfile: ScientificProfile = .hep { didSet { scheduleAnalysis() } }
     var fileURL: URL?
     private(set) var revision = DocumentRevision(0)

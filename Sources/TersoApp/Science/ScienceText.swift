@@ -7,6 +7,7 @@ struct ScienceText: View {
     let source: String
     var math = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.mathMacros) private var macros
     @State private var height: CGFloat = 20
 
     init(_ source: String, math: Bool = false) {
@@ -16,7 +17,7 @@ struct ScienceText: View {
 
     var body: some View {
         if math || source.contains("\\") || source.contains("$") {
-            ScienceMathView(source: source, math: math, dark: colorScheme == .dark, height: $height)
+            ScienceMathView(source: source, math: math, dark: colorScheme == .dark, macros: macros, height: $height)
                 .frame(height: height)
                 .allowsHitTesting(false)
                 .accessibilityLabel(source)
@@ -30,6 +31,7 @@ private struct ScienceMathView: NSViewRepresentable {
     let source: String
     let math: Bool
     let dark: Bool
+    let macros: [String: String]
     @Binding var height: CGFloat
 
     func makeCoordinator() -> Coordinator { Coordinator(height: $height) }
@@ -44,12 +46,12 @@ private struct ScienceMathView: NSViewRepresentable {
     }
 
     func updateNSView(_ view: WKWebView, context: Context) {
-        let key = "\(dark):\(math):\(source)"
+        let key = "\(dark):\(math):\(source):\(MathPresentation.json(macros))"
         guard context.coordinator.key != key else { return }
         context.coordinator.key = key
         context.coordinator.height = $height
         let root = ScienceMathHTML.resourceURL
-        view.loadHTMLString(ScienceMathHTML.document(source: source, math: math, dark: dark), baseURL: root)
+        view.loadHTMLString(ScienceMathHTML.document(source: source, math: math, dark: dark, macros: macros), baseURL: root)
     }
 
     static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
@@ -71,10 +73,10 @@ private struct ScienceMathView: NSViewRepresentable {
 
 enum ScienceMathHTML {
     static var resourceURL: URL { Bundle.module.url(forResource: "KaTeX", withExtension: nil)! }
-    private static let scripts = ["katex.min.js", "auto-render.min.js"].map {
+    static let scripts = ["katex.min.js", "auto-render.min.js"].map {
         try! String(contentsOf: resourceURL.appendingPathComponent($0), encoding: .utf8)
     }.joined(separator: "\n")
-    private static let stylesheet: String = {
+    static let stylesheet: String = {
         var css = try! String(contentsOf: resourceURL.appendingPathComponent("katex.min.css"), encoding: .utf8)
         let fonts = try! FileManager.default.contentsOfDirectory(at: resourceURL.appendingPathComponent("fonts"), includingPropertiesForKeys: nil)
         for font in fonts where font.pathExtension == "woff2" {
@@ -84,7 +86,7 @@ enum ScienceMathHTML {
         return css
     }()
 
-    static func document(source: String, math: Bool, dark: Bool) -> String {
+    static func document(source: String, math: Bool, dark: Bool, macros: [String: String] = [:], fontSize: Double = 12, display: Bool = false, strictRender: Bool = false) -> String {
         // Insert source only as escaped text, never as HTML or executable JavaScript.
         let escaped = source.replacingOccurrences(of: "&", with: "&amp;")
             .replacingOccurrences(of: "<", with: "&lt;").replacingOccurrences(of: ">", with: "&gt;")
@@ -94,18 +96,19 @@ enum ScienceMathHTML {
         <style>\#(stylesheet)</style>
         <style>
         html,body { margin:0; padding:0; background:transparent; overflow:hidden; }
-        #content { font:12px -apple-system; line-height:1.45; color:\#(dark ? "#ededed" : "#222222"); overflow-wrap:anywhere; white-space:pre-wrap; padding:2px 0; }
+        #content { font:\#(fontSize)px -apple-system; line-height:1.45; color:\#(dark ? "#ededed" : "#222222"); overflow-wrap:anywhere; white-space:pre-wrap; padding:2px 0; }
         .katex { font-size:1.08em; white-space:normal; }
         .katex-display { margin:4px 0; text-align:left; }
         .katex-display > .katex { text-align:left; }
         </style><script>\#(scripts)</script>
         </head><body><div id="content">\#(escaped)</div><script>
         const content = document.getElementById('content');
-        const options = {throwOnError:false, trust:false, strict:'ignore', maxExpand:200, maxSize:20, errorColor:'\#(dark ? "#ededed" : "#222222")'};
+        const options = {macros:\#(MathPresentation.json(macros)), displayMode:\#(display ? "true" : "false"), throwOnError:\#(strictRender ? "true" : "false"), trust:false, strict:'ignore', maxExpand:200, maxSize:20, errorColor:'\#(dark ? "#ededed" : "#222222")'};
         if (\#(math ? "true" : "false")) {
             let formula = content.textContent.replace(/\\label\{[^}]*\}/g, '');
             if (formula.includes('&') || formula.includes('\\\\')) formula = '\\begin{aligned}' + formula + '\\end{aligned}';
-            katex.render(formula, content, options);
+            try { katex.render(formula, content, options); }
+            catch { content.dataset.renderError='true'; content.textContent=formula; }
         } else {
             renderMathInElement(content, {...options, delimiters:[
                 {left:'$$',right:'$$',display:true}, {left:'$',right:'$',display:false},
@@ -119,12 +122,22 @@ enum ScienceMathHTML {
                 el.style.zoom = 1;
                 if (el.scrollWidth > content.clientWidth && content.clientWidth > 0) el.style.zoom = content.clientWidth / el.scrollWidth;
             });
-            window.webkit.messageHandlers.size.postMessage(content.getBoundingClientRect().height);
+            window.webkit?.messageHandlers?.size?.postMessage(content.getBoundingClientRect().height);
         }
         new ResizeObserver(measure).observe(content);
         document.fonts.ready.then(measure);
         measure();
         </script></body></html>
         """#
+    }
+}
+
+private struct MathMacrosKey: EnvironmentKey {
+    static let defaultValue: [String: String] = [:]
+}
+extension EnvironmentValues {
+    var mathMacros: [String: String] {
+        get { self[MathMacrosKey.self] }
+        set { self[MathMacrosKey.self] = newValue }
     }
 }
