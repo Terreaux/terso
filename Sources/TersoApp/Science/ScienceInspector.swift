@@ -36,6 +36,7 @@ struct ScienceInspector: View {
             }
         }
         .font(.system(size: 12))
+        .environment(\.mathMacros, MathPresentation.macros(in: model.editor?.currentSnapshot.text ?? ""))
     }
 
     private var header: some View {

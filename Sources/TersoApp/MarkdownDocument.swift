@@ -4,14 +4,15 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 extension UTType {
+    static let latexSource = UTType(importedAs: "org.tug.tex", conformingTo: .plainText)
     static let markdownText = UTType(importedAs: "net.daringfireball.markdown", conformingTo: .plainText)
 }
 
 /// A plain file. Bytes in, the same bytes out: Terso never normalises line
 /// endings, whitespace or Markdown syntax on load or save.
 struct MarkdownDocument: FileDocument {
-    static let readableContentTypes: [UTType] = [.markdownText, .plainText]
-    static let writableContentTypes: [UTType] = [.markdownText, .plainText]
+    static let readableContentTypes: [UTType] = [.markdownText, .latexSource, .plainText]
+    static let writableContentTypes: [UTType] = [.markdownText, .latexSource, .plainText]
 
     var text: String
     var codec = PlainTextCodec()

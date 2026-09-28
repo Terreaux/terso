@@ -23,6 +23,12 @@ struct DocumentWindow: View {
         }
         .toolbar(model.focusMode ? .hidden : .visible, for: .windowToolbar)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Picker("Rendering mode", selection: $model.renderMode) {
+                    ForEach(RenderMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
+                }.pickerStyle(.segmented).frame(width: 220)
+                    .help("Source: raw text. Mixed: formatted text with editable math. Preview: fully rendered document.")
+            }
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     model.inspectorTab = .review
@@ -50,9 +56,21 @@ struct DocumentWindow: View {
     }
 
     private var editor: some View {
-        EditorView(text: $document.text, model: model, config: EditorConfig(prefs: prefs, model: model))
+        ZStack {
+            EditorView(text: $document.text, model: model, config: EditorConfig(prefs: prefs, model: model))
+                .opacity(model.renderMode == .preview ? 0 : 1)
+                .allowsHitTesting(model.renderMode != .preview)
+                .accessibilityHidden(model.renderMode == .preview)
+            if model.renderMode == .preview {
+                if RenderMode.isLaTeX(source: document.text, fileURL: fileURL) {
+                    TectonicPreview(source: document.text, fileURL: fileURL)
+                } else {
+                    MarkdownPreview(source: document.text, model: model).id(fileURL?.deletingLastPathComponent())
+                }
+            }
+        }
             .overlay(alignment: .trailing) {
-                if prefs.showDocumentMap && !model.focusMode {
+                if prefs.showDocumentMap && !model.focusMode && model.renderMode != .preview {
                     IssueRail(model: model).padding(.trailing, 16)
                 }
             }

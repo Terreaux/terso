@@ -49,6 +49,12 @@ struct TersoCommands: Commands {
             Button("Horizontal Rule") { model?.editor?.wrapSelection(prefix: "\n---\n", suffix: "", placeholder: "") }
         }
         CommandGroup(after: .sidebar) {
+            ForEach(RenderMode.allCases) { mode in
+                Button(mode.rawValue + " Mode") { model?.renderMode = mode }
+                    .keyboardShortcut(mode == .source ? "1" : mode == .mixed ? "2" : "3", modifiers: [.command, .control])
+                    .disabled(model == nil)
+            }
+            Divider()
             Button(model?.focusMode == true ? "Exit Focus Mode" : "Focus Mode") { model?.toggleFocusMode() }
                 .keyboardShortcut("f", modifiers: [.command, .shift])
             Button("Typewriter Scrolling") { model?.typewriter.toggle(); model?.editor?.refreshDecorations() }
