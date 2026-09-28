@@ -12,9 +12,13 @@ struct RenderedMath {
 /// accessibility and source navigation all continue to use the original text.
 final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     var rendered: [RenderedMath] = []
-    var hiddenLinkSyntax: [NSRange] = [] {
-        didSet {
-            guard oldValue != hiddenLinkSyntax, let storage = textStorage else { return }
+    private var linkSyntaxRanges: [NSRange] = []
+    var hiddenLinkSyntax: [NSRange] {
+        get { linkSyntaxRanges }
+        set {
+            guard linkSyntaxRanges != newValue else { return }
+            linkSyntaxRanges = newValue
+            guard let storage = textStorage else { return }
             invalidateGlyphs(forCharacterRange: NSRange(location: 0, length: storage.length), changeInLength: 0, actualCharacterRange: nil)
         }
     }
@@ -27,6 +31,26 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         rendered = items
         guard let storage = textStorage else { return }
         invalidateGlyphs(forCharacterRange: NSRange(location: 0, length: storage.length), changeInLength: 0, actualCharacterRange: nil)
+    }
+
+    /// Keep substitutions outside an edit alive, translating their UTF-16 offsets
+    /// before TextKit lays out the changed storage. Only touched source is revealed.
+    func processCharacterEdit(range: NSRange, changeInLength delta: Int) {
+        let replaced = NSRange(location: range.location, length: range.length - delta)
+        func translated(_ existing: NSRange) -> NSRange? {
+            if NSMaxRange(existing) <= replaced.location { return existing }
+            if existing.location >= NSMaxRange(replaced) {
+                return NSRange(location: existing.location + delta, length: existing.length)
+            }
+            return nil
+        }
+        // Storage has not notified its layout managers yet. Update bookkeeping
+        // only; invalidating glyphs here would mix new offsets with the old tree.
+        // The storage edit and styling pass perform the layout invalidation.
+        rendered = rendered.compactMap { item in
+            translated(item.range).map { RenderedMath(range: $0, image: item.image) }
+        }
+        linkSyntaxRanges = linkSyntaxRanges.compactMap(translated)
     }
 
     func layoutManager(_ layoutManager: NSLayoutManager, shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>, properties props: UnsafePointer<NSLayoutManager.GlyphProperty>, characterIndexes indexes: UnsafePointer<Int>, font: NSFont, forGlyphRange range: NSRange) -> Int {
@@ -137,11 +161,12 @@ extension EditorCoordinator {
                         try Task.checkCancellation()
                         guard tv?.string == source, self.config?.renderMode == .mixed else { return }
                         output.append(RenderedMath(range: region.range.nsRange, image: image))
-                        layout?.setRendered(output)
-                        tv?.needsDisplay = true
                     }
                 } catch { return }
             }
+            guard !Task.isCancelled, tv?.string == source, self.config?.renderMode == .mixed else { return }
+            // Publish the complete batch: a partial prefix would temporarily
+            // remove later equations even when their cached images are unchanged.
             layout?.setRendered(output)
         }
     }

@@ -54,6 +54,56 @@ import TersoCore
         #expect(storage.string == text)
     }
 
+    @Test func typingPreservesUnchangedMathAndLinkGlyphs() {
+        let text = "Prose\n\n$x$ and $y$\n\n[site](url)"
+        let model = WorkspaceModel()
+        let coordinator = EditorCoordinator(model: model, text: .constant(text))
+        let storage = NSTextStorage(string: text)
+        let layout = MathLayoutManager(); storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 700, height: 2000))
+        layout.addTextContainer(container)
+        let tv = TersoTextView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), textContainer: container)
+        coordinator.textView = tv
+        coordinator.config = EditorConfig(prefs: model.prefs, model: model)
+        coordinator.mathSource = text
+        MarkdownStyler.style(storage, range: NSRange(location: 0, length: storage.length), config: coordinator.config)
+        storage.delegate = coordinator
+        let image = NSImage(size: NSSize(width: 40, height: 30))
+        let math = ["$x$", "$y$"].map { (text as NSString).range(of: $0) }
+        layout.setRendered(math.map { RenderedMath(range: $0, image: image) })
+        let links = LinkPresentation.hiddenSyntax(in: text, selection: NSRange(location: 0, length: 0))
+        layout.hiddenLinkSyntax = links
+        layout.ensureLayout(for: container)
+
+        // A surrogate pair shifts UTF-16 offsets by two without exposing any
+        // unrelated source, even before the asynchronous renderer can run.
+        storage.replaceCharacters(in: NSRange(location: 0, length: 0), with: "😀")
+        #expect(layout.rendered.map(\.range) == math.map { NSRange(location: $0.location + 2, length: $0.length) })
+        #expect(layout.rendered.allSatisfy { $0.image === image })
+        #expect(layout.hiddenLinkSyntax == links.map { NSRange(location: $0.location + 2, length: $0.length) })
+        tv.setSelectedRange(NSRange(location: 2, length: 0))
+        coordinator.updateMathPresentation()
+        #expect(layout.rendered.count == 2)
+        coordinator.mathTask?.cancel()
+
+        // Editing one formula reveals only that formula; deletion before the
+        // other one shifts its retained image back to the correct source.
+        storage.replaceCharacters(in: NSRange(location: math[0].location + 3, length: 1), with: "zz")
+        #expect(layout.rendered.map(\.range) == [NSRange(location: math[1].location + 3, length: math[1].length)])
+        storage.replaceCharacters(in: NSRange(location: 0, length: 2), with: "")
+        #expect(layout.rendered.map(\.range) == [NSRange(location: math[1].location + 1, length: math[1].length)])
+        #expect(layout.rendered.first?.image === image)
+        layout.ensureLayout(for: container)
+        let retained = layout.glyphIndexForCharacter(at: math[1].location + 1)
+        #expect(layout.propertyForGlyph(at: retained).contains(.controlCharacter))
+        let edited = layout.glyphIndexForCharacter(at: math[0].location)
+        #expect(!layout.propertyForGlyph(at: edited).contains(.controlCharacter))
+        for range in layout.hiddenLinkSyntax {
+            let glyph = layout.glyphIndexForCharacter(at: range.location)
+            #expect(layout.propertyForGlyph(at: glyph).contains(.null))
+        }
+    }
+
     @Test func mathPDFSnapshotAndMacrosRenderOffline() async throws {
         let renderer = MathImageRenderer()
         let image = try await renderer.image(formula: #"\vect{p}_T = \frac{a}{b}"#, display: false,
