@@ -100,18 +100,25 @@ import TersoCore
 }
 
 @Suite @MainActor struct RenderingTransitionTests {
-    @Test func inactiveMarkdownMarkersRevealOnTheirLine() {
-        let text = "# Title\n\n**bold** and $x_i$\n\nElsewhere"
-        let end = NSRange(location: (text as NSString).length, length: 0)
-        let hidden = MarkdownPresentation.hiddenSyntax(in: text, selection: end)
-        #expect(hidden.contains(NSRange(location: 0, length: 2)))
-        #expect(hidden.contains(NSRange(location: 9, length: 2)))
-        #expect(!MarkdownPresentation.hiddenSyntax(in: text, selection: NSRange(location: 12, length: 0)).contains(NSRange(location: 9, length: 2)))
+    @Test func mixedLinksShowLabelsAndRevealSourceOnActiveLines() {
+        let text = "# **Heading**\n\n[site](https://example.com) [[Note]] [[Target#Section|alias]]\n\n`[[code]]` and `$x$`\n\nElsewhere"
+        let ns = text as NSString
+        let hidden = LinkPresentation.hiddenSyntax(in: text, selection: NSRange(location: ns.length, length: 0))
+        #expect(hidden.count == 6)
+        for token in ["#", "**", "site", "Note", "alias", "[[code]]"] {
+            #expect(!hidden.contains { NSIntersectionRange($0, ns.range(of: token)).length > 0 })
+        }
+        for token in ["](https://example.com)", "[[Target#Section|", "]]"] {
+            #expect(hidden.contains { NSIntersectionRange($0, ns.range(of: token)).length > 0 })
+        }
+        #expect(LinkPresentation.hiddenSyntax(in: text, selection: ns.range(of: "alias")).isEmpty)
+        let literal = "---\nkey: [[metadata]]\n---\n`[code](url)`\n```\n[[fenced]]\n```\n$[[math]]$\n![[embed]]\n\\[[escaped]]"
+        #expect(LinkPresentation.hiddenSyntax(in: literal, selection: NSRange(location: (literal as NSString).length, length: 0)).isEmpty)
     }
 
     @Test func selectingMathRestoresSourceAndModesKeepUndo() async throws {
         let model = WorkspaceModel()
-        let text = "Heading\n\nA result $x_i$ here.\n\nElsewhere"
+        let text = "# Heading\n\nA **bold** *italic* ~~struck~~ [link](https://example.com) [[Note|alias]] result $x_i$ here.\n\nElsewhere"
         let coordinator = EditorCoordinator(model: model, text: .constant(text))
         let storage = NSTextStorage(string: text)
         let layout = MathLayoutManager(); storage.addLayoutManager(layout)
@@ -127,6 +134,28 @@ import TersoCore
         await coordinator.mathTask?.value
         #expect(layout.rendered.count == 1)
         let math = (text as NSString).range(of: "$x_i$")
+        // Markdown keeps its styled source on both active and inactive lines,
+        // while links hide their syntax and math substitutes rendered glyphs.
+        for caret in [0, (text as NSString).range(of: "bold").location, (text as NSString).length] {
+            tv.setSelectedRange(NSRange(location: caret, length: 0))
+            coordinator.updateMathPresentation()
+            await coordinator.mathTask?.value
+            layout.ensureLayout(for: container)
+            for marker in ["#", "**", "*italic*", "~~"] {
+                let range = (text as NSString).range(of: marker)
+                for index in range.location..<range.upperBound {
+                    let glyph = layout.glyphIndexForCharacter(at: index)
+                    #expect(!layout.propertyForGlyph(at: glyph).contains(.null))
+                }
+            }
+            for marker in ["](https://example.com)", "[[Note|"] {
+                let index = (text as NSString).range(of: marker).location
+                let glyph = layout.glyphIndexForCharacter(at: index)
+                #expect(layout.propertyForGlyph(at: glyph).contains(.null) == (caret != (text as NSString).range(of: "bold").location))
+            }
+            #expect(storage.string == text)
+        }
+        #expect(layout.rendered.count == 1)
         tv.setSelectedRange(NSRange(location: math.location + 2, length: 0))
         coordinator.updateMathPresentation()
         await coordinator.mathTask?.value

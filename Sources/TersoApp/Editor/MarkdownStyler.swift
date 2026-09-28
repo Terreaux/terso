@@ -14,6 +14,7 @@ enum MarkdownStyler {
     static let italic = re(#"(?<![*_\p{L}\p{N}])([*_])(?=[^\s*_])(.+?)(?<=[^\s*_])\1(?![*_\p{L}\p{N}])"#)
     static let code = re(#"`[^`\n]+`"#)
     static let link = re(#"(\[)([^\]\n]+)(\]\([^)\n]*\))"#)
+    static let wikiLink = re(#"\[\[([^\[\]|\n]+)(?:\|([^\[\]|\n]+))?\]\]"#)
     static let quote = re(#"^[ \t]*>.*$"#)
     static let list = re(#"^[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+"#)
     static let rule = re(#"^[ \t]*(?:[-*_][ \t]*){3,}$"#)
@@ -158,6 +159,14 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: syntax, range: m.range(at: 3))
             storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: m.range(at: 2))
             storage.addAttribute(.underlineColor, value: NSColor.separatorColor, range: m.range(at: 2))
+        }
+        each(wikiLink) { m in
+            guard !inCode(m.range) else { return }
+            let label = m.range(at: m.range(at: 2).location == NSNotFound ? 1 : 2)
+            color(syntax, m.range)
+            color(bodyInk, label)
+            storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: label)
+            storage.addAttribute(.underlineColor, value: NSColor.separatorColor, range: label)
         }
         each(footnote) { m in
             guard !inCode(m.range) else { return }

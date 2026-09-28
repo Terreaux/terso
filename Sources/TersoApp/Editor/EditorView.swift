@@ -305,7 +305,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         MainActor.assumeIsolated {
             if let layout = textView?.layoutManager as? MathLayoutManager {
                 layout.setRendered([])
-                layout.hiddenSyntax = []
+                layout.hiddenLinkSyntax = []
             }
             let full = textStorage.length < 150_000
             let ns = textStorage.string as NSString

@@ -74,24 +74,30 @@ enum MathPresentation {
     }
 }
 
-@MainActor enum MarkdownPresentation {
+/// Links display their label (or wiki alias), revealing source on the editing line.
+@MainActor enum LinkPresentation {
     static func hiddenSyntax(in text: String, selection: NSRange) -> [NSRange] {
-        let all = NSRange(location: 0, length: (text as NSString).length)
+        let ns = text as NSString
+        let all = NSRange(location: 0, length: ns.length)
         let syntax = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text))
         let protected = syntax.regions.filter { [.inlineMath, .displayMath, .code].contains($0.kind) }.map(\.range.nsRange)
             + [MarkdownSyntax.frontMatter(in: text)].compactMap { $0 }
         var hidden: [NSRange] = []
-        for pattern in [MarkdownStyler.heading, MarkdownStyler.bold, MarkdownStyler.italic, MarkdownStyler.strike, MarkdownStyler.link] {
+        for pattern in [MarkdownStyler.link, MarkdownStyler.wikiLink] {
             for match in pattern.matches(in: text, range: all) {
                 guard !MathPresentation.showsSource(match.range, selection: selection, text: text),
                       !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
-                if pattern === MarkdownStyler.heading {
-                    hidden.append(NSRange(location: match.range.location, length: match.range(at: 1).length + match.range(at: 2).length))
-                } else if pattern === MarkdownStyler.link {
-                    hidden += [match.range(at: 1), match.range(at: 3)]
+                // Embedded images and escaped brackets remain literal source.
+                if match.range.location > 0 {
+                    let previous = ns.character(at: match.range.location - 1)
+                    if previous == 33 || previous == 92 || previous == 91 { continue }
+                }
+                if pattern === MarkdownStyler.wikiLink {
+                    let label = match.range(at: match.range(at: 2).location == NSNotFound ? 1 : 2)
+                    hidden.append(NSRange(location: match.range.location, length: label.location - match.range.location))
+                    hidden.append(NSRange(location: label.upperBound, length: match.range.upperBound - label.upperBound))
                 } else {
-                    let delimiter = match.range(at: 1).length
-                    hidden += [NSRange(location: match.range.location, length: delimiter), NSRange(location: match.range.upperBound - delimiter, length: delimiter)]
+                    hidden += [match.range(at: 1), match.range(at: 3)]
                 }
             }
         }

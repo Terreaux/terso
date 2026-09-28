@@ -12,9 +12,9 @@ struct RenderedMath {
 /// accessibility and source navigation all continue to use the original text.
 final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     var rendered: [RenderedMath] = []
-    var hiddenSyntax: [NSRange] = [] {
+    var hiddenLinkSyntax: [NSRange] = [] {
         didSet {
-            guard oldValue != hiddenSyntax, let storage = textStorage else { return }
+            guard oldValue != hiddenLinkSyntax, let storage = textStorage else { return }
             invalidateGlyphs(forCharacterRange: NSRange(location: 0, length: storage.length), changeInLength: 0, actualCharacterRange: nil)
         }
     }
@@ -30,7 +30,7 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     }
 
     func layoutManager(_ layoutManager: NSLayoutManager, shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>, properties props: UnsafePointer<NSLayoutManager.GlyphProperty>, characterIndexes indexes: UnsafePointer<Int>, font: NSFont, forGlyphRange range: NSRange) -> Int {
-        guard !rendered.isEmpty || !hiddenSyntax.isEmpty else { return 0 }
+        guard !rendered.isEmpty || !hiddenLinkSyntax.isEmpty else { return 0 }
         var properties = Array(UnsafeBufferPointer(start: props, count: range.length))
         var output = Array(UnsafeBufferPointer(start: glyphs, count: range.length))
         var changed = false
@@ -39,7 +39,7 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
                 properties[index] = indexes[index] == item.range.location ? .controlCharacter : .null
                 output[index] = 0
                 changed = true
-            } else if hiddenSyntax.contains(where: { NSLocationInRange(indexes[index], $0) }) {
+            } else if hiddenLinkSyntax.contains(where: { NSLocationInRange(indexes[index], $0) }) {
                 properties[index] = .null
                 output[index] = 0
                 changed = true
@@ -111,10 +111,10 @@ extension EditorCoordinator {
     func updateMathPresentation() {
         mathTask?.cancel()
         guard let tv = textView, let layout = tv.layoutManager as? MathLayoutManager, let config else { return }
-        guard config.renderMode == .mixed, !tv.hasMarkedText() else { layout.setRendered([]); layout.hiddenSyntax = []; return }
+        guard config.renderMode == .mixed, !tv.hasMarkedText() else { layout.setRendered([]); layout.hiddenLinkSyntax = []; return }
         let source = tv.string
         let selection = tv.selectedRange()
-        layout.hiddenSyntax = MarkdownPresentation.hiddenSyntax(in: source, selection: selection)
+        layout.hiddenLinkSyntax = LinkPresentation.hiddenSyntax(in: source, selection: selection)
         let regions = MathPresentation.regions(in: source).filter {
             !MathPresentation.showsSource($0.range.nsRange, selection: selection, text: source)
         }
