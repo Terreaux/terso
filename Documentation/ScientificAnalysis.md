@@ -17,7 +17,7 @@ Science starts with **Needs attention**, followed by a compact document model an
 
 `ScientificGraph.swift` supplies typed diagnostic severity, category, confidence, suggested actions, source ranges, and related object IDs. Object IDs are local to the snapshot; selection is cleared on text edits to avoid applying old offsets to a new object. `ScientificRule` adapts those diagnostics to the existing `WritingIssue` and `TextAnnotation` pipeline, preserving Review, dismissal identity, multiple source locations, and annotation layers. There is one diagnostic computation shared by Science and Review.
 
-`ScienceSession` owns UI actions and per-document review overrides. `WorkspaceModel` retains Science selection and detail navigation alongside other inspector state. `MarkdownDocument` remains a plain-text `FileDocument`; no sidecar, database, graph store, or document-format change is introduced.
+`ScienceSession` owns UI actions and per-document review overrides. `WorkspaceModel` retains Science selection and detail navigation alongside other inspector state. `TabDocument` owns the plain-text `MarkdownDocument` value and its codec; the document format is unchanged. Workspace recovery snapshots are separate from scientific analysis.
 
 Analysis still uses a 400 ms typing debounce and detached work on immutable snapshots. Cancellation propagates to that work; generation and revision checks reject superseded results, including same-revision profile changes and delayed spelling callbacks. Source navigation is immediate and revision/profile gated.
 

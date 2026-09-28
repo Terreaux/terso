@@ -1,3 +1,5 @@
+> Superseded by [document tabs in one window](DocumentTabs.md). This page records the earlier native-window implementation.
+
 # Native document tabs
 
 Terso keeps its SwiftUI `DocumentGroup` / `FileDocument` architecture. Each

@@ -27,8 +27,9 @@ make compare BEFORE=Evaluation/Reports/before.json AFTER=Evaluation/Reports/afte
 ```
 
 `scripts/bundle.sh` wraps the SwiftPM executable in an `.app` with the `Info.plist`
-document types (`.md`, `.markdown`, `.txt`) that `DocumentGroup` needs for New, Open,
-Open Recent, Save, autosave, Duplicate, Rename, Revert and versions.
+document types (`.md`, `.markdown`, `.tex`, `.txt`) used by AppKit document handling.
+Documents share one window through [in-window tabs](Documentation/DocumentTabs.md),
+with separate editor state and undo history for each document.
 
 ## Download a build
 

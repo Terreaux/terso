@@ -23,7 +23,10 @@ Hover never opens an inspector, changes the caret, scrolls, edits text or starts
 analysis. This introduces no new document model, persistence or highlighting
 engine. Inspector modes, gating, typography and reading width are unchanged.
 
-## Native document tabs: deliberate limit
+## Native document tabs: original implementation
+
+This section records the September 27 implementation. It is superseded by
+[document tabs in one window](DocumentTabs.md) for tiling-window-manager compatibility.
 
 DocumentTabbing still configures the original NSWindow tab groups. Selected tab
 titles are semibold; inactive titles use regular system typography. Full source
