@@ -13,3 +13,9 @@ carry this attribution:
     https://github.com/ilien-dev/quiron
 
 All code, including the feature implementations, is Terso's own.
+
+The offline thesaurus bundles a derived subset of WordNet 3.0.
+WordNet 3.0 Copyright 2006 by Princeton University. All rights reserved.
+Its separate license, source URL, archive checksum, and transformation details
+are included in Sources/TersoAnalysis/Resources/WordNet/LICENSE.txt and
+SOURCE.txt, and shipped in the application resource bundle.
