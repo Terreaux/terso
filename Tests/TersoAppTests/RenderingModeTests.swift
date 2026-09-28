@@ -104,6 +104,39 @@ import TersoCore
         }
     }
 
+    @Test func tallMathAndSourceTransitionsStayInsideTheirLines() {
+        let text = "Text before.\n\n*$$\n\\begin{aligned}\nu &= 1 \\\\\nv &= 2\n\\end{aligned}\n$$*\n\nText after."
+        let model = WorkspaceModel()
+        let storage = NSTextStorage(string: text)
+        MarkdownStyler.style(storage, range: NSRange(location: 0, length: storage.length), config: EditorConfig(prefs: model.prefs, model: model))
+        let layout = MathLayoutManager(); storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 500, height: 2000)); layout.addTextContainer(container)
+        let region = MathPresentation.regions(in: text)[0]
+        let image = NSImage(size: NSSize(width: 140, height: 150))
+        for rendered in [true, false, true, false] {
+            layout.setRendered(rendered ? [RenderedMath(range: region.range.nsRange, image: image)] : [])
+            layout.ensureLayout(for: container)
+            if rendered {
+                let glyph = layout.glyphIndexForCharacter(at: region.range.location)
+                let line = layout.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
+                let position = layout.location(forGlyphAt: glyph)
+                let top = line.minY + position.y - image.size.height + 4
+                #expect(top >= line.minY)
+                #expect(top + image.size.height <= line.maxY)
+            } else {
+                let fresh = NSLayoutManager(); let freshStorage = NSTextStorage(attributedString: storage)
+                freshStorage.addLayoutManager(fresh)
+                let freshContainer = NSTextContainer(size: container.size); fresh.addTextContainer(freshContainer)
+                fresh.ensureLayout(for: freshContainer)
+                for offset in [region.range.location, region.contentRange.location, region.range.upperBound - 1, storage.length - 1] {
+                    let actual = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: offset), effectiveRange: nil)
+                    let expected = fresh.lineFragmentRect(forGlyphAt: fresh.glyphIndexForCharacter(at: offset), effectiveRange: nil)
+                    #expect(actual == expected)
+                }
+            }
+        }
+    }
+
     @Test func mathPDFSnapshotAndMacrosRenderOffline() async throws {
         let renderer = MathImageRenderer()
         let image = try await renderer.image(formula: #"\vect{p}_T = \frac{a}{b}"#, display: false,

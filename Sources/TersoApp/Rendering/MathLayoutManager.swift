@@ -83,6 +83,24 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         return NSRect(x: 0, y: -item.image.size.height + 4, width: item.image.size.width + 4, height: item.image.size.height + 4)
     }
 
+    func layoutManager(_ layoutManager: NSLayoutManager, shouldSetLineFragmentRect lineFragmentRect: UnsafeMutablePointer<NSRect>, lineFragmentUsedRect: UnsafeMutablePointer<NSRect>, baselineOffset: UnsafeMutablePointer<CGFloat>, in textContainer: NSTextContainer, forGlyphRange glyphRange: NSRange) -> Bool {
+        let characters = characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
+        let height = rendered.filter { NSLocationInRange($0.range.location, characters) }
+            .map { $0.image.size.height }.max() ?? 0
+        guard height > 0 else { return false }
+        // A control glyph reserves horizontal advance, but TextKit does not
+        // raise the baseline to accommodate its ascent. Reserve that ascent
+        // explicitly so tall fractions/blocks cannot paint over preceding text.
+        let extraAscent = max(0, height - baselineOffset.pointee)
+        baselineOffset.pointee += extraAscent
+        lineFragmentRect.pointee.size.height += extraAscent
+        lineFragmentUsedRect.pointee.size.height += extraAscent
+        let minimumHeight = baselineOffset.pointee + 4
+        lineFragmentRect.pointee.size.height = max(lineFragmentRect.pointee.height, minimumHeight)
+        lineFragmentUsedRect.pointee.size.height = max(lineFragmentUsedRect.pointee.height, minimumHeight)
+        return true
+    }
+
     override func drawGlyphs(forGlyphRange glyphs: NSRange, at origin: NSPoint) {
         super.drawGlyphs(forGlyphRange: glyphs, at: origin)
         for item in rendered {
