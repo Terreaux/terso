@@ -5,31 +5,26 @@ import TersoAI
 
 @main
 struct TersoApp: App {
+    @NSApplicationDelegateAdaptor(TersoAppDelegate.self) private var delegate
+
     init() {
-        NSWindow.allowsAutomaticWindowTabbing = true
+        _ = TabDocumentController.sharedController
+        NSWindow.allowsAutomaticWindowTabbing = false
         NSApplication.shared.appearance = Preferences.shared.appearance.nsAppearance
-        UserDefaults.standard.register(defaults: ["NSQuitAlwaysKeepsWindows": true])
     }
 
     var body: some Scene {
-        DocumentGroup(newDocument: MarkdownDocument()) { file in
-            DocumentWindow(document: file.$document, fileURL: file.fileURL)
-                .frame(minWidth: 520, minHeight: 360)
-        }
-        .defaultSize(width: 1000, height: 760)
-        .commands {
-            SidebarCommands()
-            InspectorCommands()
-            TextEditingCommands()
-            TersoCommands()
-        }
-
         Settings { SettingsView() }
+            .commands {
+                TextEditingCommands()
+                DocumentTabCommands()
+                TersoCommands()
+            }
     }
 }
 
 struct TersoCommands: Commands {
-    @FocusedValue(\.workspace) private var model
+    private var model: WorkspaceModel? { DocumentTabs.shared.activeDocument?.model }
 
     var body: some Commands {
         CommandMenu("Format") {

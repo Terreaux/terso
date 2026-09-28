@@ -26,6 +26,8 @@ struct EditorConfig: Equatable {
 }
 
 final class TersoTextView: NSTextView {
+    var documentUndoManager: UndoManager?
+    override var undoManager: UndoManager? { documentUndoManager ?? super.undoManager }
     var columnWidth: CGFloat = 700 { didSet { updateInsets() } }
     var typewriter = false { didSet { updateInsets() } }
     var onGeometryChange: (() -> Void)?
@@ -143,6 +145,7 @@ struct EditorView: NSViewRepresentable {
         tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         tv.isRichText = false
         tv.importsGraphics = false
+        tv.documentUndoManager = model.documentUndoManager
         tv.allowsUndo = true
         tv.usesFindBar = true
         tv.isIncrementalSearchingEnabled = true

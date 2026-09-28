@@ -5,7 +5,7 @@ import TersoCore
 struct DocumentWindow: View {
     @Binding var document: MarkdownDocument
     let fileURL: URL?
-    @State private var model = WorkspaceModel()
+    @Bindable var model: WorkspaceModel
     @State private var columns: NavigationSplitViewVisibility = .detailOnly
     @State private var columnsBeforeFocus: NavigationSplitViewVisibility = .detailOnly
     private var prefs: Preferences { Preferences.shared }
@@ -21,26 +21,7 @@ struct DocumentWindow: View {
                         .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
                 }
         }
-        .toolbar(model.focusMode ? .hidden : .visible, for: .windowToolbar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Rendering mode", selection: $model.renderMode) {
-                    ForEach(RenderMode.allCases) { mode in Text(mode.rawValue).tag(mode) }
-                }.pickerStyle(.segmented).frame(width: 220)
-                    .help("Source: raw text. Mixed: formatted text with editable math. Preview: fully rendered document.")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button {
-                    model.inspectorTab = .review
-                    model.showInspector = true
-                } label: { Label("Review", systemImage: "text.magnifyingglass") }
-                .help("Review writing")
-            }
-            ToolbarItem(placement: .primaryAction) {
-                Button { model.showInspector.toggle() } label: { Label("Inspector", systemImage: "sidebar.right") }
-                    .help("Show or hide the inspector")
-            }
-        }
+        .toolbar(.hidden, for: .windowToolbar)
         .sheet(item: $model.thesaurusRequest) { ThesaurusView(model: model, request: $0) }
         .sheet(isPresented: $model.showAskPanel) { AskPanel(model: model) }
         .focusedSceneValue(\.workspace, model)
@@ -51,9 +32,10 @@ struct DocumentWindow: View {
                 if focus { columnsBeforeFocus = columns; columns = .detailOnly } else { columns = columnsBeforeFocus }
             }
         }
+        .onChange(of: model.showSidebar) { _, shown in columns = shown ? .all : .detailOnly }
         .onChange(of: prefs.domain) { _, _ in model.scheduleAnalysis() }
         .background(Color(nsColor: .textBackgroundColor))
-        .background(DocumentTabbing())
+
     }
 
     private var editor: some View {

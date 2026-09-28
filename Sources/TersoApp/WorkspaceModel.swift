@@ -61,16 +61,18 @@ struct MapMarker: Identifiable, Hashable {
     var explanation: String? = nil
 }
 
-/// One document session, retained by its DocumentGroup scene. Native tab moves
-/// preserve this identity. Analysis, suggestions and revision belong to this
+/// One document session, retained by its TabDocument. Moving tabs between windows
+/// preserves this identity. Analysis, suggestions and revision belong to this
 /// document; selection, inspector and focus state follow its tab. Only user
-/// preferences are shared. FileDocument owns the persisted text and file URL.
+/// preferences are shared. TabDocument owns the persisted text and file URL.
 @MainActor
 @Observable
 final class WorkspaceModel {
     let prefs = Preferences.shared
     weak var editor: (any EditorController)?
 
+    var showSidebar = false
+    var documentUndoManager: UndoManager?
     var renderMode: RenderMode = .mixed
     var scienceProfile: ScientificProfile = .hep { didSet { scheduleAnalysis() } }
     var fileURL: URL?

@@ -30,7 +30,7 @@ struct SidebarView: View {
                 Section("Folder") {
                     ForEach(files, id: \.self) { url in
                         Button {
-                            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, _ in }
+                            DocumentTabs.shared.open(url)
                         } label: {
                             Label(url.deletingPathExtension().lastPathComponent, systemImage: "doc.text")
                                 .fontWeight(url.standardizedFileURL == fileURL?.standardizedFileURL ? .semibold : .regular)
