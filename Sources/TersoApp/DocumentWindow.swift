@@ -6,15 +6,17 @@ struct DocumentWindow: View {
     @Binding var document: MarkdownDocument
     let fileURL: URL?
     @Bindable var model: WorkspaceModel
-    @State private var columns: NavigationSplitViewVisibility = .detailOnly
-    @State private var columnsBeforeFocus: NavigationSplitViewVisibility = .detailOnly
     private var prefs: Preferences { Preferences.shared }
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columns) {
-            SidebarView(model: model, fileURL: fileURL)
-                .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 320)
-        } detail: {
+        // Window-level controls own sidebar visibility. A plain split view
+        // avoids NavigationSplitView installing another title-bar toggle in
+        // the retained document's hosting view.
+        HSplitView {
+            if model.showSidebar && !model.focusMode {
+                SidebarView(model: model, fileURL: fileURL)
+                    .frame(minWidth: 180, idealWidth: 220, maxWidth: 320)
+            }
             editor
                 .inspector(isPresented: $model.showInspector) {
                     InspectorView(model: model)
@@ -27,12 +29,6 @@ struct DocumentWindow: View {
         .focusedSceneValue(\.workspace, model)
         .onAppear { model.fileURL = fileURL }
         .onChange(of: fileURL) { _, new in model.fileURL = new }
-        .onChange(of: model.focusMode) { _, focus in
-            withAnimation(.easeInOut(duration: 0.25)) {
-                if focus { columnsBeforeFocus = columns; columns = .detailOnly } else { columns = columnsBeforeFocus }
-            }
-        }
-        .onChange(of: model.showSidebar) { _, shown in columns = shown ? .all : .detailOnly }
         .onChange(of: prefs.domain) { _, _ in model.scheduleAnalysis() }
         .background(Color(nsColor: .textBackgroundColor))
 
