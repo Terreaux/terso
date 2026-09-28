@@ -14,11 +14,13 @@ Evaluation/
 
 ## Method
 
-- **Reference ranges:** Terso uses Quirón's published band parameters (see `NOTICE`).
-  They are not recalibrated here.
+- **Reference ranges:** General and fiction use Quirón's published band parameters
+  (see `NOTICE`); they are not recalibrated here. Academic and technical use
+  Terso-measured calibration bands, described below.
 - **Feature code:** Terso's own, from the published definitions. Three features whose
   definition differs from the one that produced the parameters (mean sentence length,
-  participial clauses, connective openers) are shown raw and never compared with a band.
+  participial clauses, connective openers) are shown raw under Quirón-derived profiles;
+  Terso-measured academic and technical profiles can band them.
 - **Human corpus:** 240 dev.to posts published before 2022 (human by date), drawn
   from the all-time top lists of 20 tags, at most 3 per author, 191 authors. Split **by
   author**: 45 development, 129 calibration, 66 held-out.
@@ -82,8 +84,8 @@ measurement yet.
   who wrote a text, and the app says so.
 - **No probability:** the level counts features outside a range. It is not a probability
   and does not determine authorship.
-- **Register:** ranges exist for blog-register English and short fiction only. Other
-  registers show raw values with no range.
+- **Register:** ranges exist for general (blog), fiction, academic, and technical
+  writing. Business currently shows raw values with no range.
 
 ## Reproduce
 
@@ -97,3 +99,7 @@ make compare BEFORE=Evaluation/Reports/before.json AFTER=Evaluation/Reports/afte
 ```
 
 `make ai-corpus-codex` uses Codex CLI instead and spends Codex tokens.
+
+For exact feature formulas, calibration semantics, AI generation prompts, and the
+distinction between corpus evaluation and suggestion tests, see
+[technical evaluation documentation](../docs/testing-and-evaluation.md).
