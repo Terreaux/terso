@@ -153,6 +153,7 @@ public struct ScientificDocumentModel: Sendable, Codable {
         }
         var occurrences: [String: [TextSpan]] = [:]
         var displays: [String: String] = [:]
+        var regionUses: [TextSpan: [TextSpan]] = [:]
         for region in regions where region.kind == .inlineMath || region.kind == .displayMath {
             if Task.isCancelled { break }
             let raw = cleanNS.substring(with: region.contentRange.nsRange)
@@ -168,16 +169,65 @@ public struct ScientificDocumentModel: Sendable, Codable {
                 let canonical = SciencePattern.canonical(value)
                 let baseCommand = SciencePattern.matches(#"^\\[A-Za-z]+"#, canonical).first.map { (canonical as NSString).substring(with: $0.range) }
                 guard !excludedCommands.contains(canonical), !(excludedCommands.contains(baseCommand ?? "") && !(canonical.contains("{") && ["\\mathbf", "\\mathit"].contains(baseCommand ?? ""))), !isNumericUnit(canonical, at: m.range.location, in: localNS) else { continue }
-                occurrences[canonical, default: []].append(TextSpan(m.range).shifted(by: region.contentRange.location))
+                let use = TextSpan(m.range).shifted(by: region.contentRange.location)
+                occurrences[canonical, default: []].append(use)
+                regionUses[region.range, default: []].append(use)
                 displays[canonical] = value
             }
+        }
+        // Prose often introduces notation by its role ("vertices $u$ and $v$")
+        // rather than a formal "let". Work from parsed inline regions so math
+        // arguments, code, and unrelated later equations cannot become definitions.
+        let inline = regions.filter { $0.kind == .inlineMath }
+        var proseDefinitions: Set<TextSpan> = []
+        func prefix(_ region: ScientificRegion) -> String {
+            let start = max(0, region.range.location - 200)
+            return cleanNS.substring(with: NSRange(location: start, length: region.range.location - start))
+        }
+        func suffix(_ region: ScientificRegion) -> String {
+            cleanNS.substring(with: NSRange(location: region.range.upperBound, length: min(100, cleanNS.length - region.range.upperBound)))
+        }
+        func loneSymbol(_ region: ScientificRegion) -> TextSpan? {
+            let uses = regionUses[region.range] ?? []
+            guard uses.count == 1, let use = uses.first,
+                  cleanNS.substring(with: region.contentRange.nsRange).trimmingCharacters(in: .whitespacesAndNewlines)
+                    == cleanNS.substring(with: use.nsRange) else { return nil }
+            return use
+        }
+        var index = 0
+        while index < inline.count {
+            let first = inline[index]
+            guard let use = loneSymbol(first) else { index += 1; continue }
+            var group = [use]
+            var end = index
+            while end + 1 < inline.count, let next = loneSymbol(inline[end + 1]) {
+                let gap = cleanNS.substring(with: NSRange(location: inline[end].range.upperBound, length: inline[end + 1].range.location - inline[end].range.upperBound))
+                guard SciencePattern.has(#"(?i)^[*_]{0,2}[ \t]*(?:,\s*(?:and\s+)?|and\s+|or\s+)[*_]{0,2}$"#, gap) else { break }
+                group.append(next); end += 1
+            }
+            let typed = SciencePattern.has(#"(?i)\b(?:vertices|vertex|nodes?|edges?|points?|vectors?|scalars?|matrices|matrix|parameters?|variables?|functions?|sets?)\s+[*_]{0,2}$"#, prefix(first))
+            let described = SciencePattern.has(#"(?i)^[*_]{0,2}\s+(?:is\s+(?:a|an|the)|are\s+(?:the\s+)?(?:vertices|nodes|edges|points|vectors|scalars|matrices|parameters|variables|functions|sets|fragments))\b"#, suffix(inline[end]))
+            if typed || described { proseDefinitions.formUnion(group) }
+            index = end + 1
+        }
+        for region in inline {
+            let uses = regionUses[region.range] ?? []
+            guard let head = uses.first else { continue }
+            let beforeHead = cleanNS.substring(with: NSRange(location: region.contentRange.location, length: head.location - region.contentRange.location))
+            let afterHead = cleanNS.substring(with: NSRange(location: head.upperBound, length: region.contentRange.upperBound - head.upperBound))
+            guard beforeHead.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  SciencePattern.has(#"^\s*(?:\([^()=]+\))?\s*$"#, afterHead) else { continue }
+            let named = SciencePattern.has(#"(?i)\b(?:we\s+(?:usually\s+)?(?:write|denote|define)|denoted|written)\b[^.!?\n]*\bas\s+[*_]{0,2}$"#, prefix(region))
+            let described = SciencePattern.has(#"(?i)^[*_]{0,2}\s+(?:denotes?\b|is\s+(?:a|an|the|defined\s+as)\b)"#, suffix(region))
+            if named || described { proseDefinitions.insert(head) }
         }
         symbols = occurrences.keys.sorted().map { key in
             let uses = occurrences[key]!.sorted()
             let defs = uses.filter { r in
                 let before = ns.substring(with: NSRange(location: max(0, r.location - 45), length: min(45, r.location)))
                 let after = ns.substring(with: NSRange(location: r.upperBound, length: min(100, ns.length - r.upperBound)))
-                return SciencePattern.has(#"(?i)(?:we\s+define|let|where|with)\s*\$?\s*$"#, before) && SciencePattern.has(#"(?i)^\s*\$?\s*(?:denotes?\b|is\b|as\b|=|:=|\\coloneqq|the\s+\w+)"#, after)
+                return proseDefinitions.contains(r)
+                    || SciencePattern.has(#"(?i)(?:we\s+define|let|where|with)\s*\$?\s*$"#, before) && SciencePattern.has(#"(?i)^\s*\$?\s*(?:denotes?\b|is\b|as\b|=|:=|\\coloneqq|the\s+\w+)"#, after)
                     || SciencePattern.has(#"^\s*(?::=|\\coloneqq)"#, after)
                     || SciencePattern.has(#"(?i)^\s*\$?\s*(?:denotes?\b|is\s+(?:the|defined\s+as))\b"#, after)
             }

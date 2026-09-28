@@ -68,6 +68,35 @@ import TersoCore
         for q in qs { #expect(q.rawText == (text as NSString).substring(with: q.sourceRange.nsRange)) }
     }
 
+    @Test(arguments: ["", "*", "**", "_"])
+    func proseIntroducesVertexListsAndWeightFunctions(wrapper: String) {
+        func math(_ value: String) -> String { wrapper + "$" + value + "$" + wrapper }
+        let text = "😀 In a weighted graph, every edge has a numerical score. We usually write the weight between vertices \(math("u")) and \(math("v")) as \(math("w(u, v)")).\n\n"
+            + "In the puzzle setting, \(math("u")) and \(math("v")) are fragments, and \(math("w(u, v)")) is a mismatch score.\n\n"
+            + "$w(u, v)$ and $w(u, v)$."
+        let result = analyze(text, profile: .general)
+        for name in ["u", "v", "w"] {
+            let symbol = result.science.symbols.first { $0.id == name }
+            #expect(symbol?.definitions.first == symbol?.occurrences.first)
+            #expect(symbol?.definitions.isEmpty == false)
+            for span in symbol?.definitions ?? [] {
+                #expect((text as NSString).substring(with: span.nsRange) == name)
+            }
+            #expect(!result.issues.contains { $0.ruleID == "science.notation.undefined" && $0.originalText == name })
+        }
+    }
+
+    @Test func proseDefinitionsDoNotLeakIntoArgumentsOrLaterSentences() {
+        let text = "We write the score as $w(u, v)$. The vertices matter. $q$ and $r$ occur.\n\n$q$ $r$ $w(u, v)$ $q$ $r$ $w(u, v)$."
+        let model = analyze(text, profile: .general).science
+        #expect(model.symbols.first { $0.id == "w" }?.definitions.count == 1)
+        for name in ["u", "v", "q", "r"] {
+            #expect(model.symbols.first { $0.id == name }?.definitions.isEmpty == true)
+        }
+        let excluded = analyze("`vertices $q$ and $r$`\n\n$q$ $q$ $q$ $r$ $r$ $r$", profile: .general).science
+        #expect(excluded.symbols.allSatisfy { $0.definitions.isEmpty })
+    }
+
     @Test func comparisonsNeedSameExplicitSymbolAndUnit() {
         #expect(!analyze(#"The cuts are 25 GeV and 35 GeV. $m_t=172.5$ GeV and $m_b=4.8$ GeV."#).issues.contains { $0.category == .quantities })
         #expect(!analyze(#"$m_t=172.5$ GeV and $m_t=0.1725$ TeV."#).issues.contains { $0.category == .quantities })
