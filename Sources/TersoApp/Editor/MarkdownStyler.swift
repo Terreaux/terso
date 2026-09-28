@@ -95,8 +95,17 @@ enum MarkdownStyler {
         /// Paragraph styles for a multi-line block; only the last line gets space after it.
         func block(_ r: NSRange, indent: CGFloat = 0) {
             let lastLine = ns.lineRange(for: NSRange(location: max(r.location, r.upperBound - 1), length: 0))
-            storage.addAttribute(.paragraphStyle, value: blockParagraphStyle(c, last: false, indent: indent), range: r)
+            storage.addAttribute(.paragraphStyle, value: blockParagraphStyle(c, last: false, indent: indent), range: NSIntersectionRange(r, range))
             storage.addAttribute(.paragraphStyle, value: blockParagraphStyle(c, last: true, indent: indent), range: NSIntersectionRange(lastLine, range))
+        }
+
+        if c.renderMode == .source {
+            storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: c.fontSize, weight: .regular), range: range)
+            // Keep metadata compact even when syntax is shown as plain source.
+            if let fm = MarkdownSyntax.frontMatter(in: text), NSIntersectionRange(fm, range).length > 0 {
+                block(fm)
+            }
+            return
         }
 
         // Literal regions — metadata, fenced code, code spans, math — are
