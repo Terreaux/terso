@@ -17,7 +17,7 @@ struct DocumentTabsView: View {
         VStack(spacing: 0) {
             if let document = workspace.selected {
                 if !document.model.focusMode {
-                    DocumentControls(model: document.model)
+                    DocumentControls(document: document)
                     Divider()
                 }
             }
@@ -90,8 +90,9 @@ private struct DocumentTabLabel: View {
 }
 
 private struct DocumentControls: View {
-    @Bindable var model: WorkspaceModel
+    @ObservedObject var document: TabDocument
     var body: some View {
+        @Bindable var model = document.model
         HStack {
             Button { model.showSidebar.toggle() } label: { Image(systemName: "sidebar.left") }
                 .help("Show or hide the sidebar").accessibilityLabel("Sidebar")
@@ -100,6 +101,8 @@ private struct DocumentControls: View {
                 ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.segmented).frame(width: 220).labelsHidden()
             Spacer()
+            CopyDocumentButton(text: document.contents.text)
+                .id(document.id)
             Button { model.inspectorTab = .review; model.showInspector = true } label: { Image(systemName: "text.magnifyingglass") }
                 .help("Review writing").accessibilityLabel("Review")
             Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
@@ -107,6 +110,40 @@ private struct DocumentControls: View {
         }
         .buttonStyle(.borderless).padding(.horizontal, 14).padding(.vertical, 8)
         .background(.bar)
+    }
+}
+
+private struct CopyDocumentButton: View {
+    let text: String
+    @State private var copyConfirmation: UUID?
+
+    var body: some View {
+        Button {
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            if pasteboard.setString(text, forType: .string) {
+                copyConfirmation = UUID()
+            } else {
+                copyConfirmation = nil
+                NSSound.beep()
+            }
+        } label: {
+            Image(systemName: copyConfirmation == nil ? "square.on.square" : "checkmark")
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .disabled(text.isEmpty)
+        .help(copyConfirmation == nil ? "Copy entire document as plain text, including source markup" : "Copied")
+        .accessibilityLabel("Copy entire document")
+        .accessibilityValue(copyConfirmation == nil ? "" : "Copied")
+        .onChange(of: text) { copyConfirmation = nil }
+        .task(id: copyConfirmation) {
+            guard copyConfirmation != nil else { return }
+            do {
+                try await Task.sleep(for: .seconds(1.5))
+                copyConfirmation = nil
+            } catch { /* A new copy, edit, or tab switch cancels the old confirmation. */ }
+        }
     }
 }
 
