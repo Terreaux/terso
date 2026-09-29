@@ -15,7 +15,7 @@ struct DocumentTabsView: View {
 
     private var tabbedEditor: some View {
         VStack(spacing: 0) {
-            if let document = workspace.selected {
+            if let document = workspace.selected, !workspace.showingStart {
                 if !document.model.focusMode {
                     DocumentControls(document: document)
                     Divider()
@@ -26,7 +26,7 @@ struct DocumentTabsView: View {
                     ScrollView(.horizontal) {
                         HStack(spacing: 2) {
                             ForEach(workspace.documents) { document in
-                                DocumentTabLabel(document: document, selected: document === workspace.selected,
+                                DocumentTabLabel(document: document, selected: document === workspace.selected && !workspace.showingStart,
                                                  select: { workspace.select(document) }, close: { workspace.closeTab(document) })
                                     .id(document.id)
                                     .draggable(document.id.uuidString)
@@ -41,18 +41,24 @@ struct DocumentTabsView: View {
                                         Button("Close Tab") { workspace.closeTab(document) }
                                     }
                             }
+                            if workspace.showingStart {
+                                StartTabLabel(close: { workspace.dismissStart() }).id("start")
+                            }
                         }.padding(4)
                     }
                     .scrollIndicators(.hidden)
                     .onChange(of: workspace.selected?.id) { _, id in if let id { proxy.scrollTo(id) } }
+                    .onChange(of: workspace.showingStart) { _, showing in if showing { proxy.scrollTo("start") } }
                 }
-                Button { DocumentTabs.shared.newDocument() } label: { Image(systemName: "plus") }
+                Button { workspace.showStart() } label: { Image(systemName: "plus") }
                     .buttonStyle(.borderless).help("New Tab").accessibilityLabel("New Tab").padding(.horizontal, 12)
             }
             .frame(height: 36)
             .background(.bar)
             Divider()
-            if let document = workspace.selected {
+            if workspace.showingStart {
+                WorkspaceStartView(workspace: workspace)
+            } else if let document = workspace.selected {
                 RetainedDocumentEditor(document: document)
             }
         }
@@ -86,6 +92,22 @@ private struct DocumentTabLabel: View {
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(selected ? Color.accentColor.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 5))
         .help(document.fileURL?.path ?? document.tabTitle)
+    }
+}
+
+private struct StartTabLabel: View {
+    let close: () -> Void
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("New Tab").fontWeight(.semibold).lineLimit(1)
+                .frame(minWidth: 70, maxWidth: 190, alignment: .leading)
+            Button(action: close) { Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)) }
+                .buttonStyle(.plain).accessibilityLabel("Close New Tab")
+        }
+        .font(.system(size: 12))
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+        .accessibilityAddTraits(.isSelected)
     }
 }
 
@@ -204,7 +226,8 @@ struct DocumentTabCommands: Commands {
         }
         CommandGroup(before: .saveItem) {
             Button(tabs.activeDocument == nil ? "Close Window" : "Close Tab") {
-                if let document = tabs.activeDocument { document.workspace?.closeTab(document) }
+                if let workspace = tabs.activeWorkspace, workspace.showingStart { workspace.dismissStart() }
+                else if let document = tabs.activeDocument { document.workspace?.closeTab(document) }
                 else { tabs.activeWorkspace?.window?.performClose(nil) }
             }.keyboardShortcut("w").disabled(tabs.activeWorkspace == nil)
         }
