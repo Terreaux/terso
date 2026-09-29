@@ -56,8 +56,9 @@ final class DocumentTabs {
     func mergeWindows() {
         guard let destination = activeWorkspace else { return }
         for source in workspaces where source !== destination {
+            if source.documents.isEmpty { source.close(); continue }
             for document in source.documents {
-                source.remove(document)
+                source.remove(document, closingWhenEmpty: true)
                 destination.insert(document)
             }
         }
@@ -68,7 +69,7 @@ final class DocumentTabs {
     func moveTab(id: UUID, to destination: TabWorkspace, before target: TabDocument) {
         guard let source = workspaces.first(where: { $0.documents.contains { $0.id == id } }),
               let document = source.documents.first(where: { $0.id == id }), document !== target else { return }
-        if source !== destination { source.remove(document) }
+        if source !== destination { source.remove(document, closingWhenEmpty: true) }
         destination.insert(document, before: target)
         scheduleRecovery()
     }
@@ -202,13 +203,15 @@ final class TabWorkspace: NSWindowController, NSWindowDelegate {
         select(documents[(index + offset + documents.count) % documents.count])
     }
 
-    func remove(_ document: TabDocument) {
+    /// Closing the last tab leaves the window on its start screen. Moving the
+    /// last tab elsewhere, or closing the whole window, closes it instead.
+    func remove(_ document: TabDocument, closingWhenEmpty: Bool = false) {
         guard let index = documents.firstIndex(where: { $0 === document }) else { return }
         documents.remove(at: index)
         document.workspace = nil
         if selected === document { selected = documents.isEmpty ? nil : documents[min(index, documents.count - 1)] }
         refreshWindowTitle()
-        if documents.isEmpty {
+        if documents.isEmpty && (closingWhenEmpty || closing) {
             window?.close()
             DocumentTabs.shared.remove(self)
         }

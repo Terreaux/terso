@@ -6,6 +6,14 @@ struct DocumentTabsView: View {
     @Bindable var workspace: TabWorkspace
 
     var body: some View {
+        if workspace.documents.isEmpty {
+            WorkspaceStartView(workspace: workspace)
+        } else {
+            tabbedEditor
+        }
+    }
+
+    private var tabbedEditor: some View {
         VStack(spacing: 0) {
             if let document = workspace.selected {
                 if !document.model.focusMode {
@@ -158,9 +166,10 @@ struct DocumentTabCommands: Commands {
             Button("Toggle Inspector") { tabs.activeDocument?.model.showInspector.toggle() }.keyboardShortcut("i", modifiers: [.command, .option])
         }
         CommandGroup(before: .saveItem) {
-            Button("Close Tab") {
+            Button(tabs.activeDocument == nil ? "Close Window" : "Close Tab") {
                 if let document = tabs.activeDocument { document.workspace?.closeTab(document) }
-            }.keyboardShortcut("w").disabled(tabs.activeDocument == nil)
+                else { tabs.activeWorkspace?.window?.performClose(nil) }
+            }.keyboardShortcut("w").disabled(tabs.activeWorkspace == nil)
         }
     }
 }
