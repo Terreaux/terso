@@ -25,6 +25,13 @@ final class DocumentTabs {
         return workspace
     }
 
+    /// Reuses an empty window's start screen before creating another window.
+    func showStartWindow() {
+        let workspace = workspaces.first { $0.documents.isEmpty } ?? newWorkspace()
+        activeWorkspace = workspace
+        workspace.showWindow(nil)
+    }
+
     func present(_ document: TabDocument) {
         let workspace = document.workspace ?? activeWorkspace ?? newWorkspace()
         workspace.insert(document)
@@ -259,7 +266,7 @@ final class TersoAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         DocumentTabs.shared.isRunning = true
         DocumentTabs.shared.restore()
-        if DocumentTabs.shared.workspaces.isEmpty { DocumentTabs.shared.newDocument() }
+        if DocumentTabs.shared.workspaces.isEmpty { DocumentTabs.shared.showStartWindow() }
         NSApp.activate(ignoringOtherApps: true)
     }
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }
@@ -268,7 +275,7 @@ final class TersoAppDelegate: NSObject, NSApplicationDelegate {
         sender.reply(toOpenOrPrint: .success)
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        if !hasVisibleWindows { DocumentTabs.shared.newDocument() }
+        if !hasVisibleWindows { DocumentTabs.shared.showStartWindow() }
         return true
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
