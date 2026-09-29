@@ -100,6 +100,26 @@ import TersoDocument
         #expect(urls.map(\.path) == ["/tmp/a.md", "/tmp/My Notes.md", "/tmp/My Draft.md", home + "/b.md", "/tmp/c d.md"])
     }
 
+    @Test func obsidianLinksResolveThroughVaultRegistry() throws {
+        let vault = FileManager.default.temporaryDirectory.appendingPathComponent("terso-vault-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: vault) }
+        try FileManager.default.createDirectory(at: vault.appendingPathComponent("Daily"), withIntermediateDirectories: true)
+        try Data().write(to: vault.appendingPathComponent("Daily/Note one.md"))
+        try Data().write(to: vault.appendingPathComponent("data.csv"))
+        let vaults = { [vault] }
+        let name = vault.lastPathComponent
+        func resolve(_ link: String) -> String? {
+            ExternalFileLinks.fileURL(for: URL(string: link)!, obsidianVaults: vaults)?.path
+        }
+        #expect(resolve("obsidian://open?vault=\(name)&file=Daily%2FNote%20one") == vault.appendingPathComponent("Daily/Note one.md").path)
+        #expect(resolve("obsidian://open?vault=\(name)&file=data.csv") == vault.appendingPathComponent("data.csv").path)
+        #expect(resolve("obsidian://open?path=%2Ftmp%2Fx.md") == "/tmp/x.md")
+        #expect(resolve("obsidian://open?vault=Missing&file=x") == nil)
+        #expect(resolve("https://example.com/x.md") == nil)
+        let pasted = WorkspaceStartView.fileURLs(fromPastedText: "obsidian://open?vault=\(name)&file=Daily%2FNote%20one", obsidianVaults: vaults)
+        #expect(pasted.map(\.lastPathComponent) == ["Note one.md"])
+    }
+
     @Test func editingUndoAndSavingStayWithTheOriginatingTab() async throws {
         _ = NSApplication.shared
         let document = TabDocument(), other = TabDocument()
