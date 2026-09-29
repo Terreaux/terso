@@ -86,6 +86,20 @@ import TersoDocument
         #expect(!window.isVisible)
     }
 
+    @Test func pastedTextAcceptsCommonPathForms() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let urls = WorkspaceStartView.fileURLs(fromPastedText: """
+            /tmp/a.md
+              "/tmp/My Notes.md"
+            /tmp/My\\ Draft.md
+            ~/b.md
+            file:///tmp/c%20d.md
+            relative/e.md
+            https://example.com/f.md
+            """)
+        #expect(urls.map(\.path) == ["/tmp/a.md", "/tmp/My Notes.md", "/tmp/My Draft.md", home + "/b.md", "/tmp/c d.md"])
+    }
+
     @Test func editingUndoAndSavingStayWithTheOriginatingTab() async throws {
         _ = NSApplication.shared
         let document = TabDocument(), other = TabDocument()

@@ -25,9 +25,11 @@ change or frame-synchronization loop is needed.
 - AppKit `NSDocument` handles Save, Save As, Duplicate, Rename, Revert, file
   coordination and autosave support. Existing `PlainTextCodec` preserves encoding,
   BOM, line endings and whitespace. Editor undo notifications drive change counts.
-- Closing the last tab keeps the window open on a start screen with New
-  Document, Open…, recent files, and a drop target for files. Command-W there
-  closes the window. Moving the last tab to another window, or closing the
+- Launch without a restored session, Dock reopen, and closing the last tab
+  show a start screen with New Document, Open…, recent files, and a drop target
+  for files. Command-V there opens a file copied in Finder, or pasted absolute,
+  `~` or `file:` paths (one per line; quotes and shell escapes are accepted).
+  Command-W there closes the window. Moving the last tab to another window, or closing the
   window, still closes it.
 - Close Tab reviews that document's unsaved changes. Closing a window reviews all
   of its documents sequentially and stops on Cancel. Quit reviews every document;
