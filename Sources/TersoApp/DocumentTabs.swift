@@ -162,6 +162,9 @@ final class DocumentTabs {
 final class TabWorkspace: NSWindowController, NSWindowDelegate {
     private(set) var documents: [TabDocument] = []
     private(set) var selected: TabDocument?
+    /// A transient "New Tab" showing the start screen beside open documents.
+    /// Opening or selecting any document replaces it.
+    private(set) var showingStart = false
     private var closing = false
 
     init() {
@@ -200,6 +203,7 @@ final class TabWorkspace: NSWindowController, NSWindowDelegate {
         // End the current typing group before giving another editor focus.
         if let editor = selected?.model.editor as? EditorCoordinator { editor.textView?.breakUndoCoalescing() }
         selected = document
+        showingStart = false
         DocumentTabs.shared.activeWorkspace = self
         refreshWindowTitle()
         DocumentTabs.shared.scheduleRecovery()
@@ -224,7 +228,23 @@ final class TabWorkspace: NSWindowController, NSWindowDelegate {
         }
     }
 
+    func showStart() {
+        showingStart = true
+        DocumentTabs.shared.activeWorkspace = self
+        refreshWindowTitle()
+    }
+
+    func dismissStart() {
+        guard showingStart else { return }
+        showingStart = false
+        refreshWindowTitle()
+    }
+
     func refreshWindowTitle() {
+        guard !showingStart else {
+            window?.title = "New Tab"; window?.representedURL = nil; window?.isDocumentEdited = false
+            return
+        }
         window?.title = selected?.displayName ?? "Terso"
         window?.representedURL = selected?.fileURL
         window?.isDocumentEdited = selected?.isDocumentEdited ?? false

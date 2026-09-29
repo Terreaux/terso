@@ -2,7 +2,7 @@
 import AppKit
 import SwiftUI
 
-/// Shown in a workspace window after its last tab closes.
+/// Shown in a workspace window after its last tab closes, and as a New Tab.
 struct WorkspaceStartView: View {
     let workspace: TabWorkspace
     @State private var targeted = false
@@ -18,7 +18,7 @@ struct WorkspaceStartView: View {
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(targeted ? Color.accentColor : .secondary)
             VStack(spacing: 6) {
-                Text("No Open Documents").font(.title2.weight(.semibold))
+                Text(workspace.documents.isEmpty ? "No Open Documents" : "New Tab").font(.title2.weight(.semibold))
                 Text("Create a document, open one, or drop Markdown and text files here.")
                     .foregroundStyle(.secondary)
                 Text("Paste a copied file or path with ⌘V to open it.")
