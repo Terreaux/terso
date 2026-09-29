@@ -157,17 +157,26 @@ extension EditorCoordinator {
         let source = tv.string
         let selection = tv.selectedRange()
         layout.hiddenLinkSyntax = LinkPresentation.hiddenSyntax(in: source, selection: selection)
-        let regions = MathPresentation.regions(in: source).filter {
-            !MathPresentation.showsSource($0.range.nsRange, selection: selection, text: source)
+        let allEmbeds = ImagePresentation.embeds(in: source)
+        let embeds = allEmbeds.filter { !MathPresentation.showsSource($0.range, selection: selection, text: source) }
+        // A `$` inside an image URL must never render as math over the embed.
+        let regions = MathPresentation.regions(in: source).filter { region in
+            !MathPresentation.showsSource(region.range.nsRange, selection: selection, text: source)
+                && !allEmbeds.contains { NSIntersectionRange($0.range, region.range.nsRange).length > 0 }
         }
+        let visible = regions.map(\.range.nsRange) + embeds.map(\.range)
         // Discard old offsets synchronously before any asynchronous rendering.
         layout.setRendered(layout.rendered.filter { item in
-            mathSource == source && regions.contains { $0.range.nsRange == item.range }
+            mathSource == source && visible.contains(item.range)
         })
         mathSource = source
         let macros = MathPresentation.macros(in: source)
         let dark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         let width = max(80, min(config.columnWidth, Double(tv.textContainer?.size.width ?? CGFloat(config.columnWidth))))
+        let directory = model.fileURL?.deletingLastPathComponent()
+        let images = embeds.compactMap { embed in
+            ImagePresentation.url(for: embed.source, directory: directory).map { (range: embed.range, url: $0) }
+        }
         mathTask = Task { [weak self, weak tv, weak layout] in
             guard let self else { return }
             var output: [RenderedMath] = []
@@ -185,7 +194,22 @@ extension EditorCoordinator {
             guard !Task.isCancelled, tv?.string == source, self.config?.renderMode == .mixed else { return }
             // Publish the complete batch: a partial prefix would temporarily
             // remove later equations even when their cached images are unchanged.
-            layout?.setRendered(output)
+            // Slow downloads must not hold back math, so cached images go first.
+            func publish(_ pictures: [RenderedMath]) {
+                layout?.setRendered((output + pictures).sorted { $0.range.location < $1.range.location })
+            }
+            publish(images.compactMap { item in
+                imageLoader.cachedImage(for: item.url, width: width).map { RenderedMath(range: item.range, image: $0) }
+            })
+            guard images.contains(where: { imageLoader.cachedImage(for: $0.url, width: width) == nil }) else { return }
+            var pictures: [RenderedMath] = []
+            for item in images {
+                if let image = await imageLoader.image(for: item.url, width: width) {
+                    pictures.append(RenderedMath(range: item.range, image: image))
+                }
+            }
+            guard !Task.isCancelled, tv?.string == source, self.config?.renderMode == .mixed else { return }
+            publish(pictures)
         }
     }
 }
