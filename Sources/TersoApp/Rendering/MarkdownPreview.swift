@@ -52,7 +52,7 @@ struct MarkdownPreview: NSViewRepresentable {
 }
 
 /// Only images beneath this document's directory are available to the web view.
-private final class PreviewImages: NSObject, WKURLSchemeHandler {
+final class PreviewImages: NSObject, WKURLSchemeHandler {
     let directory: URL?
     init(directory: URL?) { self.directory = directory?.resolvingSymlinksInPath() }
     func webView(_ webView: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
