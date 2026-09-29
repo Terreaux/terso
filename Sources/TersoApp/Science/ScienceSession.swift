@@ -8,6 +8,7 @@ import TersoCore
 @MainActor @Observable
 final class ScienceReviewState {
     var attentionExpanded = false
+    var expandedSections: Set<String> = []
     var authorStatements: Set<String> = []
     var ignoredClaims: Set<String> = []
     var dismissalKeys: Set<String> = []
@@ -85,8 +86,10 @@ extension WorkspaceModel {
 
     func findScienceSupport(_ claim: ScientificClaim) {
         guard currentScience != nil else { return }
-        runAI(task: .findUnsupportedClaims,
-              question: "Review this claim under the \(scienceProfile.displayName) profile. Suggest what evidence or citation would be needed. Distinguish author opinion from factual claims. Do not invent references or assert that nearby material proves the claim.",
-              scope: .selection, selection: claim.sourceRange)
+        // The whole manuscript is the context: support often lives in another
+        // section (methods, results, a later figure), not the claim's paragraph.
+        runAI(task: .ask,
+              question: "Review this claim under the \(scienceProfile.displayName) profile: \"\(claim.text)\". Using the whole document, point to any passages, results, figures or citations that support it, and say what evidence or citation would still be needed. Distinguish author opinion from factual claims. Do not invent references or assert that nearby material proves the claim.",
+              scope: .document, selection: claim.sourceRange)
     }
 }
