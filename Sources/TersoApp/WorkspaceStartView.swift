@@ -6,7 +6,7 @@ import SwiftUI
 struct WorkspaceStartView: View {
     let workspace: TabWorkspace
     @State private var targeted = false
-    @State private var pasteProblem: String?
+    @State private var problem: String?
     @FocusState private var focused: Bool
 
     private var tabs: DocumentTabs { .shared }
@@ -23,9 +23,9 @@ struct WorkspaceStartView: View {
                     .foregroundStyle(.secondary)
                 Text("Paste a copied file or path with ⌘V to open it.")
                     .font(.callout).foregroundStyle(.tertiary)
-                if let pasteProblem {
-                    Text(pasteProblem).font(.callout).foregroundStyle(.red)
-                        .accessibilityLabel("Paste failed: \(pasteProblem)")
+                if let problem {
+                    Text(problem).font(.callout).foregroundStyle(.red)
+                        .accessibilityLabel("Paste failed: \(problem)")
                 }
             }
             HStack(spacing: 12) {
@@ -64,11 +64,7 @@ struct WorkspaceStartView: View {
         .onTapGesture { focused = true }
         .onPasteCommand(of: [.fileURL, .plainText]) { _ in openPasteboard() }
         .dropDestination(for: URL.self) { urls, _ in
-            let files = urls.filter(\.isFileURL)
-            guard !files.isEmpty else { return false }
-            activate()
-            files.forEach(tabs.open)
-            return true
+            open(urls.compactMap { ExternalFileLinks.fileURL(for: $0) }, emptyProblem: "Terso can't open what was dropped.")
         } isTargeted: { targeted = $0 }
     }
 
@@ -77,21 +73,27 @@ struct WorkspaceStartView: View {
         let pasteboard = NSPasteboard.general
         let copied = pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         let urls = copied.isEmpty ? Self.fileURLs(fromPastedText: pasteboard.string(forType: .string) ?? "") : copied
+        open(urls, emptyProblem: "The clipboard doesn't contain a file path.")
+    }
+
+    @discardableResult
+    private func open(_ urls: [URL], emptyProblem: String) -> Bool {
         var isDirectory: ObjCBool = false
         let files = urls.filter { FileManager.default.fileExists(atPath: $0.path, isDirectory: &isDirectory) && !isDirectory.boolValue }
         guard !files.isEmpty else {
-            pasteProblem = urls.isEmpty ? "The clipboard doesn't contain a file path." : "No file exists at \(urls[0].path)."
+            problem = urls.isEmpty ? emptyProblem : "No file exists at \(urls[0].path)."
             NSSound.beep()
-            return
+            return false
         }
-        pasteProblem = nil
+        problem = nil
         activate()
         files.forEach(tabs.open)
+        return true
     }
 
-    /// Accepts one absolute path, `~` path or `file:` URL per line, optionally
-    /// quoted or shell-escaped as terminals copy them.
-    static func fileURLs(fromPastedText text: String) -> [URL] {
+    /// Accepts one absolute path, `~` path, `file:` or `obsidian:` URL per line,
+    /// optionally quoted or shell-escaped as terminals copy them.
+    static func fileURLs(fromPastedText text: String, obsidianVaults: () -> [URL] = ExternalFileLinks.obsidianVaults) -> [URL] {
         text.split(whereSeparator: \.isNewline).compactMap { line in
             var path = line.trimmingCharacters(in: .whitespaces)
             if path.count > 1, let first = path.first, "\"'".contains(first), path.last == first {
@@ -99,7 +101,9 @@ struct WorkspaceStartView: View {
             } else {
                 path = path.replacingOccurrences(of: #"\\(.)"#, with: "$1", options: .regularExpression)
             }
-            if path.hasPrefix("file:") { return URL(string: path).flatMap { $0.isFileURL ? $0 : nil } }
+            if path.hasPrefix("file:") || path.hasPrefix("obsidian:") {
+                return URL(string: path).flatMap { ExternalFileLinks.fileURL(for: $0, obsidianVaults: obsidianVaults) }
+            }
             path = (path as NSString).expandingTildeInPath
             return path.hasPrefix("/") ? URL(fileURLWithPath: path).standardizedFileURL : nil
         }

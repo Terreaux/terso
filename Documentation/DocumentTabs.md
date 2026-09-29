@@ -29,6 +29,8 @@ change or frame-synchronization loop is needed.
   show a start screen with New Document, Open…, recent files, and a drop target
   for files. Command-V there opens a file copied in Finder, or pasted absolute,
   `~` or `file:` paths (one per line; quotes and shell escapes are accepted).
+  Dropped or pasted `obsidian://open` links resolve through Obsidian's vault
+  registry, so notes dragged from Obsidian's file explorer open directly.
   Command-W there closes the window. Moving the last tab to another window, or closing the
   window, still closes it.
 - Close Tab reviews that document's unsaved changes. Closing a window reviews all
