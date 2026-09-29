@@ -199,6 +199,25 @@ import TersoCore
         #expect(LinkPresentation.hiddenSyntax(in: literal, selection: NSRange(location: (literal as NSString).length, length: 0)).isEmpty)
     }
 
+    @Test func imageEmbedsResolveRemoteAndDocumentRelativeSources() {
+        let remote = "https://substackcdn.com/image/fetch/$s_!4evp!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F504042d6-e8ce-4830-9a80-d38b422b0805_2048x1138.png"
+        let text = "Intro $x$\n\n![](\(remote))\n\n![Plot](figs/plot.png \"Title\")\n\n`![](code.png)`\n\\![](escaped.png)\n[link](page.md)"
+        let embeds = ImagePresentation.embeds(in: text)
+        #expect(embeds.map(\.source) == [remote, "figs/plot.png"])
+        #expect(embeds[0].range == (text as NSString).range(of: "![](\(remote))"))
+        let directory = URL(fileURLWithPath: "/tmp/terso-doc", isDirectory: true)
+        #expect(ImagePresentation.url(for: remote, directory: nil)?.absoluteString == remote)
+        #expect(ImagePresentation.url(for: "figs/plot.png", directory: directory)?.lastPathComponent == "plot.png")
+        #expect(ImagePresentation.url(for: "../secret.png", directory: directory) == nil)
+        #expect(ImagePresentation.url(for: "/etc/secret.png", directory: directory) == nil)
+        #expect(ImagePresentation.url(for: "file:///etc/secret.png", directory: directory) == nil)
+        #expect(ImagePresentation.url(for: "figs/plot.png", directory: nil) == nil)
+        let tall = NSImage(size: NSSize(width: 2048, height: 1138))
+        let fitted = InlineImageLoader.fitted(tall, width: 708)
+        #expect(fitted.size.width == 700)
+        #expect(tall.size.width == 2048)
+    }
+
     @Test func selectingMathRestoresSourceAndModesKeepUndo() async throws {
         let model = WorkspaceModel()
         let text = "# Heading\n\nA **bold** *italic* ~~struck~~ [link](https://example.com) [[Note|alias]] result $x_i$ here.\n\nElsewhere"
