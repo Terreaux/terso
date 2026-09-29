@@ -86,7 +86,7 @@ struct ScienceInspector: View {
             if model.scienceDiagnostics.isEmpty { empty("No outstanding diagnostics.") }
             ForEach(model.scienceDiagnostics) { diagnostic in diagnosticRow(diagnostic, science: science, expanded: true) }
         case "Scientific Map": relationshipExplorer(science)
-        default: objectList(science, section: model.scienceDetailSection ?? "")
+        default: overview(science)
         }
     }
 
@@ -112,13 +112,13 @@ struct ScienceInspector: View {
         Divider()
         VStack(alignment: .leading, spacing: 3) {
             SectionLabel("Document model").padding(.bottom, 4)
-            modelRow("Notation", count: science.symbols.count)
-            modelRow("Definitions", count: science.definitions.count)
-            modelRow("Quantities", count: science.quantities.count)
-            modelRow("Equations", count: science.equations.count)
-            modelRow("References", count: science.references.count)
-            modelRow("Claims", count: science.claims.count)
-            modelRow("Evidence", count: science.evidence.count)
+            modelSection("Notation", count: science.symbols.count, science: science)
+            modelSection("Definitions", count: science.definitions.count, science: science)
+            modelSection("Quantities", count: science.quantities.count, science: science)
+            modelSection("Equations", count: science.equations.count, science: science)
+            modelSection("References", count: science.references.count, science: science)
+            modelSection("Claims", count: science.claims.count, science: science)
+            modelSection("Evidence", count: science.evidence.count, science: science)
         }
         Divider()
         Button { model.scienceDetailSection = "Scientific Map" } label: {
@@ -129,15 +129,30 @@ struct ScienceInspector: View {
             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
     }
 
-    private func modelRow(_ title: String, count: Int) -> some View {
-        Button { model.scienceDetailSection = title } label: {
+    /// Document model sections expand in place so several can be compared
+    /// without leaving the overview.
+    @ViewBuilder private func modelSection(_ title: String, count: Int, science: ScientificDocumentModel) -> some View {
+        let expanded = model.scienceReview.expandedSections.contains(title)
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) {
+                if expanded { model.scienceReview.expandedSections.remove(title) }
+                else { model.scienceReview.expandedSections.insert(title) }
+            }
+        } label: {
             HStack {
+                Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
                 Text(title).foregroundStyle(count == 0 ? .secondary : .primary)
                 Spacer()
                 Text("\(count)").monospacedDigit().foregroundStyle(.secondary)
-                Image(systemName: "chevron.right").font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
             }.padding(.vertical, 5).padding(.horizontal, 6).contentShape(Rectangle())
         }.buttonStyle(ScienceModelRowStyle())
+            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+        if expanded {
+            VStack(alignment: .leading, spacing: 6) {
+                objectList(science, section: title)
+            }.padding(.leading, 14).padding(.bottom, 6)
+        }
     }
 
     private func diagnosticRow(_ diagnostic: ScientificDiagnostic, science: ScientificDocumentModel, expanded: Bool) -> some View {
@@ -210,7 +225,7 @@ private extension ScienceInspector {
         if section == "Definitions" {
             Text("\(science.symbols.filter { science.definitionStatus(for: $0) == .defined }.count) defined · \(science.symbols.filter { science.definitionStatus(for: $0) == .undefined }.count) without a detected definition · \(science.symbols.filter { science.definitionStatus(for: $0) == .assumedKnowledge }.count) possibly assumed")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            Button("Inspect notation without definitions") { model.scienceDetailSection = "Notation" }.buttonStyle(.borderless)
+            Button("Inspect notation without definitions") { model.scienceReview.expandedSections.insert("Notation") }.buttonStyle(.borderless)
         }
         if section == "References" {
             Text("\(science.citations.count) citations · \(science.crossReferences.count) cross-references")
@@ -224,14 +239,17 @@ private extension ScienceInspector {
             VStack(alignment: .leading, spacing: 8) {
                 Button { model.navigateScience(objectID: node.id, range: node.sourceRange) } label: {
                     VStack(alignment: .leading, spacing: 5) {
+                        let quantity = science.quantities.first { node.id == "quantity:\($0.id)" }
                         HStack(alignment: .firstTextBaseline) {
-                            ScienceText(node.title, math: isMath(node, science: science)).font(.system(size: 12, weight: .medium)).multilineTextAlignment(.leading)
+                            ScienceText(quantity.map { quantityTitle($0, science: science) } ?? node.title, math: isMath(node, science: science)).font(.system(size: 12, weight: .medium)).multilineTextAlignment(.leading)
                             Spacer(minLength: 4)
                             if model.selectedScienceObjectID != node.id { Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary) }
                         }
                         if let symbol = science.symbols.first(where: { node.id == "symbol:\($0.id)" }) {
                             Text("\(symbol.usageCount) occurrences · \(definitionLabel(science.definitionStatus(for: symbol)))")
                                 .font(.caption).foregroundStyle(.secondary)
+                        } else if let quantity {
+                            Text(quantitySubtitle(quantity, science: science)).font(.caption).foregroundStyle(.secondary)
                         } else {
                             Text(node.kind).font(.caption).foregroundStyle(.secondary)
                         }
@@ -328,7 +346,7 @@ private extension ScienceInspector {
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Button("Find support…") { model.findScienceSupport(claim) }
                 .buttonStyle(.borderless).disabled(!model.prefs.aiEnabled || model.prefs.selectedProvider == nil)
-                .help("Ask the configured Assistant about this claim only; existing AI data-access settings apply.")
+                .help("Ask the configured Assistant about this claim, sending the whole document as context; existing AI data-access settings apply.")
             if !model.prefs.aiEnabled { Text("Enable Assistant in Settings to request a semantic review.").font(.caption).foregroundStyle(.secondary) }
             Button("Mark as author statement") { model.markScienceClaim(claim, asAuthorStatement: true) }.buttonStyle(.borderless)
             Button("Ignore warning") { model.markScienceClaim(claim, asAuthorStatement: false) }.buttonStyle(.borderless)
@@ -414,17 +432,47 @@ private extension ScienceInspector {
     }
 
     func open(_ node: ScientificNode) {
-        switch node.kind {
-        case "Notation": model.scienceDetailSection = "Notation"
-        case "Term": model.scienceDetailSection = "Scientific Map"
-        case "Definition": model.scienceDetailSection = "Definitions"
-        case "Quantity": model.scienceDetailSection = "Quantities"
-        case "Equation": model.scienceDetailSection = "Equations"
-        case "Claim": model.scienceDetailSection = "Claims"
-        case "Evidence": model.scienceDetailSection = "Evidence"
-        default: model.scienceDetailSection = "References"
+        let section: String? = switch node.kind {
+        case "Notation": "Notation"
+        case "Term": nil
+        case "Definition": "Definitions"
+        case "Quantity": "Quantities"
+        case "Equation": "Equations"
+        case "Claim": "Claims"
+        case "Evidence": "Evidence"
+        default: "References"
         }
+        if let section {
+            model.scienceReview.expandedSections.insert(section)
+            model.scienceDetailSection = nil
+        } else { model.scienceDetailSection = "Scientific Map" }
         model.navigateScience(objectID: node.id, range: node.sourceRange)
+    }
+
+    /// Typeset from parsed parts so the unit shows even when the source splits
+    /// it across math delimiters (`$70$ kg`).
+    func quantityTitle(_ quantity: ScientificQuantity, science: ScientificDocumentModel) -> String {
+        // Locale-independent: a decimal comma would typeset as a list separator.
+        func number(_ value: Double) -> String { value == value.rounded() && abs(value) < 1e15 ? String(Int(value)) : String(value) }
+        var text = number(quantity.numericValue)
+        if let uncertainty = quantity.uncertainty { text += " \\pm " + number(uncertainty) }
+        if let unit = quantity.normalizedUnit { text += "\\," + mathUnit(unit) }
+        if let symbol = quantity.symbol {
+            text = (science.symbols.first { $0.id == symbol }?.displayForm ?? symbol) + " = " + text
+        }
+        return text
+    }
+
+    func quantitySubtitle(_ quantity: ScientificQuantity, science: ScientificDocumentModel) -> String {
+        guard quantity.normalizedUnit != nil else { return "No unit detected" }
+        return science.quantityMetadata(for: quantity).unitDimension?.capitalized ?? "Unit outside profile"
+    }
+
+    func mathUnit(_ unit: String) -> String {
+        guard unit != "%" else { return "\\%" }
+        let (base, exponent) = unit.hasSuffix("^{-1}") ? (String(unit.dropLast(5)), "^{-1}") : (unit, "")
+        let micro = base.hasPrefix("μ") || base.hasPrefix("µ")
+        return (micro ? "\\mu" : "") + "\\mathrm{\(micro ? String(base.dropFirst()) : base)}" + exponent
     }
 
     func sourceLocation(_ range: TextSpan) -> String {
