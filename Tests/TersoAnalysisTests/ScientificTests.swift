@@ -9,6 +9,14 @@ import TersoCore
         WritingAnalyzer(profile: profile).analyze(DocumentSnapshot(revision: DocumentRevision(42), text: text))
     }
 
+    @Test func imageURLParametersAreNotScientificNotation() {
+        let url = "https://substackcdn.com/image/fetch/$s_!4evp!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fexample.com%2Fimage.png"
+        let text = Array(repeating: "![](\(url))", count: 4).joined(separator: "\n\n")
+        let result = analyze(text)
+        #expect(result.science.symbols.isEmpty)
+        #expect(!result.issues.contains { $0.category == .notation })
+    }
+
     @Test func realisticManuscript() throws {
         let url = try #require(Bundle.module.url(forResource: "manuscript", withExtension: "md", subdirectory: "Fixtures"))
         let text = try String(contentsOf: url, encoding: .utf8)
