@@ -6,6 +6,26 @@ import Testing
 @Suite struct ScientificSyntaxTests {
     func syntax(_ text: String) -> ScientificSyntax { ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(9), text: text)) }
 
+    @Test func linkTargetsDoNotStartMathOrComments() {
+        let text = #"""
+        🧪 [Visible $q_T$](images/$s_!a!,w_1456%2Fplot_(1).png "Title") and $p_L$.
+        ![](https://example.com/$s_!b!,c_limit%2Fimage.png)
+        <https://example.com/$s_!c!,q_auto> then $m_t$.
+        https://example.com/$s_!d!,f_auto then $k_T$.
+        `https://example.com/$s_!e!` remains code.
+        """#
+        let s = syntax(text)
+        #expect(s.regions.filter { $0.kind == .inlineMath }.map(\.normalizedContent) == ["q_T", "p_L", "m_t", "k_T"])
+        #expect(s.regions.filter { $0.kind == .linkDestination }.count == 4)
+        #expect(s.regions.filter { $0.kind == .code }.count == 1)
+        #expect(s.regions.map(\.rawText).joined() == text)
+        #expect(s.maskedProse.utf16.count == text.utf16.count)
+        #expect(s.maskedProse.contains("Visible"))
+        for region in s.regions {
+            #expect((text as NSString).substring(with: region.range.nsRange) == region.rawText)
+        }
+    }
+
     @Test func delimitersAndEnvironments() {
         let text = #"""
         We use $p_T$ and \(q_T\).

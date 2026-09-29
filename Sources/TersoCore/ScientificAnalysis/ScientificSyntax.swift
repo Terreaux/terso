@@ -2,7 +2,7 @@
 import Foundation
 
 public enum ScientificRegionKind: String, Codable, Sendable {
-    case prose, inlineMath, displayMath, command, citation, reference, code, comment
+    case prose, inlineMath, displayMath, command, citation, reference, code, comment, linkDestination
 }
 
 public struct ScientificRegion: Sendable, Hashable, Codable {
@@ -87,6 +87,24 @@ public struct ScientificSyntax: Sendable {
                 while end < lineEnd(i) && !has(marker, end) { end += 1 }
                 if has(marker, end) { end += count }
                 flush(i); emit(.code, i, end); i = end; proseStart = i; continue
+            }
+            // Link targets can contain dollar signs, underscores and percent
+            // escapes. Consume them before interpreting any TeX syntax, while
+            // leaving visible link labels available for scientific analysis.
+            if u[i] == 40, i > 0, u[i - 1] == 93, !escaped(i - 1),
+               let end = groupEnd(i, open: 40, close: 41) {
+                flush(i); emit(.linkDestination, i, end); i = end; proseStart = i; continue
+            }
+            if has("https://", i) || has("http://", i) {
+                var end = i, depth = 0
+                while end < u.count {
+                    let c = u[end]
+                    if c <= 32 || c == 60 || c == 62 || c == 34 || c == 96 { break }
+                    if c == 40 { depth += 1 }
+                    if c == 41 { if depth == 0 { break }; depth -= 1 }
+                    end += 1
+                }
+                flush(i); emit(.linkDestination, i, end); i = end; proseStart = i; continue
             }
             // Markdown scientific prose commonly uses literal 2%. Preserve that
             // form; other unescaped percent signs start TeX comments.

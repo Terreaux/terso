@@ -119,9 +119,9 @@ public struct ScientificDocumentModel: Sendable, Codable {
         let syntax = ScientificSyntax(snapshot)
         regions = syntax.regions
         let ns = snapshot.text as NSString
-        // Exclude code, comments and front matter from every scientific index.
+        // Exclude code, comments, link targets and front matter from every scientific index.
         var source = Array(snapshot.text.utf16)
-        var excluded = regions.filter { $0.kind == .code || $0.kind == .comment }.map(\.range)
+        var excluded = regions.filter { $0.kind == .code || $0.kind == .comment || $0.kind == .linkDestination }.map(\.range)
         if let front = SciencePattern.matches(#"\A(---|\+\+\+)[ \t]*\n(?:[\s\S]*?\n)?(?:\1|\.\.\.)[ \t]*(?:\n|\z)"#, snapshot.text).first { excluded.append(TextSpan(front.range)) }
         // Comments inside math are not separate partition regions.
         for region in regions where region.kind == .inlineMath || region.kind == .displayMath {
