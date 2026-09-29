@@ -125,6 +125,7 @@ private struct DocumentControls: View {
             Spacer()
             CopyDocumentButton(text: document.contents.text)
                 .id(document.id)
+            ExportMenu(document: document)
             Button { model.inspectorTab = .review; model.showInspector = true } label: { Image(systemName: "text.magnifyingglass") }
                 .help("Review writing").accessibilityLabel("Review")
             Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
@@ -212,6 +213,15 @@ struct DocumentTabCommands: Commands {
             Button("Duplicate") { tabs.activeDocument?.duplicate(nil) }.disabled(tabs.activeDocument == nil)
             Button("Rename…") { tabs.activeDocument?.rename(nil) }.disabled(tabs.activeDocument?.fileURL == nil)
             Button("Revert to Saved…") { tabs.activeDocument?.revertToSaved(nil) }.disabled(tabs.activeDocument?.fileURL == nil)
+            Divider()
+            Menu("Export As") {
+                if let document = tabs.activeDocument {
+                    let latex = DocumentExport.isLaTeX(document)
+                    ForEach(ExportFormat.available(latex: latex)) { format in
+                        Button(format.title(latex: latex) + "…") { DocumentExport.export(document, as: format) }
+                    }
+                }
+            }.disabled(tabs.activeDocument == nil)
         }
         CommandGroup(replacing: .windowArrangement) {
             Button("Next Tab") { tabs.activeWorkspace?.select(offset: 1) }.keyboardShortcut("]", modifiers: [.command, .shift])
