@@ -69,6 +69,23 @@ import TersoDocument
         #expect(workspace.selected === documents[2])
     }
 
+    @Test func closingLastTabKeepsWindowButMovingItAwayClosesIt() throws {
+        _ = NSApplication.shared
+        let workspace = TabWorkspace(), document = TabDocument()
+        defer { document.close(); workspace.close() }
+        workspace.insert(document)
+        workspace.showWindow(nil)
+        let window = try #require(workspace.window)
+        workspace.remove(document)
+        #expect(workspace.documents.isEmpty && workspace.selected == nil)
+        #expect(window.isVisible)
+        #expect(window.title == "Terso")
+
+        workspace.insert(document)
+        workspace.remove(document, closingWhenEmpty: true)
+        #expect(!window.isVisible)
+    }
+
     @Test func editingUndoAndSavingStayWithTheOriginatingTab() async throws {
         _ = NSApplication.shared
         let document = TabDocument(), other = TabDocument()
