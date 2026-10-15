@@ -40,6 +40,12 @@ enum HighlightStyle {
         case .spelling: .systemRed
         case .aiSuggestion: .controlAccentColor
         case .aiStyle: .systemPurple
+        case .filler: dynamic(light: 0x6E56CF, dark: 0xA594F9)
+        case .adverbs: .systemPink
+        case .loosePronouns: dynamic(light: 0x2F6FB0, dark: 0x8FBFF0)
+        case .misused: dynamic(light: 0xBE123C, dark: 0xFB7185)
+        case .lexicalIllusions: dynamic(light: 0xA21CAF, dark: 0xE879F9)
+        case .rhythm: .systemGray
         }
     }
 

@@ -20,7 +20,8 @@ public enum AnnotationFamily: Int, Comparable, Sendable, CaseIterable {
 public extension AnnotationCategory {
     var family: AnnotationFamily {
         switch self {
-        case .notation, .quantities, .references, .claims, .evidence, .readability, .complexity, .passiveVoice, .style, .repetition, .specificity: .writing
+        case .notation, .quantities, .references, .claims, .evidence, .readability, .complexity, .passiveVoice, .style, .repetition, .specificity,
+             .filler, .adverbs, .loosePronouns, .misused, .lexicalIllusions, .rhythm: .writing
         case .spelling: .spelling
         case .aiSuggestion: .aiSuggestion
         case .aiStyle: .aiStyle

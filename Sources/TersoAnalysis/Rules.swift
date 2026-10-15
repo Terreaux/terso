@@ -125,7 +125,7 @@ public struct AdverbRule: WritingRule {
     public let id = "style.adverb"
     public let name = "Adverbs"
     public let description = "-ly adverbs that often weaken a verb."
-    public let category = AnnotationCategory.style
+    public let category = AnnotationCategory.adverbs
     static let re = Lexicon.regex(#"\b[A-Za-z]{3,}ly\b"#)
     /// Common -ly words that are not manner adverbs, or carry meaning.
     static let exceptions: Set<String> = Set("""
@@ -146,7 +146,7 @@ public struct AdverbRule: WritingRule {
         guard hits.count >= 2, density >= 8 else { return [] }
         return hits.map {
             WritingIssue(
-                ruleID: id, severity: .info, category: .style, message: "Adverb",
+                ruleID: id, severity: .info, category: .adverbs, message: "Adverb",
                 explanation: "A stronger verb often does the adverb’s work. This text has \(Int(density.rounded())) -ly adverbs per 1,000 words.",
                 ranges: [TextSpan($0.range)], originalText: ns.substring(with: $0.range))
         }
@@ -185,7 +185,7 @@ public struct QualifierRule: PhraseListRule {
     public let id = "style.qualifier"
     public let name = "Weak qualifiers"
     public let description = "Words that hedge or intensify without adding meaning."
-    public let category = AnnotationCategory.style
+    public let category = AnnotationCategory.filler
     let severity = Severity.info
     let message = "Qualifier"
     let entries: [PhraseEntry] = [
@@ -203,7 +203,7 @@ public struct FillerPhraseRule: PhraseListRule {
     public let id = "style.filler"
     public let name = "Filler phrases"
     public let description = "Wordy phrases with shorter equivalents."
-    public let category = AnnotationCategory.style
+    public let category = AnnotationCategory.filler
     let severity = Severity.suggestion
     let message = "Wordy phrase"
     let entries: [PhraseEntry] = [
@@ -248,6 +248,78 @@ public struct ComplexWordRule: PhraseListRule {
     }
 }
 
+public struct MisusedWordRule: PhraseListRule {
+    public let id = "misused.word"
+    public let name = "Commonly misused"
+    public let description = "Words and phrases often confused with a similar one."
+    public let category = AnnotationCategory.misused
+    let severity = Severity.suggestion
+    let message = "Commonly misused"
+    /// Phrases only, never a lone word: "effect" and "affect" are both right
+    /// somewhere, but "an affect on" almost never is.
+    static let notes: [String: String] = [
+        "comprised of": "The whole comprises its parts; “composed of” or “comprises” is the standard form.",
+        "data is": "In scientific writing “data” is usually plural.",
+        "data was": "In scientific writing “data” is usually plural.",
+        "data shows": "In scientific writing “data” is usually plural.",
+        "data suggests": "In scientific writing “data” is usually plural.",
+        "different than": "“Different from” is the standard form in formal writing.",
+        "very unique": "Unique has no degrees.",
+        "most unique": "Unique has no degrees.",
+        "the reason is because": "“Because” repeats “the reason”.",
+        "principle investigator": "The lead researcher is the principal investigator.",
+        "it's own": "“It’s” means “it is”; the possessive is “its”.",
+    ]
+    let entries: [PhraseEntry] = [
+        ("comprised of", "composed of / comprises"), ("irregardless", "regardless"),
+        ("could of", "could have"), ("should of", "should have"), ("would of", "would have"), ("must of", "must have"),
+        ("data is", "data are"), ("data was", "data were"), ("data shows", "data show"), ("data suggests", "data suggest"),
+        ("different than", "different from"), ("very unique", "unique"), ("most unique", "unique"),
+        ("in regards to", "regarding"), ("alot", "a lot"),
+        ("an affect on", "an effect on"), ("the affect of", "the effect of"), ("affect on", "effect on"),
+        ("principle investigator", "principal investigator"), ("the reason is because", "the reason is that"),
+        ("orientate", "orient"), ("per say", "per se"), ("et. al", "et al."),
+        ("rather then", "rather than"), ("more then", "more than"), ("less then", "less than"),
+        ("better then", "better than"), ("larger then", "larger than"), ("smaller then", "smaller than"),
+        ("higher then", "higher than"), ("lower then", "lower than"), ("then expected", "than expected"),
+        ("it's own", "its own"), ("insure that", "ensure that"),
+    ].map { PhraseEntry(phrase: $0.0, consider: $0.1) }
+    public init() {}
+    func explanation(for e: PhraseEntry) -> String {
+        let usual = "“\(e.phrase)” is often a slip for “\(e.consider ?? "")”."
+        return Self.notes[e.phrase].map { usual + " " + $0 } ?? usual
+    }
+}
+
+// MARK: - Loose pronouns
+
+/// A sentence that opens with "This", "It", "These"… followed straight by a
+/// verb leaves the reader to work out what the pronoun refers to.
+public struct LoosePronounRule: WritingRule {
+    public let id = "clarity.loosePronoun"
+    public let name = "Loose pronouns"
+    public let description = "Sentences that open with a pronoun whose referent is unclear."
+    public let category = AnnotationCategory.loosePronouns
+    static let pronouns: Set<String> = ["this", "that", "these", "those", "it"]
+    static let verbs: Set<String> = Set("""
+    is was are were has have had can could will would may might must shows show showed suggests suggest suggested     means meant indicates indicate indicated implies imply implied demonstrates demonstrate demonstrated leads lead led     results result resulted allows allow allowed makes make made gives give gave provides provide provided explains     explain explained confirms confirm confirmed highlights highlight highlighted reflects reflect reflected seems     seem seemed appears appear appeared becomes become became causes cause caused requires require required enables     enable enabled ensures ensure ensured
+    """.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init))
+    public init() {}
+
+    public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
+        ctx.prose.sentences.compactMap { s in
+            guard s.words.count >= 3 else { return nil }
+            let first = ctx.text(s.words[0]).lowercased(), second = ctx.text(s.words[1]).lowercased()
+            guard Self.pronouns.contains(first), Self.verbs.contains(second) else { return nil }
+            let r = s.words[0]
+            return WritingIssue(
+                ruleID: id, severity: .suggestion, category: .loosePronouns, message: "Loose pronoun",
+                explanation: "“\(ctx.text(r))” could point at several things in the previous sentence. Naming it (“This result…”, “The fit…”) tells the reader which.",
+                ranges: [r], originalText: ctx.text(r))
+        }
+    }
+}
+
 // MARK: - Repetition
 
 public struct RepeatedWordRule: WritingRule {
@@ -267,7 +339,8 @@ public struct RepeatedWordRule: WritingRule {
             let gap = words[i].location - words[i - 1].upperBound
             guard gap <= 2, lower[i] != "that", lower[i] != "had" else { continue }
             let r = TextSpan(location: words[i - 1].location, length: words[i].upperBound - words[i - 1].location)
-            out.append(WritingIssue(ruleID: id, severity: .warning, category: .repetition, message: "Doubled word",
+            // A doubled word is a lexical illusion: the eye skips the second copy.
+            out.append(WritingIssue(ruleID: id, severity: .warning, category: .lexicalIllusions, message: "Doubled word",
                                     explanation: "“\(lower[i])” appears twice in a row.", ranges: [r], originalText: ctx.text(r)))
         }
         // Content words (6+ letters) used three times within a short window.
@@ -342,7 +415,7 @@ public struct SentenceVariationRule: WritingRule {
     public let id = "readability.rhythm"
     public let name = "Sentence rhythm"
     public let description = "Paragraphs whose sentences are all about the same length."
-    public let category = AnnotationCategory.readability
+    public let category = AnnotationCategory.rhythm
     public init() {}
 
     public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
@@ -355,7 +428,7 @@ public struct SentenceVariationRule: WritingRule {
             guard mean > 0, sd / mean < 0.2 else { return nil }
             let r = ctx.prose.blocks[bi].range
             return WritingIssue(
-                ruleID: id, severity: .info, category: .readability, message: "Monotone rhythm",
+                ruleID: id, severity: .info, category: .rhythm, message: "Monotone rhythm",
                 explanation: "All \(s.count) sentences here run \(Int(lens.min()!))–\(Int(lens.max()!)) words. Varying length gives the reader places to rest.",
                 ranges: [r], originalText: ctx.text(r), metadata: ["cv": String(format: "%.2f", sd / mean)])
         }

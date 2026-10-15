@@ -20,7 +20,7 @@ public struct WritingAnalyzer: Sendable {
 
     public static let defaultRules: [any WritingRule] = [
         SentenceDifficultyRule(), PassiveVoiceRule(), AdverbRule(), QualifierRule(), FillerPhraseRule(),
-        ComplexWordRule(), RepeatedWordRule(), RepeatedPhraseRule(), SentenceVariationRule(), ParagraphLengthRule(),
+        ComplexWordRule(), MisusedWordRule(), LoosePronounRule(), RepeatedWordRule(), RepeatedPhraseRule(), SentenceVariationRule(), ParagraphLengthRule(),
         ScientificRule(.notation), ScientificRule(.quantities), ScientificRule(.references), ScientificRule(.claims), ScientificRule(.evidence),
     ]
 

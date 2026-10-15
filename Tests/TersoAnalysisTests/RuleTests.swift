@@ -35,7 +35,28 @@ func issues(_ rule: some WritingRule, _ text: String) -> [WritingIssue] {
 
     @Test func doubledWord() {
         let found = issues(RepeatedWordRule(), "This is the the answer.")
-        #expect(found.contains { $0.message == "Doubled word" })
+        #expect(found.contains { $0.message == "Doubled word" && $0.category == .lexicalIllusions })
+    }
+
+    @Test func splitLayers() {
+        #expect(issues(QualifierRule(), "It is very good.").first?.category == .filler)
+        #expect(issues(FillerPhraseRule(), "We did it in order to win.").first?.category == .filler)
+        #expect(AdverbRule().category == .adverbs)
+        #expect(SentenceVariationRule().category == .rhythm)
+    }
+
+    @Test func loosePronounFlagsOnlyTheOpeningPronoun() {
+        let text = "We fit the spectrum. This shows a clear peak. This peak is narrow. It is clear that we win."
+        let found = issues(LoosePronounRule(), text)
+        #expect(found.map(\.originalText) == ["This", "It"])
+        #expect((text as NSString).substring(with: found[0].ranges[0].nsRange) == "This")
+    }
+
+    @Test func misusedPhrases() {
+        let found = issues(MisusedWordRule(), "The sample is comprised of jets, and the data shows more then expected. Metadata is fine.")
+        #expect(Set(found.map(\.originalText)) == ["comprised of", "data shows", "more then"])
+        #expect(found.first { $0.originalText == "more then" }?.consider == "more than")
+        #expect(found.allSatisfy { $0.category == .misused })
     }
 
     @Test func longSentence() {

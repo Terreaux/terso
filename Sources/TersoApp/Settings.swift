@@ -88,7 +88,8 @@ final class Preferences {
         smartQuotes = d.object(forKey: "smartQuotes") as? Bool ?? false
         domain = WritingDomain(rawValue: d.string(forKey: "domain") ?? "") ?? .general
         let layers = (d.array(forKey: "layers") as? [String])?.compactMap(AnnotationCategory.init(rawValue:))
-        enabledLayers = Set(layers ?? [.readability, .complexity, .passiveVoice, .style, .repetition, .specificity, .spelling, .aiSuggestion, .notation, .quantities, .references, .claims, .evidence])
+        enabledLayers = Set(layers ?? [.readability, .complexity, .passiveVoice, .style, .repetition, .specificity, .spelling,
+                                     .filler, .adverbs, .loosePronouns, .misused, .lexicalIllusions, .rhythm, .aiSuggestion, .notation, .quantities, .references, .claims, .evidence])
         aiEnabled = d.bool(forKey: "aiEnabled")
         defaultScope = ContextScope(rawValue: d.string(forKey: "defaultScope") ?? "") ?? .selection
         dataAccess = AIDataAccess(rawValue: d.string(forKey: "dataAccess") ?? "") ?? .upToSection
@@ -100,6 +101,16 @@ final class Preferences {
             enabledLayers.formUnion([.notation, .quantities, .references, .claims, .evidence])
             d.set(enabledLayers.map(\.rawValue), forKey: "layers")
             d.set(true, forKey: "scienceLayersInitialized")
+        }
+        // Style, Repetition and Readability were split into finer layers;
+        // carry each old choice over to the layers it became.
+        if !d.bool(forKey: "writingLayersSplit") {
+            if enabledLayers.contains(.style) { enabledLayers.formUnion([.filler, .adverbs]) }
+            if enabledLayers.contains(.repetition) { enabledLayers.insert(.lexicalIllusions) }
+            if enabledLayers.contains(.readability) { enabledLayers.insert(.rhythm) }
+            enabledLayers.formUnion([.loosePronouns, .misused])
+            d.set(enabledLayers.map(\.rawValue), forKey: "layers")
+            d.set(true, forKey: "writingLayersSplit")
         }
     }
 
