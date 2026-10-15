@@ -148,7 +148,8 @@ public struct AdverbRule: WritingRule {
             WritingIssue(
                 ruleID: id, severity: .info, category: .adverbs, message: "Adverb",
                 explanation: "A stronger verb often does the adverb’s work. This text has \(Int(density.rounded())) -ly adverbs per 1,000 words.",
-                ranges: [TextSpan($0.range)], originalText: ns.substring(with: $0.range))
+                ranges: [TextSpan($0.range)], originalText: ns.substring(with: $0.range),
+                metadata: QuickFixes.metadata(replacements: nil, removable: true))
         }
     }
 }
@@ -164,6 +165,8 @@ protocol PhraseListRule: WritingRule {
     var entries: [PhraseEntry] { get }
     var severity: Severity { get }
     var message: String { get }
+    /// Entries without a replacement can simply be deleted.
+    var removable: Bool { get }
     func explanation(for entry: PhraseEntry) -> String
 }
 
@@ -176,7 +179,8 @@ extension PhraseListRule {
             return WritingIssue(
                 ruleID: id, severity: severity, category: category, message: message,
                 explanation: explanation(for: entry), ranges: [range], originalText: text,
-                consider: entry.consider)
+                consider: entry.consider,
+                metadata: QuickFixes.metadata(replacements: entry.consider, removable: removable && entry.consider == nil))
         }
     }
 }
@@ -188,6 +192,7 @@ public struct QualifierRule: PhraseListRule {
     public let category = AnnotationCategory.filler
     let severity = Severity.info
     let message = "Qualifier"
+    let removable = true
     let entries: [PhraseEntry] = [
         "very", "really", "quite", "rather", "somewhat", "fairly", "pretty much", "basically", "essentially",
         "actually", "literally", "totally", "extremely", "incredibly", "a bit", "a little", "kind of", "sort of",
@@ -206,6 +211,7 @@ public struct FillerPhraseRule: PhraseListRule {
     public let category = AnnotationCategory.filler
     let severity = Severity.suggestion
     let message = "Wordy phrase"
+    let removable = true
     let entries: [PhraseEntry] = [
         ("in order to", "to"), ("due to the fact that", "because"), ("owing to the fact that", "because"),
         ("the fact that", nil), ("at this point in time", "now"), ("at the present time", "now"),
@@ -233,6 +239,7 @@ public struct ComplexWordRule: PhraseListRule {
     public let category = AnnotationCategory.complexity
     let severity = Severity.info
     let message = "Simpler word available"
+    let removable = false
     let entries: [PhraseEntry] = [
         ("utilize", "use"), ("utilizes", "uses"), ("utilization", "use"), ("facilitate", "help / ease"),
         ("commence", "begin"), ("terminate", "end"), ("endeavor", "try"), ("ascertain", "find out"),
@@ -255,6 +262,7 @@ public struct MisusedWordRule: PhraseListRule {
     public let category = AnnotationCategory.misused
     let severity = Severity.suggestion
     let message = "Commonly misused"
+    let removable = false
     /// Phrases only, never a lone word: "effect" and "affect" are both right
     /// somewhere, but "an affect on" almost never is.
     static let notes: [String: String] = [
@@ -341,7 +349,8 @@ public struct RepeatedWordRule: WritingRule {
             let r = TextSpan(location: words[i - 1].location, length: words[i].upperBound - words[i - 1].location)
             // A doubled word is a lexical illusion: the eye skips the second copy.
             out.append(WritingIssue(ruleID: id, severity: .warning, category: .lexicalIllusions, message: "Doubled word",
-                                    explanation: "“\(lower[i])” appears twice in a row.", ranges: [r], originalText: ctx.text(r)))
+                                    explanation: "“\(lower[i])” appears twice in a row.", ranges: [r], originalText: ctx.text(r),
+                                    metadata: QuickFixes.metadata(replacements: ctx.text(words[i - 1]))))
         }
         // Content words (6+ letters) used three times within a short window.
         var last: [String: [Int]] = [:]

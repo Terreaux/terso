@@ -258,8 +258,9 @@ struct FindingDetail: View {
             if let why = finding.explanation {
                 Text(why).font(ReviewType.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            if !finding.corrections.isEmpty {
-                corrections
+            let fixes = model.quickFixes(for: finding, occurrence: occurrenceIndex)
+            if !fixes.isEmpty {
+                corrections(fixes)
             } else if let c = finding.consider {
                 Text("Consider: \(c)").font(ReviewType.body).fixedSize(horizontal: false, vertical: true)
             }
@@ -292,33 +293,29 @@ struct FindingDetail: View {
         .onChange(of: finding.id) { occurrenceIndex = 0 }
     }
 
-    /// Spelling and grammar fixes as one-click chips. The best one reads as
-    /// the change itself (~~recieve~~ → receive); the rest are just words.
-    private var corrections: some View {
-        let all = finding.corrections
-        return VStack(alignment: .leading, spacing: 6) {
-            if let best = all.first {
-                Button { applyCorrection(best) } label: {
-                    CorrectionChange(original: finding.flaggedText, replacement: best)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .help("Replace with “\(best)”")
-                .accessibilityLabel("Replace \(finding.flaggedText ?? "") with \(best)")
-                .disabled(finding.revision != model.revision)
+    /// One-click fixes as chips. The best one reads as the change itself
+    /// (~~recieve~~ → receive, ~~in order to~~ → to); the rest are just words.
+    private func corrections(_ fixes: [QuickFix]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let best = fixes.first {
+                Button { apply(best) } label: { CorrectionChange(fix: best) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .help(best.isRemoval ? "Remove “\(best.original)”" : "Replace with “\(best.proposed)”")
+                    .accessibilityLabel(best.isRemoval ? "Remove \(best.original)" : "Replace \(best.original) with \(best.proposed)")
             }
-            if all.count > 1 {
+            if fixes.count > 1 {
                 HStack(spacing: 6) {
-                    ForEach(all.dropFirst().prefix(3), id: \.self) { word in
-                        Button(word) { applyCorrection(word) }
+                    ForEach(fixes.dropFirst().prefix(3), id: \.self) { fix in
+                        Button(fix.title) { apply(fix) }
                             .buttonStyle(.bordered)
                             .lineLimit(1)
-                            .help("Replace with “\(word)”")
+                            .help(fix.isRemoval ? "Remove “\(fix.original)”" : "Replace with “\(fix.proposed)”")
                     }
-                    if all.count > 4 {
+                    if fixes.count > 4 {
                         Menu("More") {
-                            ForEach(all.dropFirst(4), id: \.self) { word in
-                                Button(word) { applyCorrection(word) }
+                            ForEach(fixes.dropFirst(4), id: \.self) { fix in
+                                Button(fix.title) { apply(fix) }
                             }
                         }
                         .menuStyle(.borderlessButton)
@@ -326,7 +323,6 @@ struct FindingDetail: View {
                     }
                 }
                 .controlSize(compact ? .small : .regular)
-                .disabled(finding.revision != model.revision)
             }
             if let correctionError {
                 Text(correctionError).font(ReviewType.meta).foregroundStyle(.red)
@@ -334,8 +330,8 @@ struct FindingDetail: View {
         }
     }
 
-    private func applyCorrection(_ word: String) {
-        correctionError = model.applyCorrection(word, to: finding, occurrence: occurrenceIndex)
+    private func apply(_ fix: QuickFix) {
+        correctionError = model.applyQuickFix(fix, to: finding)
         if correctionError == nil { onApplied?() }
     }
 
@@ -394,7 +390,10 @@ struct FindingDetail: View {
                 }
             }
             if !req.running, req.error == nil, req.task != .explainUnclear, model.pendingSuggestions(for: finding).isEmpty {
-                Text(req.message ?? "No rewrite proposed.").font(ReviewType.meta).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Text(req.discarded > 0
+                     ? "The assistant’s revision didn’t match the text, so it can’t be applied. Try again."
+                     : req.message ?? "No rewrite proposed.")
+                    .font(ReviewType.meta).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -410,7 +409,7 @@ struct FindingDetail: View {
                 }
                 if !hasSuggestion {
                     Button { model.suggestRewrite(finding) } label: {
-                        Label("Suggest Rewrite", systemImage: "sparkles")
+                        Label(model.request(for: finding).map { !$0.running && $0.task != .explainUnclear } == true ? "Try Again" : "Suggest Rewrite", systemImage: "sparkles")
                     }
                     .help(finding.source == .spelling
                           ? "Ask for a corrected version of this sentence you can accept or reject. Sends only this sentence."
@@ -438,20 +437,17 @@ struct FindingDetail: View {
     }
 }
 
-/// The best spelling or grammar fix shown as the change it makes:
-/// the flagged text struck through, then its replacement.
+/// The best fix shown as the change it makes: the flagged text struck
+/// through, then its replacement (or "Remove").
 struct CorrectionChange: View {
-    let original: String?
-    let replacement: String
+    let fix: QuickFix
 
     var body: some View {
         HStack(spacing: 6) {
-            if let original, !original.isEmpty {
-                Text(original).strikethrough().opacity(0.7).lineLimit(1)
-                Image(systemName: "arrow.right").font(.caption.weight(.semibold)).opacity(0.7)
-                    .accessibilityHidden(true)
-            }
-            Text(replacement).fontWeight(.semibold).lineLimit(1)
+            Text(fix.original).strikethrough().opacity(0.7).lineLimit(1)
+            Image(systemName: "arrow.right").font(.caption.weight(.semibold)).opacity(0.7)
+                .accessibilityHidden(true)
+            Text(fix.isRemoval ? "Remove" : fix.proposed).fontWeight(.semibold).lineLimit(1)
         }
         .truncationMode(.middle)
     }

@@ -47,6 +47,8 @@ struct IssueRequest {
     var message: String?
     var error: String?
     var suggestionIDs: [UUID] = []
+    /// Proposals that could not be matched to the text.
+    var discarded = 0
 }
 
 struct MapMarker: Identifiable, Hashable {
@@ -426,17 +428,21 @@ final class WorkspaceModel {
               scope: .selection, selection: sentenceRange(for: a), target: a)
     }
 
+    /// Small models rarely quote a fragment exactly; a whole-passage reply
+    /// can always be placed.
+    static let wholePassageReply = "Give exactly one suggestion whose original is the entire passage, copied exactly, and whose proposed text is the whole revised passage."
+
     func suggestRewrite(_ a: TextAnnotation) {
         if a.source == .spelling {
             // Fix the slip and anything else wrong in the sentence; leave the style alone.
             let flagged = a.flaggedText.map { " (“\($0)”)" } ?? ""
             runAI(task: .proofread,
-                  question: "The system checker flagged a \(a.message.lowercased()) problem\(flagged): \(a.explanation ?? ""). Return the sentence corrected for spelling, grammar and punctuation, keeping its wording otherwise.",
+                  question: "The system checker flagged a \(a.message.lowercased()) problem\(flagged): \(a.explanation ?? ""). Return the sentence corrected for spelling, grammar and punctuation, keeping its wording otherwise. \(Self.wholePassageReply)",
                   scope: .selection, selection: sentenceRange(for: a), target: a)
             return
         }
         runAI(task: .improveClarity,
-              question: "A local check flagged this as “\(a.message)”: \(a.explanation ?? ""). Propose a revision that addresses it, keeping the meaning.",
+              question: "A local check flagged this as “\(a.message)”: \(a.explanation ?? ""). Propose a revision that addresses it, keeping the meaning. \(Self.wholePassageReply)",
               scope: .selection, selection: sentenceRange(for: a), target: a)
     }
 
@@ -461,7 +467,7 @@ final class WorkspaceModel {
         reject(suggestion.id)
         let target = finding ?? suggestion
         runAI(task: .suggestAlternatives,
-              question: "Propose one different revision of this passage. Do not repeat: “\(previous)”.",
+              question: "Propose one different revision of this passage. Do not repeat: “\(previous)”." + (finding == nil ? "" : " " + Self.wholePassageReply),
               scope: .selection, selection: finding.flatMap(sentenceRange(for:)) ?? suggestion.ranges.first, target: target)
     }
 
@@ -512,12 +518,14 @@ final class WorkspaceModel {
             do {
                 let response = try await provider.analyze(AnalysisRequest(task: task, question: question, context: ctx))
                 try Task.checkCancellation()
-                let built = SuggestionBuilder.build(response.proposals, context: ctx, snapshot: snap, provider: provider.id)
+                // A finding's request sends just its sentence: a whole-sentence answer fits it.
+                let built = SuggestionBuilder.build(response.proposals, context: ctx, snapshot: snap, provider: provider.id,
+                                                    wholeContext: key != nil)
                 guard let self else { return }
                 if task == .reviewDocument { self.review.beginReview(with: built.suggestions) } else { self.review.add(built.suggestions) }
                 if let key {
                     self.issueRequests[key] = IssueRequest(id: exID, task: task, running: false, message: response.message.nilIfEmpty,
-                                                           suggestionIDs: built.suggestions.map(\.id))
+                                                           suggestionIDs: built.suggestions.map(\.id), discarded: built.discarded)
                 } else {
                     ex.message = response.message
                     ex.discarded = built.discarded

@@ -37,9 +37,9 @@ extension EditorCoordinator {
             return
         }
         model.select(hit, reveal: false)
-        // Spelling and grammar fixes stay at the text, so one click on the
-        // word and one on the fix is all it takes; Review still follows.
-        if hit.source == .spelling {
+        // Local findings open at the text, so one click on the word and one
+        // on the fix is all it takes; Review still follows.
+        if hit.source != .aiSuggestion {
             if model.showInspector { model.inspectorTab = .review }
             showPopover(for: hit, at: index)
         } else if model.showInspector {
@@ -63,7 +63,7 @@ extension EditorCoordinator {
            model.selectScienceAnnotation(hit, reveal: false) { return }
         model.select(hit, reveal: false)
         if model.showInspector { model.inspectorTab = .review }
-        if !model.showInspector || hit.source == .spelling { showPopover(for: hit, at: anchor) }
+        if !model.showInspector || hit.source != .aiSuggestion { showPopover(for: hit, at: anchor) }
     }
 
     func showPopover(for annotation: TextAnnotation, at index: Int) {
@@ -84,15 +84,17 @@ extension EditorCoordinator {
         popover = p
     }
 
-    /// Corrections, Learn and Ignore for the spelling finding under the pointer.
+    /// Fixes, plus Learn and Ignore, for the finding under the pointer:
+    /// spelling first, else a writing finding that has one-click fixes.
     func spellingMenuItems(at index: Int) -> [NSMenuItem] {
-        guard let hit = model.visibleAnnotations.first(where: { a in
-            a.source == .spelling && a.ranges.contains { $0.nsRange.contains(index) }
-        }) else { return [] }
-        let occurrence = hit.ranges.firstIndex { $0.nsRange.contains(index) } ?? 0
+        let here = model.visibleAnnotations.filter { a in a.ranges.contains { $0.nsRange.contains(index) } }
         let model = model
-        var items = hit.corrections.map { word in
-            ClosureMenuItem(word) { model.applyCorrection(word, to: hit, occurrence: occurrence) } as NSMenuItem
+        func occurrence(_ a: TextAnnotation) -> Int { a.ranges.firstIndex { $0.nsRange.contains(index) } ?? 0 }
+        guard let hit = here.first(where: { $0.source == .spelling })
+                ?? here.first(where: { $0.source == .rule && !model.quickFixes(for: $0, occurrence: occurrence($0)).isEmpty })
+        else { return [] }
+        var items = model.quickFixes(for: hit, occurrence: occurrence(hit)).map { fix in
+            ClosureMenuItem(fix.isRemoval ? "Remove “\(fix.original)”" : fix.proposed) { model.applyQuickFix(fix, to: hit) } as NSMenuItem
         }
         if items.isEmpty {
             let none = NSMenuItem(title: "No Guesses Found", action: nil, keyEquivalent: "")
@@ -100,14 +102,15 @@ extension EditorCoordinator {
             items.append(none)
         }
         items.append(.separator())
-        if let word = hit.metadata["word"] {
+        if hit.source == .spelling, let word = hit.metadata["word"] {
             items.append(ClosureMenuItem("Learn Spelling") {
                 NSSpellChecker.shared.learnWord(word)
                 model.ignore(hit)
                 model.scheduleAnalysis()
             })
         }
-        items.append(ClosureMenuItem(hit.metadata["word"] == nil ? "Ignore Grammar" : "Ignore Spelling") { model.ignore(hit) })
+        let ignore = hit.source != .spelling ? "Ignore \(hit.message)" : hit.metadata["word"] == nil ? "Ignore Grammar" : "Ignore Spelling"
+        items.append(ClosureMenuItem(ignore) { model.ignore(hit) })
         return items
     }
 }

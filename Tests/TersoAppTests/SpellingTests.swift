@@ -39,6 +39,19 @@ import TersoCore
         #expect(editor.text == "🐦 teh cat and teh dog")
     }
 
+    @Test func writingFindingsOfferOneClickFixes() {
+        let model = WorkspaceModel()
+        let editor = SpellingEditor(model, text: "It was very good.")
+        model.editor = editor
+        let finding = TextAnnotation(source: .rule, category: .filler, ranges: [TextSpan(location: 7, length: 4)],
+                                     severity: .info, message: "Qualifier", explanation: nil, revision: model.revision,
+                                     metadata: [QuickFixes.removableKey: "true", "text": "very"])
+        let fixes = model.quickFixes(for: finding)
+        #expect(fixes.map(\.title) == ["Remove"])
+        #expect(model.applyQuickFix(fixes[0], to: finding) == nil)
+        #expect(editor.text == "It was good.")
+    }
+
     @Test func staleCorrectionsAreRefused() {
         let model = WorkspaceModel()
         let editor = SpellingEditor(model, text: "teh cat")
