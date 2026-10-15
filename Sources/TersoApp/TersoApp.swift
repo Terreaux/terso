@@ -50,14 +50,12 @@ struct TersoCommands: Commands {
                     .disabled(model == nil)
             }
             Divider()
-            Button(model?.focusMode == true ? "Exit Focus Mode" : "Focus Mode") { model?.toggleFocusMode() }
-                .keyboardShortcut("f", modifiers: [.command, .shift])
-                .disabled(model == nil || model?.renderMode == .preview)
-            Button("Typewriter Scrolling") { model?.typewriter.toggle(); model?.editor?.refreshDecorations() }
-                .keyboardShortcut("y", modifiers: [.command, .shift])
-                .disabled(model == nil || model?.renderMode == .preview)
-            Button(model?.zenMode == true ? "Exit Zen Mode" : "Zen Mode") { model?.toggleZenMode() }
-                .keyboardShortcut("j", modifiers: [.command, .shift])
+            ForEach(WritingMode.allCases) { mode in
+                Toggle(mode.title, isOn: Binding(get: { model?.writingMode == mode },
+                                                 set: { _ in model?.toggleWritingMode(mode) }))
+                    .keyboardShortcut(mode.shortcut.map { KeyboardShortcut(KeyEquivalent($0), modifiers: [.command, .shift]) })
+                    .disabled(model == nil || (mode.followsCaret && model?.renderMode == .preview))
+            }
             Divider()
         }
         CommandMenu("Writing") {

@@ -123,8 +123,9 @@ for methodology, corpus hygiene, held-out results and limitations.
 | ⌘] / ⌘[ | Next / previous finding (document and Review stay in sync) |
 | ⌘' | Show the finding at the cursor |
 | ⌥⌘R | Suggest a rewrite for the selected finding (AI, when enabled) |
-| ⌘⇧F | Focus mode (hides chrome and annotations, dims other paragraphs, typewriter scrolling) |
+| ⌘⇧F | Letterbox (hides chrome and annotations, dims other paragraphs, typewriter scrolling) |
 | ⌘⇧Y | Typewriter scrolling |
+| ⌘⇧J | Zen (Letterbox in full screen) — pressing a mode's shortcut again returns to Hemingway, the default view |
 | ⌘⇧A | Ask about selection… |
 | ⌘⇧R | Review document with AI |
 | ⌥⌘↓ / ⌥⌘↑ | Next / previous AI suggestion |
