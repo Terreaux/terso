@@ -23,7 +23,7 @@ final class SpellingLayer {
     }
 
     /// Separator for the suggestion list kept in `metadata["suggestions"]`.
-    nonisolated static let suggestionSeparator = "\n"
+    nonisolated static let suggestionSeparator = QuickFixes.separator
 
     /// Tokens the system dictionary flags but a writer never means as words:
     /// acronyms (NASA, RNA), identifiers (camelCase, snake_case) and anything
@@ -128,9 +128,9 @@ final class SpellingLayer {
 }
 
 extension TextAnnotation {
-    /// One-click replacements offered by the spelling layer, best first.
+    /// One-click replacements recorded with the finding, best first.
     var corrections: [String] {
-        metadata["suggestions"].map { $0.components(separatedBy: SpellingLayer.suggestionSeparator).filter { !$0.isEmpty } } ?? []
+        metadata[QuickFixes.suggestionsKey].map { $0.components(separatedBy: QuickFixes.separator).filter { !$0.isEmpty } } ?? []
     }
 
     /// The misspelled word or the grammar span, as it read when checked.
@@ -138,29 +138,49 @@ extension TextAnnotation {
 }
 
 extension WorkspaceModel {
-    /// Replace one occurrence of a spelling or grammar finding, through the
-    /// review gate so it is a single undoable edit that refuses stale text.
+    /// One-click fixes for one occurrence of a local finding, best first:
+    /// spelling corrections, rule replacements, or removing the text.
+    func quickFixes(for finding: TextAnnotation, occurrence: Int = 0) -> [QuickFix] {
+        guard let editor, finding.source != .aiSuggestion, finding.revision == editor.currentSnapshot.revision,
+              finding.ranges.indices.contains(occurrence) else { return [] }
+        return QuickFixes.fixes(suggestions: finding.corrections,
+                                removable: finding.metadata[QuickFixes.removableKey] == "true",
+                                range: finding.ranges[occurrence], in: editor.currentSnapshot.text)
+    }
+
+    /// Replace one occurrence of a spelling or grammar finding with `replacement`.
     @discardableResult
     func applyCorrection(_ replacement: String, to finding: TextAnnotation, occurrence: Int = 0) -> String? {
-        guard let editor, finding.source == .spelling, !replacement.isEmpty,
-              finding.revision == editor.currentSnapshot.revision,
-              finding.ranges.indices.contains(occurrence) else {
+        guard !replacement.isEmpty, finding.ranges.indices.contains(occurrence) else {
+            return "The text changed. Wait for the check to finish and try again."
+        }
+        let r = finding.ranges[occurrence]
+        return applyQuickFix(QuickFix(original: finding.flaggedText ?? "", proposed: replacement, range: r, replacement: replacement),
+                             to: finding)
+    }
+
+    /// Apply a quick fix through the review gate, so it is a single undoable
+    /// edit that refuses stale text.
+    @discardableResult
+    func applyQuickFix(_ fix: QuickFix, to finding: TextAnnotation) -> String? {
+        guard let editor, finding.source != .aiSuggestion,
+              finding.revision == editor.currentSnapshot.revision else {
             return "The text changed. Wait for the check to finish and try again."
         }
         let snap = editor.currentSnapshot
-        guard let anchor = TextAnchor(range: finding.ranges[occurrence], in: snap) else { return "The text changed." }
-        let proposal = WritingSuggestion(documentRevision: snap.revision, anchor: anchor, proposedText: replacement,
-                                         explanation: nil, kind: finding.message.lowercased(), provider: ProviderID("local.spelling"))
+        guard let anchor = TextAnchor(range: fix.range, in: snap) else { return "The text changed." }
+        let proposal = WritingSuggestion(documentRevision: snap.revision, anchor: anchor, proposedText: fix.replacement,
+                                         explanation: nil, kind: finding.message.lowercased(), provider: ProviderID("local.quickfix"))
         let gate = SuggestionReview()
         gate.add([proposal])
         do {
             let range = try gate.accept(proposal.id, in: editor)
-            editor.undoManager?.setActionName("Correct \(finding.message)")
+            editor.undoManager?.setActionName(fix.isRemoval ? "Remove “\(fix.original)”" : "Fix \(finding.message)")
             editor.reveal(TextSpan(location: range.upperBound, length: 0), select: true)
             editor.refreshDecorations()
             return nil
         } catch {
-            return "The correction could not be applied."
+            return "The fix could not be applied."
         }
     }
 }

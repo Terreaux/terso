@@ -17,6 +17,17 @@ func issues(_ rule: some WritingRule, _ text: String) -> [WritingIssue] {
         #expect((text as NSString).substring(with: found[0].ranges[0].nsRange) == "was conducted")
     }
 
+    @Test func ruleFindingsCarryQuickFixes() {
+        let filler = issues(FillerPhraseRule(), "We ran in order to win. Needless to say, we won.")
+        #expect(filler.first { $0.originalText == "in order to" }?.metadata[QuickFixes.suggestionsKey] == "to")
+        #expect(filler.first { $0.originalText == "Needless to say" }?.metadata[QuickFixes.removableKey] == "true")
+        let misused = issues(MisusedWordRule(), "It is comprised of parts.")
+        #expect(misused.first?.metadata[QuickFixes.suggestionsKey] == "composed of\ncomprises")
+        #expect(misused.first?.metadata[QuickFixes.removableKey] == nil)
+        let doubled = issues(RepeatedWordRule(), "The the cat sat.").first { $0.message == "Doubled word" }
+        #expect(doubled?.metadata[QuickFixes.suggestionsKey] == "The")
+    }
+
     @Test func repeatedPhraseHasEveryOccurrence() {
         let text = "It is important to rest. Later, it is important to eat. Finally it is important to sleep."
         let found = issues(RepeatedPhraseRule(), text)

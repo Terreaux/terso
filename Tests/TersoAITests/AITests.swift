@@ -40,6 +40,34 @@ import TersoCore
         #expect(s[0].anchor.range == TextSpan(location: 17, length: 5))
     }
 
+    @Test func builderToleratesNormalisedQuotesSpacingAndEmphasis() {
+        let text = "We said “it’s *fine*”  and left."
+        let snap = DocumentSnapshot(revision: DocumentRevision(1), text: text)
+        let ctx = ContextPayload.make(scope: .document, snapshot: snap, selection: TextSpan(location: 0, length: 0))
+        let (s, dropped) = SuggestionBuilder.build([
+            ProposedRevision(original: "\"it's fine\" and left", proposed: "it was fine, and we left", explanation: nil, kind: nil),
+        ], context: ctx, snapshot: snap, provider: ProviderID("t"))
+        #expect(dropped == 0)
+        #expect(s.first?.originalText == "“it’s *fine*”  and left")
+    }
+
+    @Test func sentenceRewriteFallsBackToTheWholePassage() {
+        let text = "Intro. The datas was recieved late yesterday. Outro."
+        let snap = DocumentSnapshot(revision: DocumentRevision(1), text: text)
+        let sentence = (text as NSString).range(of: "The datas was recieved late yesterday. ")
+        let ctx = ContextPayload.make(scope: .selection, snapshot: snap, selection: TextSpan(sentence))
+        // The model paraphrased the original, so it cannot be found.
+        let p = ProposedRevision(original: "The data was received late yesterday", proposed: "The data were received late yesterday.",
+                                 explanation: nil, kind: nil)
+        #expect(SuggestionBuilder.build([p], context: ctx, snapshot: snap, provider: ProviderID("t")).suggestions.isEmpty)
+        let (s, _) = SuggestionBuilder.build([p], context: ctx, snapshot: snap, provider: ProviderID("t"), wholeContext: true)
+        #expect(s.first?.originalText == "The datas was recieved late yesterday.")
+        #expect(s.first?.proposedText == "The data were received late yesterday.")
+        // Something unrelated is never placed.
+        let other = ProposedRevision(original: "Completely different words here", proposed: "x", explanation: nil, kind: nil)
+        #expect(SuggestionBuilder.build([other], context: ctx, snapshot: snap, provider: ProviderID("t"), wholeContext: true).suggestions.isEmpty)
+    }
+
     @Test func promptNeverContainsMoreThanContext() {
         let snap = DocumentSnapshot(revision: DocumentRevision(1), text: "SECRET-OTHER-PART\n\nVisible paragraph.")
         let ctx = ContextPayload.make(scope: .paragraph, snapshot: snap, selection: TextSpan(location: 22, length: 0))
