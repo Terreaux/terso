@@ -50,12 +50,14 @@ extension EditorCoordinator {
         guard let tv = textView else { return }
         let loc = tv.selectedRange().location
         let candidates = model.visibleAnnotations.filter { !AnnotationLayout.isBlockLevel($0) }
-        let hit = AnnotationLayout.primary(at: loc, in: candidates) ?? (loc > 0 ? AnnotationLayout.primary(at: loc - 1, in: candidates) : nil)
+        let atCaret = AnnotationLayout.primary(at: loc, in: candidates)
+        let hit = atCaret ?? (loc > 0 ? AnnotationLayout.primary(at: loc - 1, in: candidates) : nil)
         guard let hit else { NSSound.beep(); return }
+        let anchor = atCaret == nil ? loc - 1 : loc
         if model.showInspector, model.inspectorTab == .science,
            model.selectScienceAnnotation(hit, reveal: false) { return }
         model.select(hit, reveal: false)
-        if model.showInspector { model.inspectorTab = .review } else { showPopover(for: hit, at: hit.ranges.first?.location ?? loc) }
+        if model.showInspector { model.inspectorTab = .review } else { showPopover(for: hit, at: anchor) }
     }
 
     func showPopover(for annotation: TextAnnotation, at index: Int) {
@@ -69,7 +71,9 @@ extension EditorCoordinator {
         p.behavior = .transient
         p.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let close: () -> Void = { [weak p] in p?.close() }
-        p.contentViewController = NSHostingController(rootView: AnnotationCard(annotation: annotation, model: model, close: close))
+        p.contentViewController = NSHostingController(rootView: AnnotationCard(annotation: annotation, model: model,
+                                                                         occurrence: annotation.ranges.firstIndex { $0.nsRange.contains(index) } ?? 0,
+                                                                         close: close))
         p.show(relativeTo: rect, of: tv, preferredEdge: .maxY)
         popover = p
     }

@@ -7,25 +7,35 @@ import TersoCore
 struct AnnotationCard: View {
     let annotation: TextAnnotation
     let model: WorkspaceModel
+    /// Which of the finding's ranges was clicked, so the card starts there.
+    var occurrence = 0
     let close: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            FindingOrSuggestion(annotation: annotation, model: model).padding(14)
-            Divider()
-            HStack {
-                Spacer()
-                Button("Open in Review") {
-                    close()
-                    model.inspectorTab = .review
-                    model.showInspector = true
+        if annotation.isSuggestion {
+            VStack(alignment: .leading, spacing: 0) {
+                SuggestionDetail(suggestion: annotation, model: model).padding(14)
+                Divider()
+                HStack {
+                    Spacer()
+                    Button("Open in Review", action: openInReview)
                 }
+                .buttonStyle(.borderless)
+                .font(.caption)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
             }
-            .buttonStyle(.borderless)
-            .font(.caption)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
+            .frame(width: 340)
+        } else {
+            FindingDetail(finding: annotation, model: model, compact: true, occurrence: occurrence, openInReview: openInReview)
+                .padding(12)
+                .frame(width: 320)
         }
-        .frame(width: 340)
+    }
+
+    private func openInReview() {
+        close()
+        model.inspectorTab = .review
+        model.showInspector = true
     }
 }
