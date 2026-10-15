@@ -80,6 +80,7 @@ public enum Severity: Int, Codable, Sendable, Comparable, CaseIterable {
 public enum AnnotationCategory: String, Codable, Sendable, CaseIterable, Identifiable {
     case notation, quantities, references, claims, evidence
     case readability, complexity, passiveVoice, style, repetition, specificity, aiStyle, aiSuggestion, spelling
+    case filler, adverbs, loosePronouns, misused, lexicalIllusions, rhythm
     public var id: String { rawValue }
 
     public var title: String {
@@ -98,6 +99,12 @@ public enum AnnotationCategory: String, Codable, Sendable, CaseIterable, Identif
         case .aiStyle: "AI-style signals"
         case .aiSuggestion: "AI suggestions"
         case .spelling: "Spelling & grammar"
+        case .filler: "Filler words"
+        case .adverbs: "Adverbs"
+        case .loosePronouns: "Loose pronouns"
+        case .misused: "Commonly misused"
+        case .lexicalIllusions: "Lexical illusions"
+        case .rhythm: "Sentence rhythm"
         }
     }
 }
