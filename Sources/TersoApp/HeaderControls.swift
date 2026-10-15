@@ -3,7 +3,7 @@ import SwiftUI
 import TersoCore
 
 /// Highlight layers grouped the way a writer thinks about them. Each header
-/// button opens its group's layers as checkboxes; counts stay visible even
+/// button opens its group's layers; counts stay visible even
 /// when a layer is off.
 enum HighlightGroup: String, CaseIterable, Identifiable {
     case writing, science, spelling, ai
@@ -95,7 +95,7 @@ private struct GroupButton: View {
     }
 }
 
-/// A group's layers as checkboxes, with a one-click All/None.
+/// A group's layers as toggleable rows, with a one-click All/None.
 struct GroupLayers: View {
     let model: WorkspaceModel
     let group: HighlightGroup
@@ -114,24 +114,44 @@ struct GroupLayers: View {
     }
 }
 
-/// A layer checkbox. Unchecked layers and layers with nothing to show are
-/// greyed, so the live ones stand out.
+/// A layer as a clickable row: shown layers sit on a pill of their highlight
+/// colour with a filled dot, hidden ones are greyed with an empty ring, so
+/// the live ones stand out at a glance.
 struct LayerRow: View {
     let model: WorkspaceModel
     let category: AnnotationCategory
+    @State private var hovering = false
 
     var body: some View {
         let on = model.prefs.enabledLayers.contains(category)
         let count = model.count(category)
-        Toggle(isOn: Binding(get: { on }, set: { _ in model.toggleLayer(category) })) {
-            HStack {
-                Text(category.title).foregroundStyle(on ? .primary : .tertiary)
+        let color = Color(nsColor: HighlightStyle.color(category.family))
+        let tint = on ? AnyShapeStyle(color) : AnyShapeStyle(.tertiary)
+        Button { model.toggleLayer(category) } label: {
+            HStack(spacing: 8) {
+                Circle()
+                    .strokeBorder(on ? color : Color.secondary.opacity(0.5), lineWidth: 1.5)
+                    .background(Circle().fill(on ? color : .clear))
+                    .frame(width: 8, height: 8)
+                Text(category.title).fontWeight(on ? .semibold : .regular)
                 Spacer()
-                Text("\(count)").monospacedDigit().foregroundStyle(on && count > 0 ? .secondary : .tertiary)
+                Text("\(count)").monospacedDigit()
             }
+            .foregroundStyle(tint)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(on ? color.opacity(hovering ? 0.26 : 0.18) : Color.secondary.opacity(hovering ? 0.12 : 0))
+            )
+            .contentShape(Rectangle())
         }
-        .toggleStyle(.checkbox)
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: on)
         .accessibilityLabel("\(category.title), \(count) findings")
+        .accessibilityValue(on ? "shown" : "hidden")
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }
 
