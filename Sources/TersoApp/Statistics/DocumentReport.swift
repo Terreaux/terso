@@ -77,7 +77,7 @@ struct DocumentReport: View {
     }
 }
 
-private struct FeaturedStat: View {
+struct FeaturedStat: View {
     let value: String
     let label: String
     var detail: String?

@@ -11,6 +11,15 @@ struct DocumentTabsView: View {
         } else {
             tabbedEditor
         }
+        .overlay(alignment: .bottomTrailing) {
+            if DocumentTabs.shared.activeWorkspace === workspace, let award = WritingStats.shared.latestAward {
+                AwardNote(award: award) {
+                    workspace.selected?.model.writingStats = .awards
+                }
+                .padding(18)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
     }
 
     private var tabbedEditor: some View {
@@ -135,6 +144,10 @@ private struct DocumentControls: View {
                 .help("Show or hide the sidebar").accessibilityLabel("Sidebar")
             HighlightControls(model: model, density: density).padding(.leading, 6)
             Spacer(minLength: 8)
+            if Preferences.shared.showWritingProgress {
+                TodayButton(density: density) { model.writingStats = .overview }
+                Spacer(minLength: 8)
+            }
             // How the page looks and how you write on it sit together.
             ViewControls(model: model, latex: DocumentExport.isLaTeX(document), density: density)
             Spacer(minLength: 8)
@@ -249,6 +262,7 @@ struct DocumentTabCommands: Commands {
         CommandGroup(replacing: .toolbar) {
             Button("Toggle Sidebar") { tabs.activeDocument?.model.showSidebar.toggle() }.keyboardShortcut("s", modifiers: [.command, .control])
             Button("Toggle Inspector") { tabs.activeDocument?.model.showInspector.toggle() }.keyboardShortcut("i", modifiers: [.command, .option])
+            Button("Writing Stats…") { tabs.activeDocument?.model.writingStats = .overview }.disabled(tabs.activeDocument == nil)
         }
         CommandGroup(before: .saveItem) {
             Button(tabs.activeDocument == nil ? "Close Window" : "Close Tab") {
