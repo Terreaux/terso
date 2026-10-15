@@ -25,6 +25,9 @@ enum MarkdownStyler {
     static let table = re(#"(?:^[ \t]*\|.*(?:\n|\z))+"#)
     static let tableRule = re(#"^[ \t]*\|[ \t:|-]*-[ \t:|-]*$"#)
     static let pipe = re(#"\|"#)
+    /// Obsidian highlights and comments, and HTML comments.
+    static let highlight = re(#"(==)(?=[^\s=])(.+?)(?<=[^\s=])=="#)
+    static let comment = re(#"%%[\s\S]*?%%|<!--[\s\S]*?-->"#, [])
     static let metaKey = re(#"^[ \t]*(?:-[ \t]+)?([\w.-][\w .-]*?)[ \t]*(:|=)(?=[ \t]|$)"#)
     static let metaComment = re(#"^[ \t]*#.*$"#)
 
@@ -134,6 +137,13 @@ enum MarkdownStyler {
         literal += spans
         let maths = MarkdownSyntax.mathRanges(in: text, range: range).filter { !inLiteral($0) }
         literal += maths
+        var comments: [NSRange] = []
+        each(comment) { m in
+            guard !inLiteral(m.range) else { return }
+            comments.append(m.range)
+            storage.addAttributes([.foregroundColor: c.theme.quaternary, .font: base.adding(.italic)], range: NSIntersectionRange(m.range, range))
+        }
+        literal += comments
         func inCode(_ r: NSRange) -> Bool { inLiteral(r) }
 
         each(heading) { m in
@@ -164,6 +174,20 @@ enum MarkdownStyler {
             color(c.theme.secondary, m.range(at: 2))
             color(syntax, m.range(at: 1))
             color(syntax, NSRange(location: m.range.upperBound - 2, length: 2))
+        }
+        each(highlight) { m in
+            guard !inCode(m.range) else { return }
+            storage.addAttribute(.backgroundColor, value: c.theme.accent.withAlphaComponent(0.22), range: m.range(at: 2))
+            color(syntax, m.range(at: 1))
+            color(syntax, NSRange(location: m.range.upperBound - 2, length: 2))
+        }
+        each(PandocSyntax.citation) { m in
+            guard !inCode(m.range) else { return }
+            color(c.theme.tertiary, m.range)
+        }
+        each(PandocSyntax.label) { m in
+            guard !inCode(m.range) else { return }
+            color(c.theme.quaternary, m.range)
         }
         each(link) { m in
             guard !inCode(m.range) else { return }

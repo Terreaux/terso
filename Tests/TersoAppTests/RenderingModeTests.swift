@@ -217,8 +217,69 @@ import TersoCore
         let texHidden = MarkerPresentation.hiddenSyntax(in: tex, selection: NSRange(location: ts.length, length: 0),
                                                         latex: true, elements: [.headings, .emphasis]).map { ts.substring(with: $0) }
         #expect(texHidden == ["\\section{", "}", "\\emph{", "}", "\\textbf{", "}"])
-        #expect(MixedElement.available(latex: true) == [.math, .headings, .emphasis])
+        #expect(MixedElement.available(latex: true, text: tex) == [.math, .headings, .emphasis])
     }
+
+    @Test func extensionGroupsAppearOnlyWhenUsed() {
+        let plain = MixedElement.available(latex: false, text: "Just prose.")
+        #expect(!plain.contains(.footnotes) && !plain.contains(.citations) && !plain.contains(.comments))
+        #expect(plain.contains(.tables) && plain.contains(.blocks) && plain.contains(.code))
+        let rich = MixedElement.available(latex: false, text: "See [@smith2020].[^1] ==key== %%note%%\n\n[^1]: Note.")
+        #expect(rich.contains(.footnotes) && rich.contains(.citations) && rich.contains(.comments))
+        #expect(!MixedElement.available(latex: false, text: "Mail me at a@b.com").contains(.citations))
+    }
+
+    @Test func mixedHidesCodeCommentsFootnotesAndCitationMarkers() {
+        let md = "Run `make` now. ==Key== idea %%hidden%%.[^1]\n\nAs [@smith2020, p. 4] and @jones says.\n\n<!-- one\ntwo -->\n\nEnd"
+        let ns = md as NSString
+        let hidden = MarkerPresentation.hiddenSyntax(in: md, selection: NSRange(location: ns.length, length: 0), latex: false,
+                                                     elements: [.code, .comments, .footnotes, .citations])
+            .map { ns.substring(with: $0) }
+        #expect(hidden == ["`", "`", "==", "==", "%%hidden%%", "<!-- one", "two -->", "[^", "]", "@", "@"])
+    }
+
+    @Test func crossReferencesNumberLikePandocCrossref() {
+        let md = "# Intro {#sec:intro}\n\n## Data {#sec:data}\n\n![A](a.png){#fig:a}\n\n![B](b.png){#fig:b}\n\n$$x$$ {#eq:x}\n\nSee @fig:b, [@fig:a; @fig:b], @Fig:a, @sec:data and @eq:x but not @fig:missing."
+        let numbers = PandocSyntax.numbers(in: md)
+        #expect(numbers == ["sec:intro": "1", "sec:data": "1.1", "fig:a": "1", "fig:b": "2", "eq:x": "1"])
+        #expect(PandocSyntax.display(key: "Fig:a", number: "1") == "Fig.\u{00A0}1")
+        let ns = md as NSString
+        let hidden = MarkerPresentation.hiddenSyntax(in: md, selection: NSRange(location: 0, length: 0), latex: false, elements: [.citations])
+            .map { ns.substring(with: $0) }
+        // Labels vanish (except on the caret's line), all-reference brackets
+        // go, and an unknown target reads as a citation key.
+        #expect(hidden.filter { $0.contains("{#") } == [" {#sec:data}", "{#fig:a}", "{#fig:b}", " {#eq:x}"])
+        #expect(hidden.contains("[") && hidden.contains("]"))
+        #expect(hidden.filter { $0 == "@" }.count == 1)
+    }
+
+    @Test func tablesParseAlignmentEscapesAndCode() {
+        let table = MarkdownTable("| Name | Value | Note |\n|:-----|------:|:----:|\n| a \\| b | `x|y` | **ok** |\n| c |")
+        #expect(table?.header == ["Name", "Value", "Note"])
+        #expect(table?.alignments == [.left, .right, .center])
+        #expect(table?.rows == [["a | b", "`x|y`", "**ok**"], ["c"]])
+        #expect(MarkdownTable("| not | a table |\n| just pipes |") == nil)
+    }
+
+    @Test func mixedDrawsBlocksReferencesAndTablesAwayFromTheCaret() {
+        let md = "- item\n- [ ] task\n- [x] done\n\n> quoted\n> > nested\n\n---\n\nText\n---\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n![F](f.png){#fig:f}\n\nSee @fig:f.\n\nEnd"
+        let ns = md as NSString
+        let model = WorkspaceModel()
+        var config = EditorConfig(prefs: model.prefs, model: model)
+        config.renderMode = .mixed
+        let all = Set(MixedElement.allCases)
+        let decor = MixedPresentation.layout(in: md, selection: NSRange(location: ns.length, length: 0), config: config, elements: all, width: 600)
+        let drawn = decor.glyphs.map { ns.substring(with: $0.range) }
+        #expect(drawn == ["-", "- [ ]", "- [x]", "> ", "> > ", "---", "| A | B |\n|---|---|\n| 1 | 2 |", "@fig:f"])
+        #expect(decor.glyphs.compactMap(\.toggle).map { ns.substring(with: $0) } == ["[ ]", "[x]"])
+        #expect(decor.quoteBars.map(\.depth) == [1, 2])
+        #expect(decor.glyphs.first { $0.range.length > 20 }?.reservesHeight == true)
+        // On the editing line every construct is source again.
+        let onTask = MixedPresentation.layout(in: md, selection: ns.range(of: "task"), config: config, elements: all, width: 600)
+        #expect(!onTask.glyphs.map { ns.substring(with: $0.range) }.contains("- [ ]"))
+        #expect(MixedPresentation.layout(in: md, selection: NSRange(location: 0, length: 0), config: config, elements: [], width: 600).glyphs.isEmpty)
+    }
+
 
     @Test func imageEmbedsResolveRemoteAndDocumentRelativeSources() {
         let remote = "https://substackcdn.com/image/fetch/$s_!4evp!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F504042d6-e8ce-4830-9a80-d38b422b0805_2048x1138.png"
@@ -253,7 +314,10 @@ import TersoCore
         window.contentView = tv
         defer { window.close() }
         coordinator.textView = tv; model.editor = coordinator; tv.delegate = coordinator; storage.delegate = coordinator
-        coordinator.applyConfig(EditorConfig(prefs: model.prefs, model: model), force: true)
+        // Heading and emphasis markers stay as styled source when not chosen.
+        var config = EditorConfig(prefs: model.prefs, model: model)
+        config.mixedRendered = [.math, .images, .links]
+        coordinator.applyConfig(config, force: true)
         await coordinator.mathTask?.value
         #expect(layout.rendered.count == 1)
         let math = (text as NSString).range(of: "$x_i$")

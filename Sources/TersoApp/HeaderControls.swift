@@ -143,11 +143,13 @@ struct LayerRow: View {
 }
 
 /// How the page is drawn and how you write on it, as one control: the render
-/// mode, what Mixed renders for this format, then Typewriter, Focus and Zen.
-/// Typewriter and Focus follow the caret, so they wait out Preview.
+/// mode, what Mixed renders for this document, then one writing mode.
+/// Typewriter and Letterbox follow the caret, so they wait out Preview.
 struct ViewControls: View {
     @Bindable var model: WorkspaceModel
     let latex: Bool
+    /// Extension options (citations, footnotes, comments) appear only when used.
+    let source: String
     var density: HeaderDensity = .full
 
     var body: some View {
@@ -162,13 +164,11 @@ struct ViewControls: View {
                 ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.inline)
             if model.renderMode == .mixed { mixedSection }
-            Section("Writing") {
-                Toggle("Typewriter", isOn: Binding(get: { model.typewriter }, set: { _ in toggleTypewriter() }))
-                    .disabled(!caretModesAvailable)
-                Toggle("Focus", isOn: Binding(get: { model.focusMode }, set: { _ in model.toggleFocusMode() }))
-                    .disabled(!caretModesAvailable)
-                Toggle("Zen", isOn: Binding(get: { model.zenMode }, set: { _ in model.toggleZenMode() }))
-            }
+            Picker("Writing", selection: Binding(get: { model.writingMode }, set: { model.setWritingMode($0) })) {
+                ForEach(WritingMode.allCases) { mode in
+                    Text(mode.title).tag(mode).disabled(mode.followsCaret && !caretModesAvailable)
+                }
+            }.pickerStyle(.inline)
         } label: { Image(systemName: "eye") }
             .menuIndicator(.hidden).fixedSize()
             .help("View: rendering and writing modes").accessibilityLabel("View")
@@ -176,7 +176,7 @@ struct ViewControls: View {
 
     @ViewBuilder private var mixedSection: some View {
         Section("Mixed renders") {
-            ForEach(MixedElement.available(latex: latex)) { element in
+            ForEach(MixedElement.available(latex: latex, text: source)) { element in
                 Toggle(element.title, isOn: Binding(
                     get: { model.prefs.mixedRendered.contains(element) },
                     set: { on in
@@ -184,11 +184,6 @@ struct ViewControls: View {
                     }))
             }
         }
-    }
-
-    private func toggleTypewriter() {
-        model.typewriter.toggle()
-        model.editor?.refreshDecorations()
     }
 
     private var controls: some View {
@@ -202,22 +197,15 @@ struct ViewControls: View {
                 .help("Choose what Mixed renders in place of its source")
                 .accessibilityLabel("Mixed rendering options")
             HStack(spacing: 2) {
-                HeaderToggle(isOn: model.typewriter, help: caretModesAvailable
-                             ? "Typewriter: keep the current line centred (⌘⇧Y)" : "Typewriter needs an editable view") {
-                    toggleTypewriter()
-                } label: { Image(systemName: "character.cursor.ibeam") }
-                    .disabled(!caretModesAvailable)
-                    .accessibilityLabel("Typewriter mode")
-                HeaderToggle(isOn: model.focusMode, help: caretModesAvailable
-                             ? "Focus: dim everything but the current paragraph (⌘⇧F)" : "Focus needs an editable view") {
-                    model.toggleFocusMode()
-                } label: { Image(systemName: "scope") }
-                    .disabled(!caretModesAvailable)
-                    .accessibilityLabel("Focus mode")
-                HeaderToggle(isOn: model.zenMode, help: "Zen: full screen, just the text (⌘⇧J, Esc to leave)") {
-                    model.toggleZenMode()
-                } label: { Image(systemName: "leaf") }
-                    .accessibilityLabel("Zen mode")
+                ForEach(WritingMode.allCases) { mode in
+                    let unavailable = mode.followsCaret && !caretModesAvailable
+                    HeaderToggle(isOn: model.writingMode == mode,
+                                 help: unavailable ? "\(mode.title) needs an editable view" : mode.help) {
+                        model.setWritingMode(mode)
+                    } label: { Image(systemName: mode.symbol) }
+                        .disabled(unavailable)
+                        .accessibilityLabel("\(mode.title) mode")
+                }
             }
             .padding(2)
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
