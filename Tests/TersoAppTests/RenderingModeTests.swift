@@ -171,6 +171,40 @@ import TersoCore
         #expect(tableOffset == (source as NSString).range(of: "| A | B |").location)
     }
 
+    @Test func previewRendersFootnotesAdmonitionsHighlightsAndCriticMarkup() async throws {
+        let source = "Claim.[^a] Again[^a] and ==key== with {++added++} {--cut--} {~~old~>new~~} {==look==}{>>why?<<}.\n\n"
+            + "!!! warning \"Mind the gap\"\n    Body with $x$.\n\n    Second paragraph.\n\n??? note\n    Folded.\n\n"
+            + "[^a]: The note, **bold**.\n    Indented continuation.\n\nAfter `==code==` and [^missing].\n"
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 700, height: 800))
+        web.loadHTMLString(MarkdownPreviewHTML.document(source: source, dark: false, fontSize: 18), baseURL: nil)
+        let deadline = ContinuousClock.now + .seconds(10)
+        var ready = false
+        while ContinuousClock.now < deadline {
+            ready = (try? await web.evaluateJavaScript("document.querySelector('.katex') !== null")) as? Bool ?? false
+            if ready { break }
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        #expect(ready)
+        func js(_ script: String) async throws -> Any? { try await web.evaluateJavaScript(script) }
+        #expect(try await js("[...document.querySelectorAll('sup.footnote-ref a')].map(a => a.textContent).join()") as? String == "1,1")
+        #expect(try await js("document.querySelectorAll('.footnotes li').length") as? Int == 1)
+        #expect(try await js("document.querySelector('#fn-a').textContent.includes('Indented continuation')") as? Bool == true)
+        #expect(try await js("document.querySelector('#fn-a strong') !== null") as? Bool == true)
+        #expect(try await js("Number(document.querySelector('#fn-a').dataset.source)") as? Int == (source as NSString).range(of: "[^a]:").location)
+        #expect(try await js("document.body.textContent.includes('[^missing]')") as? Bool == true)
+        #expect(try await js("[...document.querySelectorAll('mark')].map(m => m.textContent).join()") as? String == "key,look")
+        #expect(try await js("document.querySelector('code').textContent") as? String == "==code==")
+        #expect(try await js("[...document.querySelectorAll('ins.critic')].map(m => m.textContent).join()") as? String == "added,new")
+        #expect(try await js("[...document.querySelectorAll('del.critic')].map(m => m.textContent).join()") as? String == "cut,old")
+        #expect(try await js("document.querySelector('.critic-comment').textContent") as? String == "why?")
+        #expect(try await js("document.querySelector('div.admonition.warning .admonition-title').textContent") as? String == "Mind the gap")
+        #expect(try await js("document.querySelectorAll('div.admonition.warning p').length") as? Int == 3)
+        #expect(try await js("document.querySelector('div.admonition .katex') !== null") as? Bool == true)
+        #expect(try await js("document.querySelector('details.admonition.note:not([open]) > summary').textContent") as? String == "Note")
+        let admonitionOffset = try await js("Number(document.querySelector('div.admonition').parentElement.dataset.source)") as? Int
+        #expect(admonitionOffset == (source as NSString).range(of: "!!!").location)
+    }
+
     @Test func sourceModeDoesNotModifyText() {
         let model = WorkspaceModel(); model.renderMode = .source
         let text = "# Heading\n\n**Bold** and $x_i$"
@@ -235,7 +269,56 @@ import TersoCore
         let hidden = MarkerPresentation.hiddenSyntax(in: md, selection: NSRange(location: ns.length, length: 0), latex: false,
                                                      elements: [.code, .comments, .footnotes, .citations])
             .map { ns.substring(with: $0) }
-        #expect(hidden == ["`", "`", "==", "==", "%%hidden%%", "<!-- one", "two -->", "[^", "]", "@", "@"])
+        #expect(hidden == ["`", "`", "==", "==", "%%hidden%%", "<!-- one", "two -->", "@", "@"])
+    }
+
+    @Test func mixedHidesCriticMarkupBracesAndKeepsThemFromStrikeAndHighlight() {
+        let md = "A {++new++} {--old--} {~~was~>is~~} {==see==}{>>why<<} and ~~struck~~ ==lit==.\n\nEnd"
+        let ns = md as NSString
+        let hidden = MarkerPresentation.hiddenSyntax(in: md, selection: NSRange(location: ns.length, length: 0), latex: false,
+                                                     elements: [.critic, .emphasis, .comments])
+            .map { ns.substring(with: $0) }
+        #expect(hidden == ["~~", "~~", "==", "==", "{++", "++}", "{--", "--}", "{~~", "~~}", "~>", "{==", "==}", "{>>", "<<}"])
+        #expect(MarkerPresentation.hiddenSyntax(in: md, selection: ns.range(of: "new"), latex: false, elements: [.critic]).isEmpty)
+    }
+
+    @Test func admonitionsAndCriticMarkupAppearOnlyWhenUsed() {
+        let plain = MixedElement.available(latex: false, text: "Just prose. !!! not one")
+        #expect(!plain.contains(.admonitions) && !plain.contains(.critic))
+        let rich = MixedElement.available(latex: false, text: "!!! note\n    Body.\n\nA {>>comment<<}.")
+        #expect(rich.contains(.admonitions) && rich.contains(.critic))
+    }
+
+    @Test func mixedDrawsAdmonitionsWholeUntilAnyLineIsEdited() {
+        let model = WorkspaceModel(); model.renderMode = .mixed
+        let config = EditorConfig(prefs: model.prefs, model: model)
+        let md = "!!! tip \"Try this\"\n    First line.\n\n\tSecond.\n\nAfter."
+        let ns = md as NSString
+        let decor = MixedPresentation.layout(in: md, selection: NSRange(location: ns.length, length: 0), config: config,
+                                             elements: [.admonitions], width: 600)
+        #expect(decor.glyphs.map(\.range) == [NSRange(location: 0, length: ns.range(of: "Second.").upperBound)])
+        #expect(decor.glyphs.first?.reservesHeight == true)
+        #expect((decor.glyphs.first?.image.size.height ?? 0) > config.fontSize * 3)
+        for line in ["!!!", "First", "Second"] {
+            let editing = MixedPresentation.layout(in: md, selection: ns.range(of: line), config: config, elements: [.admonitions], width: 600)
+            #expect(editing.glyphs.isEmpty)
+        }
+        let note = MixedPresentation.Admonition(MarkdownStyler.admonition.firstMatch(in: md, range: NSRange(location: 0, length: ns.length))!, in: ns)
+        #expect(note.kind == "tip" && note.title == "Try this" && note.paragraphs == ["First line.", "Second."])
+    }
+
+    @Test func mixedNumbersFootnotesAndRevealsOnlyTheEditedLine() {
+        let model = WorkspaceModel(); model.renderMode = .mixed
+        let config = EditorConfig(prefs: model.prefs, model: model)
+        let md = "One.[^b] Two.[^a] Again.[^b] Lost.[^none]\n\n[^a]: First note.\n    More of it.\n\n[^b]: Second note.\n\n[^unused]: Spare.\n\n`[^b]`"
+        let ns = md as NSString
+        let protected = MarkdownStyler.code.matches(in: md, range: NSRange(location: 0, length: ns.length)).map(\.range)
+        #expect(MixedPresentation.footnoteNumbers(in: md, protected: protected) == ["b": 1, "a": 2, "unused": 3])
+        let decor = MixedPresentation.layout(in: md, selection: NSRange(location: ns.length, length: 0), config: config,
+                                             elements: [.footnotes], width: 600)
+        #expect(decor.glyphs.map { ns.substring(with: $0.range) } == ["[^b]", "[^a]", "[^b]", "[^a]: ", "    ", "[^b]: ", "[^unused]: "])
+        let editing = MixedPresentation.layout(in: md, selection: ns.range(of: "More"), config: config, elements: [.footnotes], width: 600)
+        #expect(editing.glyphs.map { ns.substring(with: $0.range) } == ["[^b]", "[^a]", "[^b]", "[^a]: ", "[^b]: ", "[^unused]: "])
     }
 
     @Test func crossReferencesNumberLikePandocCrossref() {

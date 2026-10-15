@@ -16,7 +16,7 @@ enum RenderMode: String, CaseIterable, Identifiable {
 /// The same names cover both formats: heading markers are `#` in Markdown and
 /// `\section{…}` in TeX.
 enum MixedElement: String, CaseIterable, Identifiable {
-    case math, images, links, headings, emphasis, code, blocks, tables, footnotes, citations, comments
+    case math, images, links, headings, emphasis, code, blocks, admonitions, tables, footnotes, citations, comments, critic
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -27,15 +27,17 @@ enum MixedElement: String, CaseIterable, Identifiable {
         case .emphasis: "Emphasis markers"
         case .code: "Code markers"
         case .blocks: "Lists, tasks, quotes and rules"
+        case .admonitions: "Admonitions"
         case .tables: "Tables"
         case .footnotes: "Footnotes"
         case .citations: "Citations and cross-references"
         case .comments: "Comments and highlights"
+        case .critic: "Suggested edits (CriticMarkup)"
         }
     }
     static let defaults: [MixedElement] = allCases
 
-    static let addedLater: [MixedElement] = [.code, .blocks, .tables, .footnotes, .citations, .comments]
+    static let addedLater: [MixedElement] = [.code, .blocks, .tables, .footnotes, .citations, .comments, .admonitions, .critic]
 
     /// Extension syntax (Pandoc, Obsidian) is offered only when the document uses it.
     @MainActor static func available(latex: Bool, text: String) -> [MixedElement] {
@@ -47,6 +49,8 @@ enum MixedElement: String, CaseIterable, Identifiable {
             case .footnotes: uses(MarkdownStyler.footnote)
             case .citations: uses(PandocSyntax.citation) || uses(PandocSyntax.label)
             case .comments: uses(MarkdownStyler.highlight) || uses(MarkdownStyler.comment)
+            case .admonitions: uses(MarkdownStyler.admonition)
+            case .critic: MarkdownStyler.critic.contains { uses($0) }
             default: true
             }
         }
@@ -147,11 +151,11 @@ enum MathPresentation {
 }
 
 /// Markers that recede entirely, revealing on the editing line: headings,
-/// emphasis, code, highlights, comments, footnote brackets, citation `@`s and
-/// cross-reference labels.
+/// emphasis, code, highlights, comments, CriticMarkup braces, citation `@`s
+/// and cross-reference labels. Footnotes are drawn by MixedPresentation.
 @MainActor enum MarkerPresentation {
     static func hiddenSyntax(in text: String, selection: NSRange, latex: Bool, elements: Set<MixedElement>) -> [NSRange] {
-        let hiding: Set<MixedElement> = [.headings, .emphasis, .code, .comments, .footnotes, .citations]
+        let hiding: Set<MixedElement> = [.headings, .emphasis, .code, .comments, .citations, .critic]
         guard !elements.isDisjoint(with: hiding) else { return [] }
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
@@ -191,9 +195,14 @@ enum MathPresentation {
         if elements.contains(.headings) {
             each(MarkdownStyler.heading) { wrap($0, content: $0.range(at: 3), closing: 0, protected: prose) }
         }
+        // CriticMarkup braces are their own syntax, never strikethrough or highlight.
+        let critics = MarkdownStyler.critic.flatMap { $0.matches(in: text, range: all).map(\.range) }
         if elements.contains(.emphasis) {
             for pattern in [MarkdownStyler.bold, MarkdownStyler.italic, MarkdownStyler.strike] {
-                each(pattern) { wrap($0, content: $0.range(at: 2), closing: $0.range(at: 1).length, protected: prose) }
+                each(pattern) { m in
+                    guard pattern !== MarkdownStyler.strike || clear(m.range, of: critics) else { return }
+                    wrap(m, content: m.range(at: 2), closing: m.range(at: 1).length, protected: prose)
+                }
             }
         }
         if elements.contains(.code) {
@@ -204,7 +213,7 @@ enum MathPresentation {
             }
         }
         if elements.contains(.comments) {
-            each(MarkdownStyler.highlight) { wrap($0, content: $0.range(at: 2), closing: 2, protected: prose) }
+            each(MarkdownStyler.highlight) { wrap($0, content: $0.range(at: 2), closing: 2, protected: prose + critics) }
             // A comment disappears line by line, so its lines stay apart.
             for comment in comments where !revealed(comment) && clear(comment, of: kinds([.code]) + fences + frontMatter) {
                 var location = comment.location
@@ -217,11 +226,15 @@ enum MathPresentation {
                 }
             }
         }
-        if elements.contains(.footnotes) {
-            each(MarkdownStyler.footnote) { m in
-                // References read as raised numbers; definitions keep their syntax.
-                guard m.range(at: 1).length == 0 else { return }
-                wrap(m, content: NSRange(location: m.range.location + 2, length: m.range.length - 3), closing: 1, protected: prose)
+        if elements.contains(.critic) {
+            // The braces go; a substitution also loses its `~>`.
+            for pattern in MarkdownStyler.critic {
+                each(pattern) { m in
+                    wrap(m, content: m.range(at: 1), closing: 3, protected: prose)
+                    if pattern === MarkdownStyler.criticSubstitute, !revealed(m.range), clear(m.range, of: prose) {
+                        hidden.append(NSRange(location: m.range(at: 1).upperBound, length: 2))
+                    }
+                }
             }
         }
         if elements.contains(.citations) {

@@ -19,7 +19,7 @@ struct MixedDecorations {
 
     static func layout(in text: String, selection: NSRange, config: EditorConfig, elements: Set<MixedElement>, width: Double) -> MixedDecorations {
         var result = MixedDecorations()
-        let drawing: Set<MixedElement> = [.blocks, .tables, .citations]
+        let drawing: Set<MixedElement> = [.blocks, .admonitions, .tables, .footnotes, .citations]
         guard !config.latex, !elements.isDisjoint(with: drawing) else { return result }
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
@@ -89,6 +89,61 @@ struct MixedDecorations {
                 result.quoteBars.append(QuoteBar(range: line, depth: depth))
             }
         }
+        /// Draws each indented line's indent below `header` at `width`, except
+        /// on the line being edited, which shows its source.
+        func indents(below header: NSRange, through body: NSRange, width: CGFloat) {
+            let spacer = image("indent|\(width)") { NSImage(size: NSSize(width: width, height: 1)) }
+            var location = ns.lineRange(for: header).upperBound
+            while location < body.upperBound {
+                let line = ns.lineRange(for: NSRange(location: location, length: 0))
+                let indent = NSRange(location: line.location, length: ns.character(at: line.location) == 9 ? 1 : 4)
+                if indent.upperBound <= body.upperBound, !revealed(indent),
+                   ns.substring(with: indent).allSatisfy({ $0 == " " || $0 == "\t" }) {
+                    result.glyphs.append(RenderedMath(range: indent, image: spacer, reservesHeight: false))
+                }
+                location = line.upperBound
+            }
+        }
+        if elements.contains(.admonitions) {
+            // Drawn whole, as the preview shows it, until the caret is on any
+            // of its lines; then the whole block is source.
+            each(MarkdownStyler.admonition) { m in
+                let block = NSRange(location: m.range.location, length: indentedBody(after: m.range, in: ns).upperBound - m.range.location)
+                // Like a table, it may hold math and code spans; only a block
+                // around its opening line keeps it literal.
+                guard clear(m.range), !revealed(block) else { return }
+                let source = ns.substring(with: block)
+                let key = "admonition|\(style)|\(width)|\(source)"
+                result.glyphs.append(RenderedMath(range: block, image: image(key) {
+                    admonitionImage(Admonition(m, in: ns), config: config, width: width)
+                }))
+            }
+        }
+        if elements.contains(.footnotes) {
+            // References read as raised numbers, counted as the preview counts
+            // them; a definition's `[^id]:` reads as its number, and its
+            // indented lines hang beside it. References without a note stay as written.
+            let numbers = footnoteNumbers(in: text, protected: protected)
+            each(MarkdownStyler.footnote) { m in
+                guard let number = numbers[footnoteID(m, in: ns)], clear(m.range) else { return }
+                let definition = m.range(at: 1).length > 0
+                if !definition {
+                    guard !revealed(m.range) else { return }
+                    let glyph = image("fnref|\(number)|\(style)") { superscriptImage("\(number)", font: font, color: config.theme.accent) }
+                    result.glyphs.append(RenderedMath(range: m.range, image: glyph, reservesHeight: false))
+                    return
+                }
+                guard m.range.location == ns.lineRange(for: m.range).location else { return }
+                // The marker takes the space after it, so the note's text starts where its continuation does.
+                var marker = m.range
+                if marker.upperBound < ns.length, ns.character(at: marker.upperBound) == 32 { marker.length += 1 }
+                let glyph = image("fn|\(number)|\(style)") { textImage("\(number).\u{00A0}", font: font, color: config.theme.tertiary) }
+                if !revealed(m.range) {
+                    result.glyphs.append(RenderedMath(range: marker, image: glyph, reservesHeight: false))
+                }
+                indents(below: m.range, through: indentedBody(after: m.range, in: ns), width: glyph.size.width)
+            }
+        }
         if elements.contains(.citations) {
             let numbers = PandocSyntax.numbers(in: text)
             if !numbers.isEmpty {
@@ -105,6 +160,115 @@ struct MixedDecorations {
         return result
     }
 
+    /// The indented lines after an admonition's opening line or a footnote's
+    /// definition, across blank lines, ending before trailing blanks.
+    nonisolated static func indentedBody(after header: NSRange, in ns: NSString) -> NSRange {
+        var end = header.upperBound, location = ns.lineRange(for: header).upperBound
+        while location < ns.length {
+            let line = ns.lineRange(for: NSRange(location: location, length: 0))
+            let content = ns.substring(with: line).trimmingCharacters(in: .newlines)
+            if content.hasPrefix("    ") || content.hasPrefix("\t") {
+                end = line.location + (content as NSString).length
+            } else if !content.allSatisfy({ $0 == " " || $0 == "\t" }) {
+                break
+            }
+            location = line.upperBound
+        }
+        return NSRange(location: header.upperBound, length: end - header.upperBound)
+    }
+
+    /// A Python-Markdown admonition: its type, title, folding and body paragraphs.
+    struct Admonition {
+        var kind: String
+        var title: String
+        var fold: String
+        var paragraphs: [String]
+
+        init(_ m: NSTextCheckingResult, in ns: NSString) {
+            fold = ns.substring(with: m.range(at: 1))
+            kind = ns.substring(with: m.range(at: 2)).lowercased().split(whereSeparator: \.isWhitespace).first.map(String.init) ?? "note"
+            title = m.range(at: 3).location != NSNotFound ? ns.substring(with: m.range(at: 3)) : kind.prefix(1).uppercased() + kind.dropFirst()
+            let body = ns.substring(with: MixedPresentation.indentedBody(after: m.range, in: ns))
+            let lines = body.components(separatedBy: .newlines).map { line in
+                line.hasPrefix("\t") ? String(line.dropFirst()) : line.hasPrefix("    ") ? String(line.dropFirst(4)) : line
+            }
+            paragraphs = lines.split { $0.trimmingCharacters(in: .whitespaces).isEmpty }
+                .map { $0.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ") }
+        }
+
+        /// The colour of each family of types, as in the preview.
+        var tone: NSColor {
+            switch kind {
+            case "tip", "hint", "success", "check", "done", "important": .systemGreen
+            case "question", "help", "faq": .systemTeal
+            case "warning", "caution", "attention": .systemOrange
+            case "danger", "error", "failure", "fail", "missing", "bug": .systemRed
+            case "example": .systemPurple
+            case "quote", "cite": .systemGray
+            default: .systemBlue
+            }
+        }
+    }
+
+    /// A tinted box with a bar in the type's colour, its title, and its body
+    /// with inline styling. A folded `???` shows only its title.
+    static func admonitionImage(_ note: Admonition, config: EditorConfig, width: Double) -> NSImage {
+        let font = config.font.font(size: config.fontSize)
+        let mono = NSFont.monospacedSystemFont(ofSize: config.fontSize * MarkdownStyler.codeScale, weight: .regular)
+        let pad = NSSize(width: 14, height: 9), bar: CGFloat = 4
+        let size = NSSize(width: max(120, width - 12), height: 0)
+        let textWidth = size.width - bar - pad.width * 2
+        let marker = note.fold == "!!!" ? "" : note.fold == "???+" ? "▾ " : "▸ "
+        let title = NSAttributedString(string: marker + note.title, attributes: [.font: font.adding(.bold), .foregroundColor: note.tone])
+        let paragraphs = note.fold == "???" ? [] : note.paragraphs.map {
+            cell($0, font: font, mono: mono, color: config.theme.bodyInk, alignment: .natural)
+        }
+        func height(_ text: NSAttributedString) -> CGFloat {
+            ceil(text.boundingRect(with: NSSize(width: textWidth, height: .greatestFiniteMagnitude),
+                                   options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
+        }
+        let gap = config.fontSize * 0.6
+        let blocks = [title] + paragraphs
+        let total = blocks.map(height).reduce(0, +) + gap * CGFloat(blocks.count - 1) + pad.height * 2
+        let box = NSSize(width: size.width, height: ceil(total))
+        return NSImage(size: box, flipped: true) { _ in
+            let frame = NSRect(origin: .zero, size: box)
+            let path = NSBezierPath(roundedRect: frame, xRadius: 4, yRadius: 4)
+            note.tone.withAlphaComponent(0.09).setFill(); path.fill()
+            NSGraphicsContext.saveGraphicsState(); path.addClip()
+            note.tone.setFill(); NSRect(x: 0, y: 0, width: bar, height: box.height).fill()
+            NSGraphicsContext.restoreGraphicsState()
+            var y = pad.height
+            for text in blocks {
+                let h = height(text)
+                text.draw(with: NSRect(x: bar + pad.width, y: y, width: textWidth, height: h), options: [.usesLineFragmentOrigin, .usesFontLeading])
+                y += h + gap
+            }
+            return true
+        }
+    }
+
+    /// The text between `[^` and `]` of a footnote match.
+    static func footnoteID(_ m: NSTextCheckingResult, in ns: NSString) -> String {
+        ns.substring(with: NSRange(location: m.range.location + 2, length: m.range.length - 3 - m.range(at: 1).length))
+    }
+
+    /// Footnote numbers by first reference, as the preview numbers them; only
+    /// notes that have a definition count. Notes never referenced follow.
+    static func footnoteNumbers(in text: String, protected: [NSRange]) -> [String: Int] {
+        let ns = text as NSString
+        let matches = MarkdownStyler.footnote.matches(in: text, range: NSRange(location: 0, length: ns.length))
+            .filter { m in !protected.contains { NSIntersectionRange($0, m.range).length > 0 } }
+        let defined = Set(matches.filter { $0.range(at: 1).length > 0 && $0.range.location == ns.lineRange(for: $0.range).location }
+            .map { footnoteID($0, in: ns) })
+        var numbers: [String: Int] = [:]
+        for m in matches.sorted(by: { ($0.range(at: 1).length, $0.range.location) < ($1.range(at: 1).length, $1.range.location) }) {
+            let id = footnoteID(m, in: ns)
+            if defined.contains(id), numbers[id] == nil { numbers[id] = numbers.count + 1 }
+        }
+        return numbers
+    }
+
     private static func image(_ key: String, make: () -> NSImage) -> NSImage {
         if let cached = cache[key] { return cached }
         if cache.count >= 512 { cache.removeAll(keepingCapacity: true) }
@@ -118,12 +282,23 @@ struct MixedDecorations {
     // A glyph image hangs from the line: its bottom sits 4pt below the
     // baseline (see MathLayoutManager), so the baseline is at `height - 4`.
 
-    static func textImage(_ string: String, font: NSFont, color: NSColor, width: CGFloat? = nil) -> NSImage {
+    static func textImage(_ string: String, font: NSFont, color: NSColor, width: CGFloat? = nil, inset: CGFloat = 0) -> NSImage {
         let attributed = NSAttributedString(string: string, attributes: [.font: font, .foregroundColor: color])
         let natural = attributed.size().width
-        let size = NSSize(width: ceil(max(width ?? natural, natural)), height: ceil(font.ascender) + 4)
+        let size = NSSize(width: ceil(max(width ?? natural, natural)) + inset, height: ceil(font.ascender) + 4)
         return NSImage(size: size, flipped: true) { _ in
-            attributed.draw(at: NSPoint(x: (size.width - natural) / 2, y: size.height - 4 - font.ascender))
+            attributed.draw(at: NSPoint(x: inset + (size.width - inset - natural) / 2, y: size.height - 4 - font.ascender))
+            return true
+        }
+    }
+
+    /// A footnote number set small and raised, on the line's baseline grid.
+    static func superscriptImage(_ string: String, font: NSFont, color: NSColor) -> NSImage {
+        let small = font.withSize(font.pointSize * 0.72)
+        let attributed = NSAttributedString(string: string, attributes: [.font: small, .foregroundColor: color])
+        let size = NSSize(width: ceil(attributed.size().width) + 1, height: ceil(font.ascender) + 4)
+        return NSImage(size: size, flipped: true) { _ in
+            attributed.draw(at: NSPoint(x: 0.5, y: size.height - 4 - small.ascender - font.pointSize * 0.33))
             return true
         }
     }

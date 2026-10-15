@@ -28,6 +28,17 @@ enum MarkdownStyler {
     /// Obsidian highlights and comments, and HTML comments.
     static let highlight = re(#"(==)(?=[^\s=])(.+?)(?<=[^\s=])=="#)
     static let comment = re(#"%%[\s\S]*?%%|<!--[\s\S]*?-->"#, [])
+    /// A Python-Markdown admonition's opening line: `!!! type "Title"`, or
+    /// `???`/`???+` for one that folds. Its body is the indented lines below.
+    static let admonition = re(#"^(!!!|\?\?\?\+?)[ \t]+([\w-]+(?:[ \t]+[\w-]+)*)(?:[ \t]+"([^"\n]*)")?[ \t]*$"#)
+    /// CriticMarkup, one form each: insertion, deletion, substitution
+    /// (`{~~old~>new~~}`), highlight and comment. Group 1 is the text.
+    static let criticInsert = re(#"\{\+\+(.+?)\+\+\}"#)
+    static let criticDelete = re(#"\{--(.+?)--\}"#)
+    static let criticSubstitute = re(#"\{~~(.*?)~>(.*?)~~\}"#)
+    static let criticHighlight = re(#"\{==(.+?)==\}"#)
+    static let criticComment = re(#"\{>>(.+?)<<\}"#)
+    static let critic = [criticInsert, criticDelete, criticSubstitute, criticHighlight, criticComment]
     static let metaKey = re(#"^[ \t]*(?:-[ \t]+)?([\w.-][\w .-]*?)[ \t]*(:|=)(?=[ \t]|$)"#)
     static let metaComment = re(#"^[ \t]*#.*$"#)
 
@@ -196,6 +207,11 @@ enum MarkdownStyler {
         }
         literal += comments
         func inCode(_ r: NSRange) -> Bool { inLiteral(r) }
+        // CriticMarkup claims its braces' contents from strikethrough and
+        // highlight: `{~~a~>b~~}` is a substitution, not struck text.
+        var critics: [NSRange] = []
+        for pattern in critic { each(pattern) { m in if !inCode(m.range) { critics.append(m.range) } } }
+        func inCritic(_ r: NSRange) -> Bool { critics.contains { NSIntersectionRange($0, r).length > 0 } }
 
         each(heading) { m in
             guard !inCode(m.range) else { return }
@@ -220,17 +236,26 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: syntax, range: NSRange(location: m.range.upperBound - 1, length: 1))
         }
         each(strike) { m in
-            guard !inCode(m.range) else { return }
+            guard !inCode(m.range), !inCritic(m.range) else { return }
             storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: m.range(at: 2))
             color(c.theme.secondary, m.range(at: 2))
             color(syntax, m.range(at: 1))
             color(syntax, NSRange(location: m.range.upperBound - 2, length: 2))
         }
         each(highlight) { m in
-            guard !inCode(m.range) else { return }
+            guard !inCode(m.range), !inCritic(m.range) else { return }
             storage.addAttribute(.backgroundColor, value: c.theme.accent.withAlphaComponent(0.22), range: m.range(at: 2))
             color(syntax, m.range(at: 1))
             color(syntax, NSRange(location: m.range.upperBound - 2, length: 2))
+        }
+        styleCritic(storage, critics: critics, range: range, config: c)
+        each(admonition) { m in
+            guard !inCode(m.range) else { return }
+            color(syntax, m.range(at: 1))
+            storage.addAttributes([.foregroundColor: c.theme.accent, .font: base.adding(.bold)], range: m.range(at: 2))
+            if m.range(at: 3).location != NSNotFound {
+                storage.addAttributes([.foregroundColor: c.theme.label, .font: base.adding(.bold)], range: m.range(at: 3))
+            }
         }
         each(PandocSyntax.citation) { m in
             guard !inCode(m.range) else { return }
@@ -303,6 +328,34 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: c.theme.secondary, range: r)
         }
         styleMath(storage, maths, range: range, config: c, block: block)
+    }
+
+    /// Suggested edits read as tracked changes: insertions underlined in
+    /// green, deletions struck in red, comments quiet; the braces recede.
+    static func styleCritic(_ storage: NSTextStorage, critics: [NSRange], range: NSRange, config c: EditorConfig) {
+        let text = storage.string, ns = text as NSString
+        let syntax = syntaxColor(c)
+        let base = c.font.font(size: c.fontSize)
+        let inserted: [NSAttributedString.Key: Any] = [.underlineStyle: NSUnderlineStyle.single.rawValue, .underlineColor: NSColor.systemGreen]
+        let deleted: [NSAttributedString.Key: Any] = [.strikethroughStyle: NSUnderlineStyle.single.rawValue, .strikethroughColor: NSColor.systemRed,
+                                                      .foregroundColor: c.theme.tertiary]
+        for r in critics {
+            guard let m = critic.lazy.compactMap({ $0.firstMatch(in: text, options: .anchored, range: r) }).first else { continue }
+            let open = NSRange(location: r.location, length: 3), close = NSRange(location: r.upperBound - 3, length: 3)
+            let body = m.range(at: 1)
+            switch ns.substring(with: NSRange(location: r.location + 1, length: 2)) {
+            case "++": storage.addAttributes(inserted, range: body)
+            case "--": storage.addAttributes(deleted, range: body)
+            case "~~":
+                storage.addAttributes(deleted, range: body)
+                storage.addAttributes(inserted, range: m.range(at: 2))
+                storage.addAttribute(.foregroundColor, value: syntax, range: NSRange(location: body.upperBound, length: 2))
+            case "==": storage.addAttribute(.backgroundColor, value: c.theme.accent.withAlphaComponent(0.22), range: body)
+            default: storage.addAttributes([.foregroundColor: c.theme.tertiary, .font: base.adding(.italic)], range: body)
+            }
+            storage.addAttribute(.foregroundColor, value: syntax, range: open)
+            storage.addAttribute(.foregroundColor, value: syntax, range: close)
+        }
     }
 
     static let texCommand = re(#"\\(?:[A-Za-z@]+\*?|[^A-Za-z\s])"#, [])
