@@ -271,6 +271,15 @@ struct FindingDetail: View {
                     .help("Look up offline synonyms for this occurrence")
             }
             aiStatus
+            // A proposal the assistant returned for this finding (from Suggest
+            // Rewrite, or alongside an explanation) is decided right here.
+            ForEach(model.pendingSuggestions(for: finding)) { s in
+                if let suggestion = model.annotation(id: s.id) {
+                    SuggestionDetail(suggestion: suggestion, model: model, embedded: true)
+                        .padding(10)
+                        .background(RoundedRectangle(cornerRadius: 7).fill(Color.accentColor.opacity(0.06)))
+                }
+            }
             actions
         }
         .onChange(of: finding.id) { occurrenceIndex = 0 }
@@ -342,9 +351,10 @@ struct FindingDetail: View {
             if model.prefs.aiEnabled {
                 Button("Explain") { model.explain(finding) }
                     .help("Ask the assistant why this was flagged. Sends only this sentence.")
-                Button(hasSuggestion ? "Suggestion Ready" : "Suggest Rewrite") { model.suggestRewrite(finding) }
-                    .disabled(hasSuggestion)
-                    .help(hasSuggestion ? "A suggestion for this finding is listed in this passage." : "Ask for a revision you can accept or reject. Sends only this sentence.")
+                if !hasSuggestion {
+                    Button("Suggest Rewrite") { model.suggestRewrite(finding) }
+                        .help("Ask for a revision you can accept or reject. Sends only this sentence.")
+                }
             }
             Spacer()
             if let word = finding.metadata["word"] {
@@ -374,16 +384,25 @@ struct FindingDetail: View {
 struct SuggestionDetail: View {
     let suggestion: TextAnnotation
     let model: WorkspaceModel
+    /// Inside the finding that asked for it: a one-line label, not a title.
+    var embedded = false
     @State private var note: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
+            if embedded {
                 HStack(spacing: 6) {
                     FamilyGlyph(family: .aiSuggestion)
-                    Text(suggestion.message).font(ReviewType.findingTitleSelected)
+                    Text("Suggested revision · \(model.provenance(suggestion))").font(ReviewType.meta).foregroundStyle(.secondary)
                 }
-                Text(model.provenance(suggestion)).font(ReviewType.meta).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        FamilyGlyph(family: .aiSuggestion)
+                        Text(suggestion.message).font(ReviewType.findingTitleSelected)
+                    }
+                    Text(model.provenance(suggestion)).font(ReviewType.meta).foregroundStyle(.secondary)
+                }
             }
             if model.isStale(suggestion) {
                 Text("Out of date. The passage changed after this was suggested, so it can’t be applied safely.")
