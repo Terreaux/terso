@@ -164,6 +164,7 @@ struct ViewControls: View {
                 ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.inline)
             if model.renderMode == .mixed { mixedSection }
+            if model.writingMode == .manutius { Menu("Book") { BookOptions(model: model) } }
             Picker("Writing", selection: Binding(get: { model.writingMode }, set: { model.setWritingMode($0) })) {
                 ForEach(WritingMode.allCases) { mode in
                     Text(mode.title).tag(mode).disabled(mode.shapesEditor && !caretModesAvailable)
@@ -209,6 +210,8 @@ struct ViewControls: View {
             }
             .padding(2)
             .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
+            // Book options belong to Manutius and appear only with it.
+            if model.writingMode == .manutius { BookControls(model: model) }
         }
     }
 }

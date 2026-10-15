@@ -56,6 +56,9 @@ struct TersoCommands: Commands {
                     .keyboardShortcut(mode.shortcut.map { KeyboardShortcut(KeyEquivalent($0), modifiers: [.command, .shift]) })
                     .disabled(model == nil || (mode.shapesEditor && model?.renderMode == .preview))
             }
+            Button("Whole Book") { model?.showBookOverview = true }
+                .keyboardShortcut("b", modifiers: [.command, .shift])
+                .disabled(model?.writingMode != .manutius)
             Divider()
         }
         CommandMenu("Writing") {

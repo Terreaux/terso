@@ -52,7 +52,7 @@ enum MarkdownStyler {
         p.lineSpacing = c.fontSize * max(0, c.lineSpacing - 1)
         p.paragraphSpacing = c.fontSize * 0.8
         // A book page: justified and hyphenated, with no space between paragraphs.
-        if c.book {
+        if c.book != nil {
             p.alignment = .justified
             p.hyphenationFactor = 0.9
             p.paragraphSpacing = 0
@@ -63,6 +63,7 @@ enum MarkdownStyler {
     /// Manutius sets paragraphs as print does: the blank line between them
     /// closes up, prose that follows prose is indented, the first paragraph
     /// after a heading or block is flush, and headings get room above.
+    /// Chapter headings and scene breaks are set as the book design asks.
     static func styleBook(_ storage: NSTextStorage, range: NSRange, config c: EditorConfig) {
         let ns = storage.string as NSString
         let blank = NSMutableParagraphStyle()
@@ -75,11 +76,16 @@ enum MarkdownStyler {
         heading.paragraphSpacing = c.fontSize * 0.5
         let block = NSMutableParagraphStyle()
         block.lineSpacing = paragraphStyle(c).lineSpacing
-        func isProse(_ line: String) -> Bool {
-            let trimmed = line.drop { $0 == " " || $0 == "\t" }
-            guard let first = trimmed.first else { return false }
-            if "#>|-*+`$![<".contains(first) { return false }
-            return trimmed.range(of: #"^\d{1,3}[.)]\s"#, options: .regularExpression) == nil
+        let chapter = chapterParagraphStyle(c)
+        let scene = NSMutableParagraphStyle()
+        scene.alignment = .center
+        scene.paragraphSpacingBefore = c.fontSize * 0.9
+        scene.paragraphSpacing = c.fontSize * 0.9
+        /// Whether the line just above is text: `---` under it is a heading underline.
+        func followsText(_ location: Int) -> Bool {
+            guard location > 0 else { return false }
+            let previous = ns.paragraphRange(for: NSRange(location: location - 1, length: 0))
+            return !ns.substring(with: previous).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         /// The nearest non-blank paragraph before `location`, if it is prose.
         func followsProse(_ location: Int) -> Bool {
@@ -97,10 +103,63 @@ enum MarkdownStyler {
             guard target.length > 0, let line else { return }
             let style: NSParagraphStyle
             if inner.length == 0 || line.trimmingCharacters(in: .whitespaces).isEmpty { style = blank }
+            else if line.hasPrefix("# ") || line.hasPrefix("#\t") { style = chapter }
             else if line.hasPrefix("#") { style = heading }
+            else if rule.firstMatch(in: line, range: NSRange(location: 0, length: inner.length)) != nil, !followsText(enclosing.location) { style = scene }
             else if isProse(line) { style = followsProse(enclosing.location) ? indented : paragraphStyle(c) }
             else { style = block }
             storage.addAttribute(.paragraphStyle, value: style, range: target)
+        }
+    }
+
+    /// A line of running prose, as opposed to a heading, list, quote, table,
+    /// code, math, image or HTML.
+    static func isProse(_ line: String) -> Bool {
+        let trimmed = line.drop { $0 == " " || $0 == "\t" }
+        guard let first = trimmed.first else { return false }
+        if "#>|-*+`$![<".contains(first) { return false }
+        return trimmed.range(of: #"^\d{1,3}[.)]\s"#, options: .regularExpression) == nil
+    }
+
+    /// A chapter heading's paragraph: centred, unless Plain, with room above
+    /// for a numeral or rule and a generous gap before the text.
+    static func chapterParagraphStyle(_ c: EditorConfig) -> NSParagraphStyle {
+        let style = c.book?.headings ?? .plain
+        let p = NSMutableParagraphStyle()
+        p.alignment = style == .plain ? .natural : .center
+        p.paragraphSpacingBefore = c.fontSize * (style == .bigNumeral ? 4.6 : style == .rules ? 2.4 : 1.4)
+        p.paragraphSpacing = c.fontSize * (style == .plain ? 0.8 : 2.2)
+        return p
+    }
+
+    /// A chapter heading's face and letter-spacing in each style.
+    static func chapterHeadingFont(_ c: EditorConfig, _ style: ChapterHeadingStyle) -> (font: NSFont, kern: CGFloat) {
+        let body = c.font.font(size: c.fontSize)
+        switch style {
+        case .classic: return (body.withSize(c.fontSize * 1.6), 0.2)
+        case .smallCaps: return (body.withSize(c.fontSize * 1.3).smallCaps, 1.4)
+        case .uppercase: return (body.withSize(c.fontSize * 1.3).allSmallCaps, 2.6)
+        case .bigNumeral, .rules: return (body.withSize(c.fontSize * 1.1).smallCaps, 1.6)
+        case .plain: return (headingFont(c, level: 1), 0)
+        }
+    }
+
+    /// Each chapter's opening: its first words in small capitals, and the
+    /// first letter folded away where a drop cap is drawn in its place.
+    static func styleOpenings(_ storage: NSTextStorage, range: NSRange, config c: EditorConfig) {
+        guard let design = c.book, design.dropCaps || design.smallCapsOpening else { return }
+        let ns = storage.string as NSString
+        for chapter in BookChapter.scan(storage.string) {
+            guard let opening = chapter.opening, NSIntersectionRange(opening, range).length > 0 else { continue }
+            if design.smallCapsOpening, let words = chapter.openingWords(in: ns) {
+                storage.enumerateAttribute(.font, in: words) { value, r, _ in
+                    if let font = value as? NSFont { storage.addAttribute(.font, value: font.smallCaps, range: r) }
+                }
+                storage.addAttribute(.kern, value: c.fontSize * 0.03, range: words)
+            }
+            if design.dropCaps, let initial = chapter.initial(in: ns) {
+                storage.addAttributes([.font: c.font.font(size: 1), .foregroundColor: NSColor.clear], range: initial)
+            }
         }
     }
 
@@ -146,7 +205,7 @@ enum MarkdownStyler {
         let mono = NSFont.monospacedSystemFont(ofSize: c.fontSize * codeScale, weight: .regular)
         let syntax = syntaxColor(c)
         storage.setAttributes(baseAttributes(c), range: range)
-        if c.book { styleBook(storage, range: range, config: c) }
+        if c.book != nil { styleBook(storage, range: range, config: c) }
         if c.renderMode == .source {
             storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: c.fontSize, weight: .regular), range: range)
             return
@@ -221,6 +280,10 @@ enum MarkdownStyler {
             // The reader should see the heading before its syntax.
             storage.addAttribute(.foregroundColor, value: c.theme.quaternary, range: m.range(at: 1))
             storage.addAttribute(.font, value: c.font.font(size: c.fontSize * 0.96), range: m.range(at: 1))
+            if let design = c.book, level == 1 {
+                let chapter = chapterHeadingFont(c, design.headings)
+                storage.addAttributes([.font: chapter.font, .kern: chapter.kern], range: m.range(at: 3))
+            }
         }
         each(bold) { m in
             guard !inCode(m.range) else { return }
@@ -312,6 +375,8 @@ enum MarkdownStyler {
             guard !inCode(m.range) else { return }
             storage.addAttribute(.foregroundColor, value: syntax, range: m.range)
         }
+        // Before code and math take their faces, which openings leave alone.
+        if c.book != nil { styleOpenings(storage, range: range, config: c) }
         each(table) { m in
             guard !inCode(m.range) else { return }
             storage.addAttribute(.font, value: mono, range: m.range)

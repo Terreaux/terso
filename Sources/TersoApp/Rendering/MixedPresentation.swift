@@ -58,7 +58,8 @@ struct MixedDecorations {
                 // `---` under a line of text is a heading underline, not a rule.
                 let previous = m.range.location == 0 ? "" : ns.substring(with: ns.lineRange(for: NSRange(location: m.range.location - 1, length: 0)))
                 guard previous.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, clear(m.range), !revealed(m.range) else { return }
-                let rule = image("rule|\(style)|\(width)") { ruleImage(font: font, color: config.theme.separator, width: width - 12) }
+                let rule = config.book.map { sceneBreak($0.sceneBreak, font: font, config: config, width: width) }
+                    ?? image("rule|\(style)|\(width)") { ruleImage(font: font, color: config.theme.separator, width: width - 12) }
                 result.glyphs.append(RenderedMath(range: m.range, image: rule, reservesHeight: false))
             }
             let rules = result.glyphs.filter { !$0.reservesHeight }.map(\.range)
@@ -322,6 +323,19 @@ struct MixedDecorations {
                 theme.tertiary.setStroke(); path.lineWidth = 1.2; path.stroke()
             }
             return true
+        }
+    }
+
+    /// A scene break in Manutius: an ornament, a short rule or white space,
+    /// centred by its paragraph.
+    static func sceneBreak(_ kind: SceneBreak, font: NSFont, config: EditorConfig, width: Double) -> NSImage {
+        let style = "\(kind.rawValue)|\(config.font.rawValue)|\(config.fontSize)|\(config.theme.rawValue)|\(width)"
+        return image("scene|\(style)") {
+            switch kind {
+            case .rule: ruleImage(font: font, color: config.theme.secondary, width: (width / 5).rounded())
+            case .space: NSImage(size: NSSize(width: 1, height: ceil(font.ascender) + 4))
+            default: textImage(kind.ornament ?? "", font: font, color: config.theme.secondary)
+            }
         }
     }
 
