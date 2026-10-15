@@ -21,11 +21,11 @@ struct MarkdownPreview: NSViewRepresentable {
         return view
     }
     func updateNSView(_ view: WKWebView, context: Context) {
-        let key = "\(scheme):\(model.prefs.fontSize):\(source)"
+        let key = "\(scheme):\(model.prefs.theme.rawValue):\(model.prefs.fontSize):\(source)"
         guard key != context.coordinator.key else { return }
         context.coordinator.key = key
         view.loadHTMLString(MarkdownPreviewHTML.document(source: source, dark: scheme == .dark,
-                                                         fontSize: model.prefs.fontSize,
+                                                         fontSize: model.prefs.fontSize, ink: model.prefs.theme.cssInk,
                                                          selection: model.editor?.selection.location ?? 0), baseURL: nil)
         DispatchQueue.main.async { view.window?.makeFirstResponder(view) }
     }
@@ -75,7 +75,7 @@ enum MarkdownPreviewHTML {
         return ["marked.umd.js", "purify.min.js"].map { try! String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
     }()
 
-    static func document(source: String, dark: Bool, fontSize: Double, selection: Int = 0) -> String {
+    static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0) -> String {
         let ns = source as NSString
         let regions = MathPresentation.regions(in: source)
         let marker = "TERSOMATH" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -102,7 +102,7 @@ enum MarkdownPreviewHTML {
         <style>\#(ScienceMathHTML.stylesheet)</style>
         <style>
         :root { color-scheme:\#(dark ? "dark" : "light"); }
-        body { color:\#(dark ? "#dedede" : "#292929"); background:transparent; font:\#(fontSize)px/1.65 -apple-system; margin:0; }
+        body { color:\#(ink ?? (dark ? "#dedede" : "#292929")); background:transparent; font:\#(fontSize)px/1.65 -apple-system; margin:0; }
         main { max-width:760px; padding:48px 36px 100px; margin:auto; overflow-wrap:anywhere; }
         h1,h2,h3 { line-height:1.25; margin:1.5em 0 .6em; } h1 {font-size:1.65em;} h2 {font-size:1.35em;}
         p {margin:.8em 0;} pre {overflow:auto; padding:16px; background:#8881; border-radius:6px;}

@@ -28,6 +28,10 @@ enum MarkdownStyler {
     static let metaKey = re(#"^[ \t]*(?:-[ \t]+)?([\w.-][\w .-]*?)[ \t]*(:|=)(?=[ \t]|$)"#)
     static let metaComment = re(#"^[ \t]*#.*$"#)
 
+    /// Code beside prose in Mixed mode. Monospace reads large per point, but
+    /// much below the body size it turns into fine print.
+    static let codeScale: CGFloat = 0.95
+
     static func paragraphStyle(_ c: EditorConfig) -> NSParagraphStyle {
         let p = NSMutableParagraphStyle()
         // lineSpacing (not lineHeightMultiple) keeps highlight backgrounds aligned with glyphs.
@@ -48,13 +52,7 @@ enum MarkdownStyler {
     }
 
     static func baseAttributes(_ c: EditorConfig) -> [NSAttributedString.Key: Any] {
-        [.font: c.font.font(size: c.fontSize), .foregroundColor: bodyInk, .paragraphStyle: paragraphStyle(c)]
-    }
-
-    /// Body text a touch softer than full-strength label colour: long-form
-    /// reading, not UI. Increased contrast restores full strength.
-    static var bodyInk: NSColor {
-        NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? .labelColor : NSColor.labelColor.withAlphaComponent(0.86)
+        [.font: c.font.font(size: c.fontSize), .foregroundColor: c.theme.bodyInk, .paragraphStyle: paragraphStyle(c)]
     }
 
     static func headingFont(_ c: EditorConfig, level: Int) -> NSFont {
@@ -70,9 +68,9 @@ enum MarkdownStyler {
 
     static func syntaxColor(_ c: EditorConfig) -> NSColor {
         switch c.syntax {
-        case .visible: .secondaryLabelColor
-        case .subdued: .tertiaryLabelColor
-        case .faint: .quaternaryLabelColor
+        case .visible: c.theme.secondary
+        case .subdued: c.theme.tertiary
+        case .faint: c.theme.quaternary
         }
     }
 
@@ -81,7 +79,7 @@ enum MarkdownStyler {
         let text = storage.string
         let ns = text as NSString
         let base = c.font.font(size: c.fontSize)
-        let mono = NSFont.monospacedSystemFont(ofSize: c.fontSize * 0.88, weight: .regular)
+        let mono = NSFont.monospacedSystemFont(ofSize: c.fontSize * codeScale, weight: .regular)
         let syntax = syntaxColor(c)
         storage.setAttributes(baseAttributes(c), range: range)
         if c.renderMode == .source {
@@ -137,10 +135,10 @@ enum MarkdownStyler {
             guard !inCode(m.range) else { return }
             let level = m.range(at: 1).length
             storage.addAttribute(.font, value: headingFont(c, level: level), range: m.range)
-            storage.addAttribute(.foregroundColor, value: NSColor.labelColor, range: m.range(at: 3))
+            storage.addAttribute(.foregroundColor, value: c.theme.label, range: m.range(at: 3))
             // The reader should see the heading before its syntax.
-            storage.addAttribute(.foregroundColor, value: NSColor.quaternaryLabelColor, range: m.range(at: 1))
-            storage.addAttribute(.font, value: c.font.font(size: c.fontSize * 0.9), range: m.range(at: 1))
+            storage.addAttribute(.foregroundColor, value: c.theme.quaternary, range: m.range(at: 1))
+            storage.addAttribute(.font, value: c.font.font(size: c.fontSize * 0.96), range: m.range(at: 1))
         }
         each(bold) { m in
             guard !inCode(m.range) else { return }
@@ -158,7 +156,7 @@ enum MarkdownStyler {
         each(strike) { m in
             guard !inCode(m.range) else { return }
             storage.addAttribute(.strikethroughStyle, value: NSUnderlineStyle.single.rawValue, range: m.range(at: 2))
-            color(.secondaryLabelColor, m.range(at: 2))
+            color(c.theme.secondary, m.range(at: 2))
             color(syntax, m.range(at: 1))
             color(syntax, NSRange(location: m.range.upperBound - 2, length: 2))
         }
@@ -167,28 +165,28 @@ enum MarkdownStyler {
             storage.addAttribute(.foregroundColor, value: syntax, range: m.range(at: 1))
             storage.addAttribute(.foregroundColor, value: syntax, range: m.range(at: 3))
             storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: m.range(at: 2))
-            storage.addAttribute(.underlineColor, value: NSColor.separatorColor, range: m.range(at: 2))
+            storage.addAttribute(.underlineColor, value: c.theme.separator, range: m.range(at: 2))
         }
         each(wikiLink) { m in
             guard !inCode(m.range) else { return }
             let label = m.range(at: m.range(at: 2).location == NSNotFound ? 1 : 2)
             color(syntax, m.range)
-            color(bodyInk, label)
+            color(c.theme.bodyInk, label)
             storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: label)
-            storage.addAttribute(.underlineColor, value: NSColor.separatorColor, range: label)
+            storage.addAttribute(.underlineColor, value: c.theme.separator, range: label)
         }
         each(footnote) { m in
             guard !inCode(m.range) else { return }
             color(syntax, m.range)
             // A reference sits above the line; a definition (`[^1]:`) stays on it.
             if m.range(at: 1).length == 0 {
-                storage.addAttribute(.font, value: c.font.font(size: c.fontSize * 0.72), range: m.range)
+                storage.addAttribute(.font, value: c.font.font(size: c.fontSize * 0.78), range: m.range)
                 storage.addAttribute(.baselineOffset, value: c.fontSize * 0.3, range: m.range)
             }
         }
         each(quote) { m in
             guard !inCode(m.range) else { return }
-            storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: m.range)
+            storage.addAttribute(.foregroundColor, value: c.theme.secondary, range: m.range)
             storage.addAttribute(.font, value: base.adding(.italic), range: m.range)
         }
         each(list) { m in
@@ -202,7 +200,7 @@ enum MarkdownStyler {
             if ns.substring(with: m.range(at: 1)).lowercased() == "[x]" {
                 let line = ns.lineRange(for: m.range)
                 let rest = NSRange(location: m.range.upperBound, length: line.upperBound - m.range.upperBound)
-                color(.tertiaryLabelColor, NSIntersectionRange(rest, range))
+                color(c.theme.tertiary, NSIntersectionRange(rest, range))
             }
         }
         each(rule) { m in
@@ -218,11 +216,11 @@ enum MarkdownStyler {
         }
         for r in spans {
             storage.addAttribute(.font, value: mono, range: r)
-            storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: r)
+            storage.addAttribute(.foregroundColor, value: c.theme.secondary, range: r)
         }
         for r in fences {
             storage.addAttribute(.font, value: mono, range: r)
-            storage.addAttribute(.foregroundColor, value: NSColor.secondaryLabelColor, range: r)
+            storage.addAttribute(.foregroundColor, value: c.theme.secondary, range: r)
         }
         styleMath(storage, maths, range: range, config: c, block: block)
     }
@@ -231,23 +229,23 @@ enum MarkdownStyler {
     /// keys receded, values legible, delimiters barely there.
     static func styleFrontMatter(_ storage: NSTextStorage, _ fm: NSRange, config c: EditorConfig, block: (NSRange, CGFloat) -> Void) {
         let text = storage.string
-        let small = NSFont.monospacedSystemFont(ofSize: c.fontSize * 0.78, weight: .regular)
-        storage.addAttributes([.font: small, .foregroundColor: NSColor.secondaryLabelColor], range: fm)
+        let small = NSFont.monospacedSystemFont(ofSize: c.fontSize * 0.84, weight: .regular)
+        storage.addAttributes([.font: small, .foregroundColor: c.theme.secondary], range: fm)
         block(fm, 0)
         let ns = text as NSString
         let first = ns.lineRange(for: NSRange(location: fm.location, length: 0))
         let last = ns.lineRange(for: NSRange(location: max(fm.location, fm.upperBound - 1), length: 0))
-        storage.addAttribute(.foregroundColor, value: NSColor.quaternaryLabelColor, range: NSIntersectionRange(first, fm))
-        storage.addAttribute(.foregroundColor, value: NSColor.quaternaryLabelColor, range: NSIntersectionRange(last, fm))
+        storage.addAttribute(.foregroundColor, value: c.theme.quaternary, range: NSIntersectionRange(first, fm))
+        storage.addAttribute(.foregroundColor, value: c.theme.quaternary, range: NSIntersectionRange(last, fm))
         metaKey.enumerateMatches(in: text, range: fm) { m, _, _ in
             guard let m else { return }
-            storage.addAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor, range: m.range(at: 1))
-            storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: c.fontSize * 0.78, weight: .medium), range: m.range(at: 1))
-            storage.addAttribute(.foregroundColor, value: NSColor.quaternaryLabelColor, range: m.range(at: 2))
+            storage.addAttribute(.foregroundColor, value: c.theme.tertiary, range: m.range(at: 1))
+            storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: c.fontSize * 0.84, weight: .medium), range: m.range(at: 1))
+            storage.addAttribute(.foregroundColor, value: c.theme.quaternary, range: m.range(at: 2))
         }
         metaComment.enumerateMatches(in: text, range: fm) { m, _, _ in
             guard let m else { return }
-            storage.addAttribute(.foregroundColor, value: NSColor.quaternaryLabelColor, range: m.range)
+            storage.addAttribute(.foregroundColor, value: c.theme.quaternary, range: m.range)
         }
     }
 
@@ -260,7 +258,7 @@ enum MarkdownStyler {
         for r in maths {
             let r = NSIntersectionRange(r, range)
             guard r.length > 0 else { continue }
-            storage.addAttributes([.font: serif, .foregroundColor: NSColor.secondaryLabelColor], range: r)
+            storage.addAttributes([.font: serif, .foregroundColor: c.theme.secondary], range: r)
             let s = ns.substring(with: r)
             if s.hasPrefix("\\begin") {
                 // Environment names are syntax, the body is maths.

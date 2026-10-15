@@ -30,7 +30,7 @@ struct DocumentWindow: View {
         .onAppear { model.fileURL = fileURL }
         .onChange(of: fileURL) { _, new in model.fileURL = new }
         .onChange(of: prefs.domain) { _, _ in model.scheduleAnalysis() }
-        .background(Color(nsColor: .textBackgroundColor))
+        .background(Color(nsColor: prefs.theme.background))
 
     }
 
@@ -54,7 +54,7 @@ struct DocumentWindow: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if model.focusMode { FocusFooter(model: model) }
+                if model.zenMode { ZenExit(model: model) } else if model.focusMode { FocusFooter(model: model) }
             }
             .ignoresSafeArea(edges: model.focusMode ? .top : [])
     }
@@ -74,6 +74,17 @@ struct FocusFooter: View {
         .font(.caption)
         .foregroundStyle(.tertiary)
         .padding(.bottom, 10)
+    }
+}
+
+/// Zen shows nothing but the text; Esc still leads out.
+struct ZenExit: View {
+    let model: WorkspaceModel
+    var body: some View {
+        Button("Exit Zen") { model.toggleZenMode() }
+            .keyboardShortcut(.escape, modifiers: [])
+            .opacity(0).frame(width: 0, height: 0)
+            .accessibilityLabel("Exit Zen mode")
     }
 }
 

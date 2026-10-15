@@ -23,5 +23,6 @@ struct InspectorView: View {
             }
         }
         .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
+        .themedPanel(model.prefs.theme)
     }
 }

@@ -21,41 +21,43 @@ struct DocumentTabsView: View {
                     Divider()
                 }
             }
-            HStack(spacing: 0) {
-                ScrollViewReader { proxy in
-                    ScrollView(.horizontal) {
-                        HStack(spacing: 2) {
-                            ForEach(workspace.documents) { document in
-                                DocumentTabLabel(document: document, selected: document === workspace.selected && !workspace.showingStart,
-                                                 select: { workspace.select(document) }, close: { workspace.closeTab(document) })
-                                    .id(document.id)
-                                    .draggable(document.id.uuidString)
-                                    .dropDestination(for: String.self) { items, _ in
-                                        guard let item = items.first, let id = UUID(uuidString: item) else { return false }
-                                        DocumentTabs.shared.moveTab(id: id, to: workspace, before: document)
-                                        return true
-                                    }
-                                    .contextMenu {
-                                        Button("Move Tab to New Window") { DocumentTabs.shared.detach(document) }
-                                            .disabled(workspace.documents.count < 2)
-                                        Button("Close Tab") { workspace.closeTab(document) }
-                                    }
-                            }
-                            if workspace.showingStart {
-                                StartTabLabel(close: { workspace.dismissStart() }).id("start")
-                            }
-                        }.padding(4)
+            if workspace.selected?.model.zenMode != true || workspace.showingStart {
+                HStack(spacing: 0) {
+                    ScrollViewReader { proxy in
+                        ScrollView(.horizontal) {
+                            HStack(spacing: 2) {
+                                ForEach(workspace.documents) { document in
+                                    DocumentTabLabel(document: document, selected: document === workspace.selected && !workspace.showingStart,
+                                                     select: { workspace.select(document) }, close: { workspace.closeTab(document) })
+                                        .id(document.id)
+                                        .draggable(document.id.uuidString)
+                                        .dropDestination(for: String.self) { items, _ in
+                                            guard let item = items.first, let id = UUID(uuidString: item) else { return false }
+                                            DocumentTabs.shared.moveTab(id: id, to: workspace, before: document)
+                                            return true
+                                        }
+                                        .contextMenu {
+                                            Button("Move Tab to New Window") { DocumentTabs.shared.detach(document) }
+                                                .disabled(workspace.documents.count < 2)
+                                            Button("Close Tab") { workspace.closeTab(document) }
+                                        }
+                                }
+                                if workspace.showingStart {
+                                    StartTabLabel(close: { workspace.dismissStart() }).id("start")
+                                }
+                            }.padding(4)
+                        }
+                        .scrollIndicators(.hidden)
+                        .onChange(of: workspace.selected?.id) { _, id in if let id { proxy.scrollTo(id) } }
+                        .onChange(of: workspace.showingStart) { _, showing in if showing { proxy.scrollTo("start") } }
                     }
-                    .scrollIndicators(.hidden)
-                    .onChange(of: workspace.selected?.id) { _, id in if let id { proxy.scrollTo(id) } }
-                    .onChange(of: workspace.showingStart) { _, showing in if showing { proxy.scrollTo("start") } }
+                    Button { workspace.showStart() } label: { Image(systemName: "plus") }
+                        .buttonStyle(.borderless).help("New Tab").accessibilityLabel("New Tab").padding(.horizontal, 12)
                 }
-                Button { workspace.showStart() } label: { Image(systemName: "plus") }
-                    .buttonStyle(.borderless).help("New Tab").accessibilityLabel("New Tab").padding(.horizontal, 12)
+                .frame(height: 36)
+                .themedChrome(Preferences.shared.theme)
+                Divider()
             }
-            .frame(height: 36)
-            .background(.bar)
-            Divider()
             if workspace.showingStart {
                 WorkspaceStartView(workspace: workspace)
             } else if let document = workspace.selected {
@@ -63,6 +65,7 @@ struct DocumentTabsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .themedTint(Preferences.shared.theme)
     }
 }
 
@@ -90,7 +93,7 @@ private struct DocumentTabLabel: View {
         }
         .font(.system(size: 12))
         .padding(.horizontal, 10).padding(.vertical, 6)
-        .background(selected ? Color.accentColor.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 5))
+        .background(selected ? Color(nsColor: Preferences.shared.theme.accent).opacity(0.14) : .clear, in: RoundedRectangle(cornerRadius: 5))
         .help(document.fileURL?.path ?? document.tabTitle)
     }
 }
@@ -106,7 +109,7 @@ private struct StartTabLabel: View {
         }
         .font(.system(size: 12))
         .padding(.horizontal, 10).padding(.vertical, 6)
-        .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 5))
+        .background(Color(nsColor: Preferences.shared.theme.accent).opacity(0.14), in: RoundedRectangle(cornerRadius: 5))
         .accessibilityAddTraits(.isSelected)
     }
 }
@@ -114,15 +117,31 @@ private struct StartTabLabel: View {
 private struct DocumentControls: View {
     @ObservedObject var document: TabDocument
     var body: some View {
+        // Narrow windows drop counts first, then fold groups into menus,
+        // so the header never forces the window wider than it is.
+        ViewThatFits(in: .horizontal) {
+            row(.full)
+            row(.compact)
+            row(.minimal)
+        }
+        .buttonStyle(.borderless).padding(.horizontal, 14).padding(.vertical, 8)
+        .themedChrome(Preferences.shared.theme)
+    }
+
+    private func row(_ density: HeaderDensity) -> some View {
         @Bindable var model = document.model
-        HStack {
+        return HStack {
             Button { model.showSidebar.toggle() } label: { Image(systemName: "sidebar.left") }
                 .help("Show or hide the sidebar").accessibilityLabel("Sidebar")
-            Spacer()
+            HighlightControls(model: model, density: density).padding(.leading, 6)
+            Spacer(minLength: 8)
             Picker("Rendering mode", selection: $model.renderMode) {
                 ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
-            }.pickerStyle(.segmented).frame(width: 220).labelsHidden()
-            Spacer()
+            }.pickerStyle(.segmented).frame(width: density == .full ? 220 : 170).labelsHidden()
+            // How the page looks and how you write on it sit together.
+            WritingModeControls(model: model, density: density).padding(.leading, 4)
+            Spacer(minLength: 8)
+            ThemeMenu()
             CopyDocumentButton(text: document.contents.text)
                 .id(document.id)
             ExportMenu(document: document)
@@ -131,8 +150,6 @@ private struct DocumentControls: View {
             Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
                 .help("Show or hide the inspector").accessibilityLabel("Inspector")
         }
-        .buttonStyle(.borderless).padding(.horizontal, 14).padding(.vertical, 8)
-        .background(.bar)
     }
 }
 

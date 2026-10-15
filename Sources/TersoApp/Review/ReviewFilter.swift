@@ -10,30 +10,12 @@ struct ReviewFilter: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            SectionLabel("Show")
-            ForEach(Self.writing) { row($0) }
-            Divider()
-            SectionLabel("Science")
-            ForEach([AnnotationCategory.notation, .quantities, .references, .claims, .evidence]) { row($0) }
-            Divider()
-            row(.spelling)
-            Divider()
-            row(.aiStyle)
-            row(.aiSuggestion)
+            ForEach(Array(HighlightGroup.allCases.enumerated()), id: \.element) { index, group in
+                if index > 0 { Divider() }
+                GroupLayers(model: model, group: group)
+            }
         }
         .padding(14)
         .frame(width: 260)
-    }
-
-    private func row(_ c: AnnotationCategory) -> some View {
-        Toggle(isOn: Binding(get: { model.prefs.enabledLayers.contains(c) }, set: { _ in model.toggleLayer(c) })) {
-            HStack {
-                Text(c.title)
-                Spacer()
-                Text("\(model.count(c))").monospacedDigit().foregroundStyle(.secondary)
-            }
-        }
-        .toggleStyle(.checkbox)
-        .accessibilityLabel("\(c.title), \(model.count(c)) findings")
     }
 }
