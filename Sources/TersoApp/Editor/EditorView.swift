@@ -18,8 +18,9 @@ struct EditorConfig: Equatable {
     var dimInactive: Bool
     var theme: EditorTheme
     var mixedRendered: Set<MixedElement>
-    /// Manutius: book pages, justified and hyphenated, at a book measure.
-    var book: Bool
+    /// Manutius: book pages, justified and hyphenated, at a book measure,
+    /// set as the book design asks.
+    var book: BookDesign?
     /// TeX source: styled as LaTeX rather than Markdown.
     var latex: Bool
 
@@ -29,7 +30,9 @@ struct EditorConfig: Equatable {
         font = prefs.font; fontSize = prefs.fontSize; lineSpacing = prefs.lineSpacing
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
-        theme = prefs.theme; mixedRendered = prefs.mixedRendered; book = model.manutius
+        theme = prefs.theme; mixedRendered = prefs.mixedRendered
+        book = model.manutius ? prefs.bookDesign : nil
+        if book?.largePrint == true { fontSize *= BookDesign.largePrintScale }
     }
 }
 
@@ -51,12 +54,14 @@ final class TersoTextView: NSTextView {
 
     var reviewPassageRange: NSRange? { didSet { needsDisplay = true } }
     var book: BookPage? { didSet { if book != oldValue { needsDisplay = true; setFrameSize(frame.size) } } }
-    var runningHead: String?
-    var bookFont = NSFont.systemFont(ofSize: 17)
+    var bookDecoration = BookDecoration() { didSet { if book != nil { needsDisplay = true } } }
 
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
-        if let book { drawBookPages(book, in: rect, runningHead: runningHead, font: bookFont) }
+        if let book {
+            drawBookPages(book, in: rect, decoration: bookDecoration)
+            drawBookOrnaments(book, in: rect, decoration: bookDecoration)
+        }
         guard let range = reviewPassageRange, range.length > 0,
               NSMaxRange(range) <= (string as NSString).length,
               let lm = layoutManager, let container = textContainer else { return }
@@ -383,6 +388,9 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             let ns = textStorage.string as NSString
             let r = full ? NSRange(location: 0, length: ns.length) : ns.paragraphRange(for: editedRange)
             MarkdownStyler.style(textStorage, range: r, config: config)
+            // A full restyle relays every line, so the book's chapters only
+            // need relaying themselves in a long document.
+            applyBook(editedAt: editedRange.location, restyledAll: full)
         }
     }
 
@@ -396,12 +404,12 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         if old?.renderMode == .preview, new.renderMode != .preview {
             DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
         }
-        let page = new.book ? BookPage(column: BookPage.measure(fontSize: new.fontSize, columnWidth: new.columnWidth)) : nil
+        let page = new.book.map { BookPage(column: BookPage.measure(fontSize: new.fontSize, columnWidth: new.columnWidth), aspect: $0.trim.aspect) }
         tv.columnWidth = page?.column ?? CGFloat(new.columnWidth)
-        (tv.textContainer as? PagedTextContainer)?.book = page
+        let container = tv.textContainer as? PagedTextContainer
+        container?.book = page
+        container?.opener = new.book?.openers ?? .continuous
         tv.book = page
-        tv.runningHead = model.fileURL?.deletingPathExtension().lastPathComponent
-        tv.bookFont = new.font.font(size: new.fontSize)
         tv.typewriter = new.typewriter
         tv.isAutomaticQuoteSubstitutionEnabled = new.smartQuotes
         if force || old?.theme != new.theme {
@@ -417,6 +425,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             storage.endEditing()
             tv.typingAttributes = MarkdownStyler.baseAttributes(new)
         }
+        if styleChanged { applyBook() }
         if styleChanged || old?.columnWidth != new.columnWidth || old?.mixedRendered != new.mixedRendered || old?.latex != new.latex { updateMathPresentation() }
         if force || old?.focusMode != new.focusMode || old?.dimInactive != new.dimInactive || old?.typewriter != new.typewriter {
             popover?.close()
@@ -424,6 +433,63 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             applyDimming()
             if new.typewriter { DispatchQueue.main.async { self.centerCaret() } }
         }
+    }
+
+    /// Manutius's chapters: where headings open a page, which lines stand
+    /// beside a drop cap, and what the pages draw around the text.
+    /// When they change the text is laid out again: at once, or after an
+    /// edit at `editedAt` once the layout manager has seen it — unless the
+    /// edit restyled, and so relays, everything anyway.
+    func applyBook(editedAt location: Int? = nil, restyledAll: Bool = false) {
+        guard let tv = textView, let container = tv.textContainer as? PagedTextContainer else { return }
+        let ns = tv.string as NSString
+        var decoration = BookDecoration()
+        var openers: Set<Int> = []
+        var caps: [DropCapSpan] = []
+        if let config, var design = config.book, !config.latex {
+            // Source shows the text as written: no drawn caps or numerals.
+            if config.renderMode == .source { design.dropCaps = false; design.headings = .plain }
+            let chapters = BookChapter.scan(tv.string)
+            let body = config.font.font(size: config.fontSize)
+            let spacing = config.fontSize * max(0, config.lineSpacing - 1)
+            openers = Set(chapters.flatMap(\.lineStarts))
+            if design.dropCaps {
+                caps = chapters.compactMap { chapter in
+                    chapter.initial(in: ns).map { initial in
+                        let cap = DropCap(letter: ns.substring(with: initial), body: body, lineSpacing: spacing)
+                        return DropCapSpan(opening: initial.location, end: chapter.end, indent: cap.indent, depth: cap.depth)
+                    }
+                }
+            }
+            decoration = BookDecoration(design: design, title: bookTitle(tv.string), chapters: chapters,
+                                        font: body, ink: config.theme.bodyInk, lineSpacing: spacing)
+        }
+        let changed = openers != container.openers || caps != container.dropCaps
+        container.openers = openers
+        container.dropCaps = caps
+        tv.bookDecoration = decoration
+        guard changed, !restyledAll else { return }
+        guard let location else { tv.layoutManager?.textContainerChangedGeometry(container); return }
+        // Inside an edit the layout manager has not yet seen the new text.
+        DispatchQueue.main.async { [weak tv] in
+            guard let tv, let lm = tv.layoutManager else { return }
+            let length = (tv.string as NSString).length
+            let from = min(location, length)
+            lm.invalidateLayout(forCharacterRange: NSRange(location: from, length: length - from), actualCharacterRange: nil)
+            tv.needsDisplay = true
+        }
+    }
+
+    /// The running head's title: the metadata's `title`, or the file's name.
+    func bookTitle(_ text: String) -> String? {
+        if let fm = MarkdownSyntax.frontMatter(in: text) {
+            let meta = (text as NSString).substring(with: fm)
+            if let m = try? NSRegularExpression(pattern: #"^title[ \t]*[:=][ \t]*["']?(.+?)["']?[ \t]*$"#, options: .anchorsMatchLines)
+                .firstMatch(in: meta, range: NSRange(location: 0, length: (meta as NSString).length)) {
+                return (meta as NSString).substring(with: m.range(at: 1))
+            }
+        }
+        return model.fileURL?.deletingPathExtension().lastPathComponent
     }
 
     func applyDimming() {

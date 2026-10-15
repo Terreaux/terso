@@ -125,6 +125,8 @@ final class WorkspaceModel {
     var typewriter = false
     /// Manutius: the document set as book pages, still editable.
     var manutius = false
+    /// Manutius's whole-book view: every page as spreads.
+    var showBookOverview = false
     /// Zen: Focus plus no tab bar, full screen, nothing on screen but the text.
     private(set) var zenMode = false
     @ObservationIgnored private var zenEnteredFullScreen = false

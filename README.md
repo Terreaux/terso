@@ -126,7 +126,8 @@ for methodology, corpus hygiene, held-out results and limitations.
 | ⌘⇧F | Letterbox (hides chrome and annotations, dims other paragraphs, typewriter scrolling) |
 | ⌘⇧Y | Typewriter scrolling |
 | ⌘⇧J | Zen (Letterbox in full screen) — pressing a mode's shortcut again returns to Hemingway, the default view |
-| ⌘⇧M | Manutius (the text set as book pages: justified, hyphenated, numbered, still editable) |
+| ⌘⇧M | Manutius (the text set as book pages: justified, hyphenated, numbered, still editable; its header menu sets trim, chapter openers and headings, drop caps, scene breaks, running heads, folios and large print) |
+| ⇧⌘B | Whole Book (in Manutius: every page as spreads; click one to turn to it) |
 | ⌘⇧A | Ask about selection… |
 | ⌘⇧R | Review document with AI |
 | ⌥⌘↓ / ⌥⌘↑ | Next / previous AI suggestion |

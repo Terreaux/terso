@@ -81,6 +81,8 @@ final class Preferences {
     /// Today's typed words in the header, and a quiet note when an award is earned.
     var showWritingProgress: Bool { didSet { d.set(showWritingProgress, forKey: "showWritingProgress") } }
     var celebrateAwards: Bool { didSet { d.set(celebrateAwards, forKey: "celebrateAwards") } }
+    /// How Manutius sets the book: trim, chapters, openings, ornaments.
+    var bookDesign: BookDesign { didSet { save(bookDesign, "bookDesign") } }
 
     private init() {
         font = EditorFont(rawValue: d.string(forKey: "font") ?? "") ?? .newYork
@@ -122,6 +124,7 @@ final class Preferences {
         httpProviders = Self.load("httpProviders") ?? [.anthropic, .openAI, .ollama, .lmStudio, .llamaCpp]
         showWritingProgress = d.object(forKey: "showWritingProgress") as? Bool ?? true
         celebrateAwards = d.object(forKey: "celebrateAwards") as? Bool ?? true
+        bookDesign = Self.load("bookDesign") ?? BookDesign()
         if !d.bool(forKey: "scienceLayersInitialized") {
             enabledLayers.formUnion([.notation, .quantities, .references, .claims, .evidence])
             d.set(enabledLayers.map(\.rawValue), forKey: "layers")
