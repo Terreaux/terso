@@ -78,7 +78,7 @@ private struct RailMarker: View {
             navigate(cluster.markers[next])
         } label: {
             RoundedRectangle(cornerRadius: marker.category == .references ? 1 : 3)
-                .fill(Color(nsColor: HighlightStyle.color(marker.family)).opacity(emphasized ? 1 : marker.severity == .warning ? 0.7 : 0.4))
+                .fill(Color(nsColor: HighlightStyle.color(marker.category)).opacity(emphasized ? 1 : marker.severity == .warning ? 0.7 : 0.4))
                 .frame(width: emphasized ? 7 : 5, height: cluster.markers.count > 1 ? 9 : 5)
                 .overlay {
                     if cluster.markers.count > 1 {

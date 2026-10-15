@@ -61,11 +61,11 @@ final class TersoTextView: NSTextView {
         paragraphRect.size.width = container.size.width + 20
         guard paragraphRect.intersects(rect) else { return }
         let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
-        HighlightStyle.passageAccent.withAlphaComponent(contrast ? 0.10 : 0.045).setFill()
+        HighlightStyle.passageAccent.withAlphaComponent(contrast ? 0.14 : 0.08).setFill()
         NSBezierPath(roundedRect: paragraphRect, xRadius: 4, yRadius: 4).fill()
         HighlightStyle.passageAccent.setFill()
         NSBezierPath(roundedRect: NSRect(x: paragraphRect.minX, y: paragraphRect.minY,
-                                        width: 3, height: paragraphRect.height), xRadius: 1.5, yRadius: 1.5).fill()
+                                        width: 4, height: paragraphRect.height), xRadius: 2, yRadius: 2).fill()
     }
 
     override func setFrameSize(_ newSize: NSSize) {
@@ -373,6 +373,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         let ns = tv.string as NSString
         let all = NSRange(location: 0, length: ns.length)
         lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: all)
+        applyFindingText()
         guard model.focusMode, config?.dimInactive == true, ns.length > 0 else { return }
         lm.addTemporaryAttribute(.foregroundColor, value: config?.theme.tertiary ?? .tertiaryLabelColor, forCharacterRange: all)
         let sel = tv.selectedRange()

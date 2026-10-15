@@ -22,6 +22,34 @@ enum HighlightStyle {
         }
     }
 
+    /// Each layer's own colour, shared by its underline, its text tint on the
+    /// page and its dot in the layer menus, so the menu and the text match.
+    static func color(_ c: AnnotationCategory) -> NSColor {
+        switch c {
+        case .readability: .systemOrange
+        case .complexity: .systemBrown
+        case .passiveVoice: .systemTeal
+        case .style: .systemPink
+        case .repetition: dynamic(light: 0xB07D00, dark: 0xE8C547)
+        case .specificity: .systemMint
+        case .notation: .systemIndigo
+        case .quantities: .systemGreen
+        case .references: .systemCyan
+        case .claims: dynamic(light: 0x5A7F12, dark: 0xA8D84E)
+        case .evidence: .systemBlue
+        case .spelling: .systemRed
+        case .aiSuggestion: .controlAccentColor
+        case .aiStyle: .systemPurple
+        }
+    }
+
+    private static func dynamic(light: Int, dark: Int) -> NSColor {
+        func rgb(_ v: Int) -> NSColor {
+            NSColor(srgbRed: CGFloat(v >> 16 & 0xFF) / 255, green: CGFloat(v >> 8 & 0xFF) / 255, blue: CGFloat(v & 0xFF) / 255, alpha: 1)
+        }
+        return NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? rgb(dark) : rgb(light) }
+    }
+
     static func pattern(_ f: AnnotationFamily) -> NSUnderlineStyle {
         switch f {
         case .writing: [.single]
@@ -31,27 +59,32 @@ enum HighlightStyle {
         }
     }
 
-    static func passive(_ f: AnnotationFamily, contrast: Bool) -> [NSAttributedString.Key: Any] {
-        [.underlineStyle: pattern(f).rawValue, .underlineColor: color(f).withAlphaComponent(contrast ? 0.9 : 0.45)]
+    private static func thick(_ f: AnnotationFamily) -> Int {
+        (pattern(f).rawValue & ~0xFF) | NSUnderlineStyle.thick.rawValue
     }
 
-    static func hover(_ f: AnnotationFamily, contrast: Bool) -> [NSAttributedString.Key: Any] {
-        [.underlineStyle: (pattern(f).rawValue & ~0xFF) | NSUnderlineStyle.thick.rawValue, .underlineColor: color(f).withAlphaComponent(contrast ? 1 : 0.85),
-         .backgroundColor: color(f).withAlphaComponent(contrast ? 0.12 : 0.06)]
+    static func passive(_ c: AnnotationCategory, contrast: Bool) -> [NSAttributedString.Key: Any] {
+        [.underlineStyle: thick(c.family), .underlineColor: color(c).withAlphaComponent(contrast ? 1 : 0.8)]
+    }
+
+    static func hover(_ c: AnnotationCategory, contrast: Bool) -> [NSAttributedString.Key: Any] {
+        [.underlineStyle: thick(c.family), .underlineColor: color(c),
+         .backgroundColor: color(c).withAlphaComponent(contrast ? 0.2 : 0.13)]
     }
 
     /// Shared warm accent for the document, Review card and issue rail.
     static let passageAccent = NSColor.systemBrown
 
 
-    static func selected(_ f: AnnotationFamily, blockLevel: Bool, contrast: Bool) -> [NSAttributedString.Key: Any] {
-        // Keep stronger emphasis local to the exact contributing range.
-        let tint = blockLevel ? color(f).withAlphaComponent(contrast ? 0.14 : 0.07)
-                              : passageAccent.withAlphaComponent(contrast ? 0.28 : 0.16)
+    static func selected(_ c: AnnotationCategory, blockLevel: Bool, contrast: Bool) -> [NSAttributedString.Key: Any] {
+        // Keep stronger emphasis local to the exact contributing range, tinted
+        // in the finding's own colour so a selected spelling error reads red.
+        let tint = blockLevel ? color(c).withAlphaComponent(contrast ? 0.14 : 0.07)
+                              : color(c).withAlphaComponent(contrast ? 0.4 : 0.28)
         var out: [NSAttributedString.Key: Any] = [.backgroundColor: tint]
         if !blockLevel {
-            out[.underlineStyle] = (pattern(f).rawValue & ~0xFF) | NSUnderlineStyle.thick.rawValue
-            out[.underlineColor] = color(f)
+            out[.underlineStyle] = thick(c.family)
+            out[.underlineColor] = color(c)
         }
         return out
     }
@@ -89,14 +122,13 @@ extension EditorCoordinator {
         let inline = drawn.filter { !AnnotationLayout.isBlockLevel($0) }
             .sorted { paintOrder($0) < paintOrder($1) }
         for a in inline {
-            let f = a.category.family
             for r in a.ranges where r.upperBound <= length && r.length > 0 {
                 let isHovered = hovered.map { $0.intersects(r) } ?? false
                 let look: [NSAttributedString.Key: Any]
                 // Sentence-level findings get the same underline as phrases:
                 // a persistent fill on every flagged sentence drowns the one
                 // passage that is actually selected.
-                look = isHovered ? HighlightStyle.hover(f, contrast: contrast) : HighlightStyle.passive(f, contrast: contrast)
+                look = isHovered ? HighlightStyle.hover(a.category, contrast: contrast) : HighlightStyle.passive(a.category, contrast: contrast)
                 lm.addTemporaryAttributes(look, forCharacterRange: r.nsRange)
             }
         }
@@ -104,7 +136,7 @@ extension EditorCoordinator {
         // Use the same temporary attributes, without changing Review selection.
         if let preview = model.annotation(id: model.previewAnnotationID), !model.focusMode {
             for range in preview.ranges where range.location >= 0 && range.upperBound <= length && range.length > 0 {
-                lm.addTemporaryAttributes(HighlightStyle.hover(preview.category.family, contrast: contrast),
+                lm.addTemporaryAttributes(HighlightStyle.hover(preview.category, contrast: contrast),
                                           forCharacterRange: range.nsRange)
             }
         }
@@ -112,13 +144,29 @@ extension EditorCoordinator {
         tv.reviewPassageRange = model.focusMode ? nil : model.selectedPassage?.range.nsRange
         if let range = model.scienceEmphasisRange, !model.focusMode,
            range.location >= 0, range.upperBound <= length, range.length > 0 {
-            lm.addTemporaryAttributes(HighlightStyle.selected(.writing, blockLevel: false, contrast: contrast),
+            lm.addTemporaryAttributes(HighlightStyle.selected(.claims, blockLevel: false, contrast: contrast),
                                       forCharacterRange: range.nsRange)
         }
         if let sel = model.selectedFinding, !AnnotationLayout.isBlockLevel(sel) {
-            let look = HighlightStyle.selected(sel.category.family, blockLevel: false, contrast: contrast)
+            let look = HighlightStyle.selected(sel.category, blockLevel: false, contrast: contrast)
             for r in sel.ranges where r.upperBound <= length && r.length > 0 {
                 lm.addTemporaryAttributes(look, forCharacterRange: r.nsRange)
+            }
+        }
+    }
+
+    /// Word- and phrase-level findings also take their layer's colour as text,
+    /// so a flagged word reads like the layer menu. Whole sentences keep just
+    /// the underline. Called from applyDimming, which owns the foreground.
+    func applyFindingText() {
+        guard let lm = textView?.layoutManager, !model.focusMode else { return }
+        let length = ((textView?.string ?? "") as NSString).length
+        let phrases = model.drawnAnnotations
+            .filter { !AnnotationLayout.isBlockLevel($0) && !AnnotationLayout.isSentenceLevel($0) }
+            .sorted { paintOrder($0) < paintOrder($1) }
+        for a in phrases {
+            for r in a.ranges where r.upperBound <= length && r.length > 0 {
+                lm.addTemporaryAttribute(.foregroundColor, value: HighlightStyle.color(a.category), forCharacterRange: r.nsRange)
             }
         }
     }
