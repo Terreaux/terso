@@ -18,6 +18,8 @@ struct EditorConfig: Equatable {
     var dimInactive: Bool
     var theme: EditorTheme
     var mixedRendered: Set<MixedElement>
+    /// Manutius: book pages, justified and hyphenated, at a book measure.
+    var book: Bool
     /// TeX source: styled as LaTeX rather than Markdown.
     var latex: Bool
 
@@ -27,7 +29,7 @@ struct EditorConfig: Equatable {
         font = prefs.font; fontSize = prefs.fontSize; lineSpacing = prefs.lineSpacing
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
-        theme = prefs.theme; mixedRendered = prefs.mixedRendered
+        theme = prefs.theme; mixedRendered = prefs.mixedRendered; book = model.manutius
     }
 }
 
@@ -48,9 +50,13 @@ final class TersoTextView: NSTextView {
     private var hoverArea: NSTrackingArea?
 
     var reviewPassageRange: NSRange? { didSet { needsDisplay = true } }
+    var book: BookPage? { didSet { if book != oldValue { needsDisplay = true; setFrameSize(frame.size) } } }
+    var runningHead: String?
+    var bookFont = NSFont.systemFont(ofSize: 17)
 
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in: rect)
+        if let book { drawBookPages(book, in: rect, runningHead: runningHead, font: bookFont) }
         guard let range = reviewPassageRange, range.length > 0,
               NSMaxRange(range) <= (string as NSString).length,
               let lm = layoutManager, let container = textContainer else { return }
@@ -76,6 +82,12 @@ final class TersoTextView: NSTextView {
 
     override func setFrameSize(_ newSize: NSSize) {
         let widthChanged = frame.width != newSize.width
+        var newSize = newSize
+        // The last page is shown whole, however little text is on it.
+        if let book, let lm = layoutManager, let container = textContainer {
+            let pages = book.pages(through: lm.usedRect(for: container).maxY)
+            newSize.height = max(newSize.height, textContainerOrigin.y * 2 + CGFloat(pages) * book.stride)
+        }
         super.setFrameSize(newSize)
         updateInsets()
         if widthChanged { DispatchQueue.main.async { [weak self] in self?.onGeometryChange?() } }
@@ -183,7 +195,7 @@ struct EditorView: NSViewRepresentable {
         let storage = NSTextStorage()
         let layout = MathLayoutManager()
         storage.addLayoutManager(layout)
-        let container = NSTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
+        let container = PagedTextContainer(size: NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
         container.lineFragmentPadding = 0
         layout.addTextContainer(container)
@@ -384,7 +396,12 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         if old?.renderMode == .preview, new.renderMode != .preview {
             DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
         }
-        tv.columnWidth = new.columnWidth
+        let page = new.book ? BookPage(column: BookPage.measure(fontSize: new.fontSize, columnWidth: new.columnWidth)) : nil
+        tv.columnWidth = page?.column ?? CGFloat(new.columnWidth)
+        (tv.textContainer as? PagedTextContainer)?.book = page
+        tv.book = page
+        tv.runningHead = model.fileURL?.deletingPathExtension().lastPathComponent
+        tv.bookFont = new.font.font(size: new.fontSize)
         tv.typewriter = new.typewriter
         tv.isAutomaticQuoteSubstitutionEnabled = new.smartQuotes
         if force || old?.theme != new.theme {
@@ -393,7 +410,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             tv.insertionPointColor = new.theme.accent
             tv.selectedTextAttributes = [.backgroundColor: new.theme.palette.map { $0.accent.withAlphaComponent(0.3) } ?? .selectedTextBackgroundColor]
         }
-        let styleChanged = force || old?.renderMode != new.renderMode || old?.font != new.font || old?.fontSize != new.fontSize || old?.lineSpacing != new.lineSpacing || old?.syntax != new.syntax || old?.theme != new.theme
+        let styleChanged = force || old?.renderMode != new.renderMode || old?.font != new.font || old?.fontSize != new.fontSize || old?.lineSpacing != new.lineSpacing || old?.syntax != new.syntax || old?.theme != new.theme || old?.book != new.book
         if styleChanged, let storage = tv.textStorage {
             storage.beginEditing()
             MarkdownStyler.style(storage, range: NSRange(location: 0, length: storage.length), config: new)

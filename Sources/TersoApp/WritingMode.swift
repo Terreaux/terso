@@ -2,9 +2,10 @@
 import Foundation
 
 /// One way of writing at a time. Hemingway is the everyday view, with the
-/// writing highlights on the page; the others trade the highlights for focus.
+/// writing highlights on the page; Typewriter, Letterbox and Zen trade the
+/// highlights for focus; Manutius sets the text as the pages of a book.
 enum WritingMode: String, CaseIterable, Identifiable {
-    case hemingway, typewriter, letterbox, zen
+    case hemingway, typewriter, letterbox, zen, manutius
     var id: String { rawValue }
 
     var title: String { rawValue.capitalized }
@@ -15,6 +16,7 @@ enum WritingMode: String, CaseIterable, Identifiable {
         case .typewriter: "character.cursor.ibeam"
         case .letterbox: "rectangle.center.inset.filled"
         case .zen: "leaf"
+        case .manutius: "book.pages"
         }
     }
 
@@ -24,6 +26,7 @@ enum WritingMode: String, CaseIterable, Identifiable {
         case .typewriter: "Typewriter: keep the current line centred (⌘⇧Y)"
         case .letterbox: "Letterbox: dim everything but the current paragraph (⌘⇧F)"
         case .zen: "Zen: full screen, just the text (⌘⇧J, Esc to leave)"
+        case .manutius: "Manutius: the text set as book pages — justified, hyphenated, numbered — and still editable (⌘⇧M)"
         }
     }
 
@@ -34,18 +37,19 @@ enum WritingMode: String, CaseIterable, Identifiable {
         case .typewriter: "y"
         case .letterbox: "f"
         case .zen: "j"
+        case .manutius: "m"
         }
     }
 
-    /// Typewriter and Letterbox follow the caret, which Preview does not have.
-    var followsCaret: Bool { self == .typewriter || self == .letterbox }
+    /// Typewriter, Letterbox and Manutius shape the editor, which Preview hides.
+    var shapesEditor: Bool { self == .typewriter || self == .letterbox || self == .manutius }
 }
 
 extension WorkspaceModel {
     /// Read from the flags the editor already uses: Letterbox is Focus, and
     /// Zen is Focus in full screen.
     var writingMode: WritingMode {
-        zenMode ? .zen : focusMode ? .letterbox : typewriter ? .typewriter : .hemingway
+        manutius ? .manutius : zenMode ? .zen : focusMode ? .letterbox : typewriter ? .typewriter : .hemingway
     }
 
     func setWritingMode(_ mode: WritingMode) {
@@ -54,11 +58,13 @@ extension WorkspaceModel {
         if zenMode { toggleZenMode() }
         if focusMode { toggleFocusMode() }
         typewriter = false
+        manutius = false
         switch mode {
         case .hemingway: break
         case .typewriter: typewriter = true
         case .letterbox: toggleFocusMode()
         case .zen: toggleZenMode()
+        case .manutius: manutius = true
         }
         editor?.refreshDecorations()
     }

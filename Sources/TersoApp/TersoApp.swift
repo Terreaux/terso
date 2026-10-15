@@ -54,7 +54,7 @@ struct TersoCommands: Commands {
                 Toggle(mode.title, isOn: Binding(get: { model?.writingMode == mode },
                                                  set: { _ in model?.toggleWritingMode(mode) }))
                     .keyboardShortcut(mode.shortcut.map { KeyboardShortcut(KeyEquivalent($0), modifiers: [.command, .shift]) })
-                    .disabled(model == nil || (mode.followsCaret && model?.renderMode == .preview))
+                    .disabled(model == nil || (mode.shapesEditor && model?.renderMode == .preview))
             }
             Divider()
         }

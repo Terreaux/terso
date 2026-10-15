@@ -15,6 +15,10 @@ import Testing
         // A mode's shortcut pressed again returns to Hemingway.
         model.toggleWritingMode(.typewriter)
         #expect(model.writingMode == .hemingway && !model.typewriter)
-        #expect(WritingMode.allCases.filter(\.followsCaret) == [.typewriter, .letterbox])
+        #expect(WritingMode.allCases.filter(\.shapesEditor) == [.typewriter, .letterbox, .manutius])
+        model.setWritingMode(.manutius)
+        #expect(model.writingMode == .manutius && model.manutius && !model.typewriter)
+        model.setWritingMode(.letterbox)
+        #expect(!model.manutius && model.focusMode)
     }
 }
