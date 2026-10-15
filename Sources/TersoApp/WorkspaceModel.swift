@@ -121,6 +121,9 @@ final class WorkspaceModel {
     var inspectorTab: InspectorTab = .review
     var focusMode = false
     var typewriter = false
+    /// Zen: Focus plus no tab bar, full screen, nothing on screen but the text.
+    private(set) var zenMode = false
+    @ObservationIgnored private var zenEnteredFullScreen = false
     /// Focused Review: walk findings one at a time; other annotations recede.
     private(set) var focusedReview = false
     var showAskPanel = false
@@ -268,6 +271,13 @@ final class WorkspaceModel {
         let match = visibleAnnotations.filter { $0.dismissalKey == key.key }
             .min { abs(($0.ranges.first?.location ?? 0) - key.location) < abs(($1.ranges.first?.location ?? 0) - key.location) }
         return match.flatMap { m in passages.first { $0.findingIDs.contains(m.id) } }
+    }
+
+    /// Show or hide several layers at once (the header's highlight group).
+    func setLayers(_ categories: [AnnotationCategory], visible: Bool) {
+        if visible { prefs.enabledLayers.formUnion(categories) } else { prefs.enabledLayers.subtract(categories) }
+        reselect()
+        editor?.refreshDecorations()
     }
 
     func toggleLayer(_ c: AnnotationCategory) {
@@ -587,9 +597,26 @@ final class WorkspaceModel {
     // MARK: Focus
 
     func toggleFocusMode() {
+        // Leaving focus from Zen leaves Zen too: Zen is a deeper focus.
+        if zenMode { toggleZenMode(); return }
         focusMode.toggle()
         typewriter = focusMode && prefs.typewriterInFocusMode
         if focusMode { showInspector = false; focusedReview = false }
+        editor?.refreshDecorations()
+    }
+
+    func toggleZenMode() {
+        zenMode.toggle()
+        focusMode = zenMode
+        typewriter = zenMode && prefs.typewriterInFocusMode
+        if zenMode { showInspector = false; focusedReview = false }
+        // Full screen belongs to Zen only if Zen asked for it.
+        if let window = NSApp.keyWindow {
+            let isFull = window.styleMask.contains(.fullScreen)
+            if zenMode, !isFull { zenEnteredFullScreen = true; window.toggleFullScreen(nil) }
+            else if !zenMode, zenEnteredFullScreen, isFull { window.toggleFullScreen(nil) }
+        }
+        if !zenMode { zenEnteredFullScreen = false }
         editor?.refreshDecorations()
     }
 }

@@ -42,6 +42,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .themedPanel(Preferences.shared.theme)
         .task(id: fileURL) { loadFiles() }
     }
 

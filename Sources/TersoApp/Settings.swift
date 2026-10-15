@@ -46,18 +46,6 @@ extension NSFont {
     }
 }
 
-enum AppearanceChoice: String, CaseIterable, Identifiable {
-    case system, light, dark
-    var id: String { rawValue }
-    var nsAppearance: NSAppearance? {
-        switch self {
-        case .system: nil
-        case .light: NSAppearance(named: .aqua)
-        case .dark: NSAppearance(named: .darkAqua)
-        }
-    }
-}
-
 /// App-wide preferences. Non-secret values only: keys live in the Keychain.
 @MainActor
 @Observable
@@ -70,7 +58,7 @@ final class Preferences {
     var lineSpacing: Double { didSet { d.set(lineSpacing, forKey: "lineSpacing") } }
     var columnWidth: Double { didSet { d.set(columnWidth, forKey: "columnWidth") } }
     var syntax: SyntaxVisibility { didSet { d.set(syntax.rawValue, forKey: "syntax") } }
-    var appearance: AppearanceChoice { didSet { d.set(appearance.rawValue, forKey: "appearance"); NSApp.appearance = appearance.nsAppearance } }
+    var theme: EditorTheme { didSet { d.set(theme.rawValue, forKey: "theme"); NSApp.appearance = theme.nsAppearance } }
     var dimInactiveParagraphs: Bool { didSet { d.set(dimInactiveParagraphs, forKey: "dimInactive") } }
     var typewriterInFocusMode: Bool { didSet { d.set(typewriterInFocusMode, forKey: "typewriterInFocus") } }
     var showDocumentMap: Bool { didSet { d.set(showDocumentMap, forKey: "documentMap") } }
@@ -92,7 +80,8 @@ final class Preferences {
         lineSpacing = d.object(forKey: "lineSpacing") as? Double ?? 1.6
         columnWidth = d.object(forKey: "columnWidth") as? Double ?? 720
         syntax = SyntaxVisibility(rawValue: d.string(forKey: "syntax") ?? "") ?? .subdued
-        appearance = AppearanceChoice(rawValue: d.string(forKey: "appearance") ?? "") ?? .system
+        // Earlier builds stored only system/light/dark under "appearance".
+        theme = EditorTheme(rawValue: d.string(forKey: "theme") ?? d.string(forKey: "appearance") ?? "") ?? .system
         dimInactiveParagraphs = d.object(forKey: "dimInactive") as? Bool ?? true
         typewriterInFocusMode = d.object(forKey: "typewriterInFocus") as? Bool ?? true
         showDocumentMap = d.object(forKey: "documentMap") as? Bool ?? true

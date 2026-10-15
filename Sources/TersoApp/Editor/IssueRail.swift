@@ -82,7 +82,7 @@ private struct RailMarker: View {
                 .frame(width: emphasized ? 7 : 5, height: cluster.markers.count > 1 ? 9 : 5)
                 .overlay {
                     if cluster.markers.count > 1 {
-                        Rectangle().fill(Color(nsColor: .textBackgroundColor)).frame(width: 5, height: 1)
+                        Rectangle().fill(Color(nsColor: Preferences.shared.theme.background)).frame(width: 5, height: 1)
                     }
                 }
                 .frame(width: 12, height: 18).contentShape(Rectangle())

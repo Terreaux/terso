@@ -16,12 +16,14 @@ struct EditorConfig: Equatable {
     var focusMode: Bool
     var typewriter: Bool
     var dimInactive: Bool
+    var theme: EditorTheme
 
     @MainActor init(prefs: Preferences, model: WorkspaceModel) {
         renderMode = model.renderMode
         font = prefs.font; fontSize = prefs.fontSize; lineSpacing = prefs.lineSpacing
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
+        theme = prefs.theme
     }
 }
 
@@ -331,7 +333,13 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         tv.columnWidth = new.columnWidth
         tv.typewriter = new.typewriter
         tv.isAutomaticQuoteSubstitutionEnabled = new.smartQuotes
-        let styleChanged = force || old?.renderMode != new.renderMode || old?.font != new.font || old?.fontSize != new.fontSize || old?.lineSpacing != new.lineSpacing || old?.syntax != new.syntax
+        if force || old?.theme != new.theme {
+            tv.backgroundColor = new.theme.background
+            scrollView?.backgroundColor = new.theme.background
+            tv.insertionPointColor = new.theme.accent
+            tv.selectedTextAttributes = [.backgroundColor: new.theme.palette.map { $0.accent.withAlphaComponent(0.3) } ?? .selectedTextBackgroundColor]
+        }
+        let styleChanged = force || old?.renderMode != new.renderMode || old?.font != new.font || old?.fontSize != new.fontSize || old?.lineSpacing != new.lineSpacing || old?.syntax != new.syntax || old?.theme != new.theme
         if styleChanged, let storage = tv.textStorage {
             storage.beginEditing()
             MarkdownStyler.style(storage, range: NSRange(location: 0, length: storage.length), config: new)
@@ -353,7 +361,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         let all = NSRange(location: 0, length: ns.length)
         lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: all)
         guard model.focusMode, config?.dimInactive == true, ns.length > 0 else { return }
-        lm.addTemporaryAttribute(.foregroundColor, value: NSColor.tertiaryLabelColor, forCharacterRange: all)
+        lm.addTemporaryAttribute(.foregroundColor, value: config?.theme.tertiary ?? .tertiaryLabelColor, forCharacterRange: all)
         let sel = tv.selectedRange()
         let current = ns.paragraphRange(for: NSRange(location: min(sel.location, ns.length), length: sel.length))
         lm.removeTemporaryAttribute(.foregroundColor, forCharacterRange: current)

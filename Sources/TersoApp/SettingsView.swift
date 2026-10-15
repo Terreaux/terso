@@ -32,9 +32,9 @@ struct EditorSettings: View {
                 HStack { Slider(value: $prefs.columnWidth, in: 600...860, step: 10); Text("\(Int(prefs.columnWidth)) pt").monospacedDigit().frame(width: 54) }
             }
             Picker("Markdown syntax", selection: $prefs.syntax) { ForEach(SyntaxVisibility.allCases) { Text($0.title).tag($0) } }
-            Picker("Appearance", selection: $prefs.appearance) { ForEach(AppearanceChoice.allCases) { Text($0.rawValue.capitalized).tag($0) } }
+            Picker("Theme", selection: $prefs.theme) { ForEach(EditorTheme.allCases) { Text($0.title).tag($0) } }
             Toggle("Smart quotes", isOn: $prefs.smartQuotes)
-            Section("Focus mode") {
+            Section("Focus and Zen modes") {
                 Toggle("Dim inactive paragraphs", isOn: $prefs.dimInactiveParagraphs)
                 Toggle("Typewriter scrolling", isOn: $prefs.typewriterInFocusMode)
             }

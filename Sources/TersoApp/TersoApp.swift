@@ -10,7 +10,7 @@ struct TersoApp: App {
     init() {
         _ = TabDocumentController.sharedController
         NSWindow.allowsAutomaticWindowTabbing = false
-        NSApplication.shared.appearance = Preferences.shared.appearance.nsAppearance
+        NSApplication.shared.appearance = Preferences.shared.theme.nsAppearance
     }
 
     var body: some Scene {
@@ -54,6 +54,8 @@ struct TersoCommands: Commands {
                 .keyboardShortcut("f", modifiers: [.command, .shift])
             Button("Typewriter Scrolling") { model?.typewriter.toggle(); model?.editor?.refreshDecorations() }
                 .keyboardShortcut("y", modifiers: [.command, .shift])
+            Button(model?.zenMode == true ? "Exit Zen Mode" : "Zen Mode") { model?.toggleZenMode() }
+                .keyboardShortcut("j", modifiers: [.command, .shift])
             Divider()
         }
         CommandMenu("Writing") {
