@@ -7,6 +7,7 @@ import TersoStyle
 struct SettingsView: View {
     var body: some View {
         TabView {
+            GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
             EditorSettings().tabItem { Label("Editor", systemImage: "textformat") }
             AnalysisSettings().tabItem { Label("Analysis", systemImage: "text.magnifyingglass") }
             AssistantSettings().tabItem { Label("Assistant", systemImage: "sparkles") }
@@ -14,6 +15,20 @@ struct SettingsView: View {
         }
         .frame(width: 560)
         .padding(20)
+    }
+}
+
+struct GeneralSettings: View {
+    @Bindable var prefs = Preferences.shared
+    var body: some View {
+        Form {
+            Section("At launch") {
+                Toggle("Greet me with a quote about writing", isOn: $prefs.greetWithQuote)
+                Text("Click or press any key to begin; the quote also fades on its own.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
