@@ -127,6 +127,7 @@ final class WorkspaceModel {
     /// Focused Review: walk findings one at a time; other annotations recede.
     private(set) var focusedReview = false
     var showAskPanel = false
+    var showDocumentReport = false
     var mapMarkers: [MapMarker] = []
 
     var thesaurusRequest: ThesaurusRequest?
