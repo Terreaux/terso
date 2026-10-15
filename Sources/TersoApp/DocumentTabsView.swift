@@ -217,11 +217,11 @@ struct DocumentTabCommands: Commands {
             Button("New Window") { _ = tabs.newWorkspace(); tabs.newDocument() }.keyboardShortcut("n", modifiers: [.command, .shift])
             Button("Open…") { TabDocumentController.sharedController.openDocument(nil) }.keyboardShortcut("o")
             Menu("Open Recent") {
-                ForEach(TabDocumentController.sharedController.recentDocumentURLs, id: \.self) { url in
+                ForEach(RecentDocuments.shared.urls(limit: 15), id: \.self) { url in
                     Button(url.lastPathComponent) { tabs.open(url) }
                 }
                 Divider()
-                Button("Clear Menu") { TabDocumentController.sharedController.clearRecentDocuments(nil) }
+                Button("Clear Menu") { RecentDocuments.shared.clear() }
             }
         }
         CommandGroup(replacing: .saveItem) {
