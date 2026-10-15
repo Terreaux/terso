@@ -10,7 +10,7 @@ struct WorkspaceStartView: View {
     @FocusState private var focused: Bool
 
     private var tabs: DocumentTabs { .shared }
-    private var recents: [URL] { Array(TabDocumentController.sharedController.recentDocumentURLs.prefix(5)) }
+    private var recents: [URL] { RecentDocuments.shared.urls(limit: 5) }
 
     var body: some View {
         VStack(spacing: 22) {
@@ -32,6 +32,7 @@ struct WorkspaceStartView: View {
                 Button { activate(); tabs.newDocument() } label: { Label("New Document", systemImage: "square.and.pencil") }
                     .keyboardShortcut(.defaultAction)
                 Button { activate(); TabDocumentController.sharedController.openDocument(nil) } label: { Label("Open…", systemImage: "folder") }
+                OpenRecentMenu { url in activate(); tabs.open(url) }
             }
             .controlSize(.large)
             if !recents.isEmpty {
@@ -56,6 +57,8 @@ struct WorkspaceStartView: View {
                 .foregroundStyle(targeted ? Color.accentColor : .clear)
                 .padding(16)
         }
+        // Outermost, so the drop outline above draws on top of it.
+        .background(Color(nsColor: Preferences.shared.theme.background))
         .contentShape(Rectangle())
         .focusable()
         .focusEffectDisabled()

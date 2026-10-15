@@ -27,8 +27,8 @@ struct DocumentWindow: View {
         .sheet(item: $model.thesaurusRequest) { ThesaurusView(model: model, request: $0) }
         .sheet(isPresented: $model.showAskPanel) { AskPanel(model: model) }
         .focusedSceneValue(\.workspace, model)
-        .onAppear { model.fileURL = fileURL }
-        .onChange(of: fileURL) { _, new in model.fileURL = new }
+        .onAppear { model.fileURL = fileURL; RecentDocuments.shared.note(fileURL) }
+        .onChange(of: fileURL) { _, new in model.fileURL = new; RecentDocuments.shared.note(new) }
         .onChange(of: prefs.domain) { _, _ in model.scheduleAnalysis() }
         .background(Color(nsColor: prefs.theme.background))
 
