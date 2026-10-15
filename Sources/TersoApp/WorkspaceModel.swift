@@ -427,6 +427,14 @@ final class WorkspaceModel {
     }
 
     func suggestRewrite(_ a: TextAnnotation) {
+        if a.source == .spelling {
+            // Fix the slip and anything else wrong in the sentence; leave the style alone.
+            let flagged = a.flaggedText.map { " (“\($0)”)" } ?? ""
+            runAI(task: .proofread,
+                  question: "The system checker flagged a \(a.message.lowercased()) problem\(flagged): \(a.explanation ?? ""). Return the sentence corrected for spelling, grammar and punctuation, keeping its wording otherwise.",
+                  scope: .selection, selection: sentenceRange(for: a), target: a)
+            return
+        }
         runAI(task: .improveClarity,
               question: "A local check flagged this as “\(a.message)”: \(a.explanation ?? ""). Propose a revision that addresses it, keeping the meaning.",
               scope: .selection, selection: sentenceRange(for: a), target: a)

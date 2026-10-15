@@ -132,6 +132,9 @@ extension TextAnnotation {
     var corrections: [String] {
         metadata["suggestions"].map { $0.components(separatedBy: SpellingLayer.suggestionSeparator).filter { !$0.isEmpty } } ?? []
     }
+
+    /// The misspelled word or the grammar span, as it read when checked.
+    var flaggedText: String? { metadata["word"] ?? metadata["text"] }
 }
 
 extension WorkspaceModel {

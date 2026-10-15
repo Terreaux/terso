@@ -37,7 +37,12 @@ extension EditorCoordinator {
             return
         }
         model.select(hit, reveal: false)
-        if model.showInspector {
+        // Spelling and grammar fixes stay at the text, so one click on the
+        // word and one on the fix is all it takes; Review still follows.
+        if hit.source == .spelling {
+            if model.showInspector { model.inspectorTab = .review }
+            showPopover(for: hit, at: index)
+        } else if model.showInspector {
             model.inspectorTab = hit.category == .aiSuggestion && model.review.isReviewMode ? .ai : .review
             popover?.close()
         } else {
@@ -57,7 +62,8 @@ extension EditorCoordinator {
         if model.showInspector, model.inspectorTab == .science,
            model.selectScienceAnnotation(hit, reveal: false) { return }
         model.select(hit, reveal: false)
-        if model.showInspector { model.inspectorTab = .review } else { showPopover(for: hit, at: anchor) }
+        if model.showInspector { model.inspectorTab = .review }
+        if !model.showInspector || hit.source == .spelling { showPopover(for: hit, at: anchor) }
     }
 
     func showPopover(for annotation: TextAnnotation, at index: Int) {
