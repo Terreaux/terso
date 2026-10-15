@@ -52,7 +52,7 @@ public struct ContextPayload: Sendable, Hashable {
         case .paragraph:
             r = paragraph(around: sel.nsRange, in: ns)
         case .section:
-            let prose = ProseText(markdown: snapshot.text)
+            let prose = ProseText(snapshot)
             let start = prose.headings.last { $0.range.location <= sel.location }
             let level = start?.level ?? 0
             let end = prose.headings.first { $0.range.location > sel.location && (level == 0 || $0.level <= level) }

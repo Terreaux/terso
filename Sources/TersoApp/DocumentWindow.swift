@@ -36,7 +36,7 @@ struct DocumentWindow: View {
 
     private var editor: some View {
         ZStack {
-            EditorView(text: $document.text, model: model, config: EditorConfig(prefs: prefs, model: model))
+            EditorView(text: $document.text, model: model, config: EditorConfig(prefs: prefs, model: model, latex: RenderMode.isLaTeX(source: document.text, fileURL: fileURL)))
                 .opacity(model.renderMode == .preview ? 0 : 1)
                 .allowsHitTesting(model.renderMode != .preview)
                 .accessibilityHidden(model.renderMode == .preview)

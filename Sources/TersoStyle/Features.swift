@@ -21,7 +21,7 @@ public struct StyleContext: Sendable {
     public let letterWords: [String]
 
     public init(snapshot: DocumentSnapshot) {
-        let prose = ProseText(markdown: snapshot.text)
+        let prose = ProseText(snapshot)
         self.prose = prose
         self.words = prose.words.map { prose.string($0).lowercased() }
         self.sentences = prose.sentences.filter { $0.words.count > 2 }

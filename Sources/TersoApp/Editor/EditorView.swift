@@ -17,8 +17,11 @@ struct EditorConfig: Equatable {
     var typewriter: Bool
     var dimInactive: Bool
     var theme: EditorTheme
+    /// TeX source: styled as LaTeX rather than Markdown.
+    var latex: Bool
 
-    @MainActor init(prefs: Preferences, model: WorkspaceModel) {
+    @MainActor init(prefs: Preferences, model: WorkspaceModel, latex: Bool = false) {
+        self.latex = latex
         renderMode = model.renderMode
         font = prefs.font; fontSize = prefs.fontSize; lineSpacing = prefs.lineSpacing
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes

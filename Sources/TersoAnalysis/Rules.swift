@@ -11,7 +11,7 @@ public struct AnalysisContext: Sendable {
 
     public init(snapshot: DocumentSnapshot, profile: ScientificProfile = .hep) {
         self.snapshot = snapshot
-        let prose = ProseText(markdown: snapshot.text)
+        let prose = ProseText(snapshot)
         self.prose = prose
         self.science = ScientificDocumentModel(snapshot: snapshot, prose: prose, profile: profile)
     }
