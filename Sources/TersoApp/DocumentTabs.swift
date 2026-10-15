@@ -258,6 +258,10 @@ final class TabWorkspace: NSWindowController, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) { DocumentTabs.shared.activeWorkspace = self }
 
+    /// Edit › Undo/Redo (⌘Z, ⇧⌘Z) validate and act through the window's undo
+    /// manager. The editor registers on its document's, so hand that one out.
+    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? { selected?.undoManager }
+
     func windowWillClose(_ notification: Notification) {
         // The hosting view retains this workspace through its root view.
         // Break that ownership cycle when its real window closes.
