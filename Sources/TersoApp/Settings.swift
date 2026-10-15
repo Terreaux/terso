@@ -58,6 +58,8 @@ final class Preferences {
     var lineSpacing: Double { didSet { d.set(lineSpacing, forKey: "lineSpacing") } }
     var columnWidth: Double { didSet { d.set(columnWidth, forKey: "columnWidth") } }
     var syntax: SyntaxVisibility { didSet { d.set(syntax.rawValue, forKey: "syntax") } }
+    /// What Mixed draws in place of its source, away from the editing line.
+    var mixedRendered: Set<MixedElement> { didSet { d.set(mixedRendered.map(\.rawValue), forKey: "mixedRendered") } }
     var theme: EditorTheme { didSet { d.set(theme.rawValue, forKey: "theme"); NSApp.appearance = theme.nsAppearance } }
     var dimInactiveParagraphs: Bool { didSet { d.set(dimInactiveParagraphs, forKey: "dimInactive") } }
     var typewriterInFocusMode: Bool { didSet { d.set(typewriterInFocusMode, forKey: "typewriterInFocus") } }
@@ -80,6 +82,8 @@ final class Preferences {
         lineSpacing = d.object(forKey: "lineSpacing") as? Double ?? 1.6
         columnWidth = d.object(forKey: "columnWidth") as? Double ?? 720
         syntax = SyntaxVisibility(rawValue: d.string(forKey: "syntax") ?? "") ?? .subdued
+        mixedRendered = Set((d.array(forKey: "mixedRendered") as? [String])?.compactMap(MixedElement.init(rawValue:))
+                            ?? MixedElement.defaults)
         // Earlier builds stored only system/light/dark under "appearance".
         theme = EditorTheme(rawValue: d.string(forKey: "theme") ?? d.string(forKey: "appearance") ?? "") ?? .system
         dimInactiveParagraphs = d.object(forKey: "dimInactive") as? Bool ?? true

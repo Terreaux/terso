@@ -11,6 +11,29 @@ enum RenderMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// A construct Mixed can draw in place of its source. Each one shows its
+/// source again on the line being edited. The same names cover both formats:
+/// heading markers are `#` in Markdown and `\section{…}` in TeX.
+enum MixedElement: String, CaseIterable, Identifiable {
+    case math, images, links, headings, emphasis
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .math: "Math"
+        case .images: "Images"
+        case .links: "Link targets"
+        case .headings: "Heading markers"
+        case .emphasis: "Emphasis markers"
+        }
+    }
+    /// Mixed as it behaved before these were choices: markers dimmed, not hidden.
+    static let defaults: [MixedElement] = [.math, .images, .links]
+
+    static func available(latex: Bool) -> [MixedElement] {
+        latex ? [.math, .headings, .emphasis] : allCases
+    }
+}
+
 /// Parsing and presentation use the same UTF-16 source ranges as analysis.
 enum MathPresentation {
     static func regions(in text: String) -> [ScientificRegion] {
@@ -101,5 +124,48 @@ enum MathPresentation {
             }
         }
         return hidden
+    }
+}
+
+/// Heading and emphasis markers recede entirely, revealing on the editing line.
+@MainActor enum MarkerPresentation {
+    static func hiddenSyntax(in text: String, selection: NSRange, latex: Bool, elements: Set<MixedElement>) -> [NSRange] {
+        guard elements.contains(.headings) || elements.contains(.emphasis) else { return [] }
+        let ns = text as NSString
+        let all = NSRange(location: 0, length: ns.length)
+        let syntax = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text))
+        let protected = syntax.regions.filter { [.inlineMath, .displayMath, .code, .comment].contains($0.kind) }.map(\.range.nsRange)
+            + [MarkdownSyntax.frontMatter(in: text)].compactMap { $0 }
+            + (latex ? LaTeXSyntax.literalEnvironments(in: text).map(\.range) : MarkdownStyler.fence.matches(in: text, range: all).map(\.range))
+        var hidden: [NSRange] = []
+        /// Hides the text before `content` and the `closing` characters after it.
+        func wrap(_ match: NSTextCheckingResult, content: NSRange, closing: Int) {
+            guard !MathPresentation.showsSource(match.range, selection: selection, text: text),
+                  !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { return }
+            hidden.append(NSRange(location: match.range.location, length: content.location - match.range.location))
+            if closing > 0 { hidden.append(NSRange(location: match.range.upperBound - closing, length: closing)) }
+        }
+        func each(_ pattern: NSRegularExpression, _ body: (NSTextCheckingResult) -> Void) {
+            pattern.enumerateMatches(in: text, range: all) { m, _, _ in if let m { body(m) } }
+        }
+        if latex {
+            if elements.contains(.headings) {
+                each(LaTeXSyntax.section) { wrap($0, content: $0.range(at: 2), closing: 1) }
+            }
+            if elements.contains(.emphasis) {
+                each(MarkdownStyler.texEmphasis) { wrap($0, content: $0.range(at: 2), closing: 1) }
+                each(MarkdownStyler.texBold) { wrap($0, content: $0.range(at: 1), closing: 1) }
+            }
+        } else {
+            if elements.contains(.headings) {
+                each(MarkdownStyler.heading) { wrap($0, content: $0.range(at: 3), closing: 0) }
+            }
+            if elements.contains(.emphasis) {
+                for pattern in [MarkdownStyler.bold, MarkdownStyler.italic, MarkdownStyler.strike] {
+                    each(pattern) { wrap($0, content: $0.range(at: 2), closing: $0.range(at: 1).length) }
+                }
+            }
+        }
+        return hidden.filter { $0.length > 0 }
     }
 }

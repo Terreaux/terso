@@ -12,12 +12,12 @@ struct RenderedMath {
 /// accessibility and source navigation all continue to use the original text.
 final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     var rendered: [RenderedMath] = []
-    private var linkSyntaxRanges: [NSRange] = []
-    var hiddenLinkSyntax: [NSRange] {
-        get { linkSyntaxRanges }
+    private var syntaxRanges: [NSRange] = []
+    var hiddenSyntax: [NSRange] {
+        get { syntaxRanges }
         set {
-            guard linkSyntaxRanges != newValue else { return }
-            linkSyntaxRanges = newValue
+            guard syntaxRanges != newValue else { return }
+            syntaxRanges = newValue
             guard let storage = textStorage else { return }
             invalidateGlyphs(forCharacterRange: NSRange(location: 0, length: storage.length), changeInLength: 0, actualCharacterRange: nil)
         }
@@ -50,11 +50,11 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         rendered = rendered.compactMap { item in
             translated(item.range).map { RenderedMath(range: $0, image: item.image) }
         }
-        linkSyntaxRanges = linkSyntaxRanges.compactMap(translated)
+        syntaxRanges = syntaxRanges.compactMap(translated)
     }
 
     func layoutManager(_ layoutManager: NSLayoutManager, shouldGenerateGlyphs glyphs: UnsafePointer<CGGlyph>, properties props: UnsafePointer<NSLayoutManager.GlyphProperty>, characterIndexes indexes: UnsafePointer<Int>, font: NSFont, forGlyphRange range: NSRange) -> Int {
-        guard !rendered.isEmpty || !hiddenLinkSyntax.isEmpty else { return 0 }
+        guard !rendered.isEmpty || !hiddenSyntax.isEmpty else { return 0 }
         var properties = Array(UnsafeBufferPointer(start: props, count: range.length))
         var output = Array(UnsafeBufferPointer(start: glyphs, count: range.length))
         var changed = false
@@ -63,7 +63,7 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
                 properties[index] = indexes[index] == item.range.location ? .controlCharacter : .null
                 output[index] = 0
                 changed = true
-            } else if hiddenLinkSyntax.contains(where: { NSLocationInRange(indexes[index], $0) }) {
+            } else if hiddenSyntax.contains(where: { NSLocationInRange(indexes[index], $0) }) {
                 properties[index] = .null
                 output[index] = 0
                 changed = true
@@ -153,14 +153,16 @@ extension EditorCoordinator {
     func updateMathPresentation() {
         mathTask?.cancel()
         guard let tv = textView, let layout = tv.layoutManager as? MathLayoutManager, let config else { return }
-        guard config.renderMode == .mixed, !tv.hasMarkedText() else { layout.setRendered([]); layout.hiddenLinkSyntax = []; return }
+        guard config.renderMode == .mixed, !tv.hasMarkedText() else { layout.setRendered([]); layout.hiddenSyntax = []; return }
         let source = tv.string
         let selection = tv.selectedRange()
-        layout.hiddenLinkSyntax = LinkPresentation.hiddenSyntax(in: source, selection: selection)
-        let allEmbeds = ImagePresentation.embeds(in: source)
-        let embeds = allEmbeds.filter { !MathPresentation.showsSource($0.range, selection: selection, text: source) }
+        let shown = config.mixedRendered.intersection(MixedElement.available(latex: config.latex))
+        layout.hiddenSyntax = (shown.contains(.links) ? LinkPresentation.hiddenSyntax(in: source, selection: selection) : [])
+            + MarkerPresentation.hiddenSyntax(in: source, selection: selection, latex: config.latex, elements: shown)
+        let allEmbeds = config.latex ? [] : ImagePresentation.embeds(in: source)
+        let embeds = !shown.contains(.images) ? [] : allEmbeds.filter { !MathPresentation.showsSource($0.range, selection: selection, text: source) }
         // A `$` inside an image URL must never render as math over the embed.
-        let regions = MathPresentation.regions(in: source).filter { region in
+        let regions = !shown.contains(.math) ? [] : MathPresentation.regions(in: source).filter { region in
             !MathPresentation.showsSource(region.range.nsRange, selection: selection, text: source)
                 && !allEmbeds.contains { NSIntersectionRange($0.range, region.range.nsRange).length > 0 }
         }

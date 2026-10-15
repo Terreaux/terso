@@ -142,23 +142,48 @@ struct LayerRow: View {
     }
 }
 
-/// Typewriter, Focus and Zen side by side.
-struct WritingModeControls: View {
-    let model: WorkspaceModel
+/// How the page is drawn and how you write on it, as one control: the render
+/// mode, what Mixed renders for this format, then Typewriter, Focus and Zen.
+/// Typewriter and Focus follow the caret, so they wait out Preview.
+struct ViewControls: View {
+    @Bindable var model: WorkspaceModel
+    let latex: Bool
     var density: HeaderDensity = .full
 
     var body: some View {
-        if density == .minimal { menu } else { buttons }
+        if density == .minimal { menu } else { controls }
     }
+
+    private var caretModesAvailable: Bool { model.renderMode != .preview }
 
     private var menu: some View {
         Menu {
-            Toggle("Typewriter", isOn: Binding(get: { model.typewriter }, set: { _ in toggleTypewriter() }))
-            Toggle("Focus", isOn: Binding(get: { model.focusMode }, set: { _ in model.toggleFocusMode() }))
-            Toggle("Zen", isOn: Binding(get: { model.zenMode }, set: { _ in model.toggleZenMode() }))
-        } label: { Image(systemName: "character.cursor.ibeam") }
+            Picker("Rendering", selection: $model.renderMode) {
+                ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.inline)
+            if model.renderMode == .mixed { mixedSection }
+            Section("Writing") {
+                Toggle("Typewriter", isOn: Binding(get: { model.typewriter }, set: { _ in toggleTypewriter() }))
+                    .disabled(!caretModesAvailable)
+                Toggle("Focus", isOn: Binding(get: { model.focusMode }, set: { _ in model.toggleFocusMode() }))
+                    .disabled(!caretModesAvailable)
+                Toggle("Zen", isOn: Binding(get: { model.zenMode }, set: { _ in model.toggleZenMode() }))
+            }
+        } label: { Image(systemName: "eye") }
             .menuIndicator(.hidden).fixedSize()
-            .help("Writing modes").accessibilityLabel("Writing modes")
+            .help("View: rendering and writing modes").accessibilityLabel("View")
+    }
+
+    @ViewBuilder private var mixedSection: some View {
+        Section("Mixed renders") {
+            ForEach(MixedElement.available(latex: latex)) { element in
+                Toggle(element.title, isOn: Binding(
+                    get: { model.prefs.mixedRendered.contains(element) },
+                    set: { on in
+                        if on { model.prefs.mixedRendered.insert(element) } else { model.prefs.mixedRendered.remove(element) }
+                    }))
+            }
+        }
     }
 
     private func toggleTypewriter() {
@@ -166,23 +191,37 @@ struct WritingModeControls: View {
         model.editor?.refreshDecorations()
     }
 
-    private var buttons: some View {
-        HStack(spacing: 2) {
-            HeaderToggle(isOn: model.typewriter, help: "Typewriter: keep the current line centred (⌘⇧Y)") {
-                toggleTypewriter()
-            } label: { Image(systemName: "character.cursor.ibeam") }
-                .accessibilityLabel("Typewriter mode")
-            HeaderToggle(isOn: model.focusMode, help: "Focus: dim everything but the current paragraph (⌘⇧F)") {
-                model.toggleFocusMode()
-            } label: { Image(systemName: "scope") }
-                .accessibilityLabel("Focus mode")
-            HeaderToggle(isOn: model.zenMode, help: "Zen: full screen, just the text (⌘⇧J, Esc to leave)") {
-                model.toggleZenMode()
-            } label: { Image(systemName: "leaf") }
-                .accessibilityLabel("Zen mode")
+    private var controls: some View {
+        HStack(spacing: 4) {
+            Picker("Rendering mode", selection: $model.renderMode) {
+                ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented).frame(width: density == .full ? 220 : 170).labelsHidden()
+            Menu { mixedSection } label: { Image(systemName: "slider.horizontal.3") }
+                .menuIndicator(.hidden).fixedSize()
+                .disabled(model.renderMode != .mixed)
+                .help("Choose what Mixed renders in place of its source")
+                .accessibilityLabel("Mixed rendering options")
+            HStack(spacing: 2) {
+                HeaderToggle(isOn: model.typewriter, help: caretModesAvailable
+                             ? "Typewriter: keep the current line centred (⌘⇧Y)" : "Typewriter needs an editable view") {
+                    toggleTypewriter()
+                } label: { Image(systemName: "character.cursor.ibeam") }
+                    .disabled(!caretModesAvailable)
+                    .accessibilityLabel("Typewriter mode")
+                HeaderToggle(isOn: model.focusMode, help: caretModesAvailable
+                             ? "Focus: dim everything but the current paragraph (⌘⇧F)" : "Focus needs an editable view") {
+                    model.toggleFocusMode()
+                } label: { Image(systemName: "scope") }
+                    .disabled(!caretModesAvailable)
+                    .accessibilityLabel("Focus mode")
+                HeaderToggle(isOn: model.zenMode, help: "Zen: full screen, just the text (⌘⇧J, Esc to leave)") {
+                    model.toggleZenMode()
+                } label: { Image(systemName: "leaf") }
+                    .accessibilityLabel("Zen mode")
+            }
+            .padding(2)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
         }
-        .padding(2)
-        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 7))
     }
 }
 

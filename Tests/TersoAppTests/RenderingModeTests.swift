@@ -72,7 +72,7 @@ import TersoCore
         let math = ["$x$", "$y$"].map { (text as NSString).range(of: $0) }
         layout.setRendered(math.map { RenderedMath(range: $0, image: image) })
         let links = LinkPresentation.hiddenSyntax(in: text, selection: NSRange(location: 0, length: 0))
-        layout.hiddenLinkSyntax = links
+        layout.hiddenSyntax = links
         layout.ensureLayout(for: container)
 
         // A surrogate pair shifts UTF-16 offsets by two without exposing any
@@ -80,7 +80,7 @@ import TersoCore
         storage.replaceCharacters(in: NSRange(location: 0, length: 0), with: "😀")
         #expect(layout.rendered.map(\.range) == math.map { NSRange(location: $0.location + 2, length: $0.length) })
         #expect(layout.rendered.allSatisfy { $0.image === image })
-        #expect(layout.hiddenLinkSyntax == links.map { NSRange(location: $0.location + 2, length: $0.length) })
+        #expect(layout.hiddenSyntax == links.map { NSRange(location: $0.location + 2, length: $0.length) })
         tv.setSelectedRange(NSRange(location: 2, length: 0))
         coordinator.updateMathPresentation()
         #expect(layout.rendered.count == 2)
@@ -98,7 +98,7 @@ import TersoCore
         #expect(layout.propertyForGlyph(at: retained).contains(.controlCharacter))
         let edited = layout.glyphIndexForCharacter(at: math[0].location)
         #expect(!layout.propertyForGlyph(at: edited).contains(.controlCharacter))
-        for range in layout.hiddenLinkSyntax {
+        for range in layout.hiddenSyntax {
             let glyph = layout.glyphIndexForCharacter(at: range.location)
             #expect(layout.propertyForGlyph(at: glyph).contains(.null))
         }
@@ -197,6 +197,27 @@ import TersoCore
         #expect(LinkPresentation.hiddenSyntax(in: text, selection: ns.range(of: "alias")).isEmpty)
         let literal = "---\nkey: [[metadata]]\n---\n`[code](url)`\n```\n[[fenced]]\n```\n$[[math]]$\n![[embed]]\n\\[[escaped]]"
         #expect(LinkPresentation.hiddenSyntax(in: literal, selection: NSRange(location: (literal as NSString).length, length: 0)).isEmpty)
+    }
+
+    @Test func mixedMarkersHidePerFormatAndRevealOnActiveLines() {
+        let md = "## Title\n\nSome **bold** and *italic* and ~~gone~~.\n\n`**code**` $**x**$\n\nEnd"
+        let ns = md as NSString
+        let end = NSRange(location: ns.length, length: 0)
+        let hidden = { (elements: Set<MixedElement>, selection: NSRange) in
+            MarkerPresentation.hiddenSyntax(in: md, selection: selection, latex: false, elements: elements)
+                .map { ns.substring(with: $0) }
+        }
+        #expect(hidden([.math, .links], end).isEmpty)
+        #expect(hidden([.headings], end) == ["## "])
+        #expect(hidden([.emphasis], end) == ["**", "**", "*", "*", "~~", "~~"])
+        #expect(hidden([.headings, .emphasis], ns.range(of: "italic")) == ["## "])
+
+        let tex = "\\section{Intro}\nAn \\emph{idea} and \\textbf{claim}.\n% \\emph{comment}\n\nEnd"
+        let ts = tex as NSString
+        let texHidden = MarkerPresentation.hiddenSyntax(in: tex, selection: NSRange(location: ts.length, length: 0),
+                                                        latex: true, elements: [.headings, .emphasis]).map { ts.substring(with: $0) }
+        #expect(texHidden == ["\\section{", "}", "\\emph{", "}", "\\textbf{", "}"])
+        #expect(MixedElement.available(latex: true) == [.math, .headings, .emphasis])
     }
 
     @Test func imageEmbedsResolveRemoteAndDocumentRelativeSources() {
