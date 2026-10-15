@@ -52,8 +52,10 @@ struct TersoCommands: Commands {
             Divider()
             Button(model?.focusMode == true ? "Exit Focus Mode" : "Focus Mode") { model?.toggleFocusMode() }
                 .keyboardShortcut("f", modifiers: [.command, .shift])
+                .disabled(model == nil || model?.renderMode == .preview)
             Button("Typewriter Scrolling") { model?.typewriter.toggle(); model?.editor?.refreshDecorations() }
                 .keyboardShortcut("y", modifiers: [.command, .shift])
+                .disabled(model == nil || model?.renderMode == .preview)
             Button(model?.zenMode == true ? "Exit Zen Mode" : "Zen Mode") { model?.toggleZenMode() }
                 .keyboardShortcut("j", modifiers: [.command, .shift])
             Divider()

@@ -17,6 +17,7 @@ struct EditorConfig: Equatable {
     var typewriter: Bool
     var dimInactive: Bool
     var theme: EditorTheme
+    var mixedRendered: Set<MixedElement>
     /// TeX source: styled as LaTeX rather than Markdown.
     var latex: Bool
 
@@ -26,7 +27,7 @@ struct EditorConfig: Equatable {
         font = prefs.font; fontSize = prefs.fontSize; lineSpacing = prefs.lineSpacing
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
-        theme = prefs.theme
+        theme = prefs.theme; mixedRendered = prefs.mixedRendered
     }
 }
 
@@ -362,7 +363,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             storage.endEditing()
             tv.typingAttributes = MarkdownStyler.baseAttributes(new)
         }
-        if styleChanged || old?.columnWidth != new.columnWidth { updateMathPresentation() }
+        if styleChanged || old?.columnWidth != new.columnWidth || old?.mixedRendered != new.mixedRendered || old?.latex != new.latex { updateMathPresentation() }
         if force || old?.focusMode != new.focusMode || old?.dimInactive != new.dimInactive || old?.typewriter != new.typewriter {
             popover?.close()
             refreshDecorations()

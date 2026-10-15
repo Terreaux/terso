@@ -135,11 +135,8 @@ private struct DocumentControls: View {
                 .help("Show or hide the sidebar").accessibilityLabel("Sidebar")
             HighlightControls(model: model, density: density).padding(.leading, 6)
             Spacer(minLength: 8)
-            Picker("Rendering mode", selection: $model.renderMode) {
-                ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
-            }.pickerStyle(.segmented).frame(width: density == .full ? 220 : 170).labelsHidden()
             // How the page looks and how you write on it sit together.
-            WritingModeControls(model: model, density: density).padding(.leading, 4)
+            ViewControls(model: model, latex: DocumentExport.isLaTeX(document), density: density)
             Spacer(minLength: 8)
             ThemeMenu()
             CopyDocumentButton(text: document.contents.text)
