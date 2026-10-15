@@ -130,6 +130,8 @@ final class WorkspaceModel {
     private(set) var focusedReview = false
     var showAskPanel = false
     var showDocumentReport = false
+    /// The writing stats sheet, open at a tab.
+    var writingStats: WritingStatsTab?
     var mapMarkers: [MapMarker] = []
 
     var thesaurusRequest: ThesaurusRequest?

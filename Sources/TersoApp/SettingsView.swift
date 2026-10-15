@@ -62,6 +62,12 @@ struct AnalysisSettings: View {
                 Text("Human reference ranges come from measured corpora. Registers without measured data show raw values only; Terso does not invent baselines.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            Section("Writing stats") {
+                Toggle("Show today’s typed words in the header", isOn: $prefs.showWritingProgress)
+                Toggle("Show a note when I earn an award", isOn: $prefs.celebrateAwards)
+                Text("Terso counts the words you type, not the ones you paste. Only counts are kept, on this Mac.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }

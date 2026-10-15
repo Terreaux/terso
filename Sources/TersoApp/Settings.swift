@@ -76,6 +76,10 @@ final class Preferences {
     var cliProviders: [CLIProviderConfiguration] { didSet { save(cliProviders, "cliProviders") } }
     var httpProviders: [HTTPProviderConfiguration] { didSet { save(httpProviders, "httpProviders") } }
 
+    /// Today's typed words in the header, and a quiet note when an award is earned.
+    var showWritingProgress: Bool { didSet { d.set(showWritingProgress, forKey: "showWritingProgress") } }
+    var celebrateAwards: Bool { didSet { d.set(celebrateAwards, forKey: "celebrateAwards") } }
+
     private init() {
         font = EditorFont(rawValue: d.string(forKey: "font") ?? "") ?? .newYork
         fontSize = d.object(forKey: "fontSize") as? Double ?? 17
@@ -101,6 +105,8 @@ final class Preferences {
         selectedProviderID = d.string(forKey: "provider") ?? (AppleOnDeviceModel.isAvailable ? AppleOnDeviceModel.providerID.rawValue : CLIProviderConfiguration.codex.id)
         cliProviders = Self.load("cliProviders") ?? [.codex, .claude]
         httpProviders = Self.load("httpProviders") ?? [.anthropic, .openAI, .ollama, .lmStudio, .llamaCpp]
+        showWritingProgress = d.object(forKey: "showWritingProgress") as? Bool ?? true
+        celebrateAwards = d.object(forKey: "celebrateAwards") as? Bool ?? true
         if !d.bool(forKey: "scienceLayersInitialized") {
             enabledLayers.formUnion([.notation, .quantities, .references, .claims, .evidence])
             d.set(enabledLayers.map(\.rawValue), forKey: "layers")

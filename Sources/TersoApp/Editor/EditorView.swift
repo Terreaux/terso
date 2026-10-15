@@ -43,6 +43,8 @@ final class TersoTextView: NSTextView {
     /// Items put at the top of the context menu for the character clicked
     /// (spelling corrections, since the system checker is off here).
     var contextItems: ((Int) -> [NSMenuItem])?
+    /// New words typed: keyboard, dictation and input methods only.
+    var onTypedWords: ((Int) -> Void)?
     private var hoverArea: NSTrackingArea?
 
     var reviewPassageRange: NSRange? { didSet { needsDisplay = true } }
@@ -90,6 +92,19 @@ final class TersoTextView: NSTextView {
         let v: CGFloat = typewriter ? visible / 2 : 56
         let inset = NSSize(width: h.rounded(), height: v.rounded())
         if textContainerInset != inset { textContainerInset = inset }
+    }
+
+    // Paste, drops and programmatic edits don't come through here.
+    override func insertText(_ string: Any, replacementRange: NSRange) {
+        let typed = (string as? NSAttributedString)?.string ?? string as? String ?? ""
+        let ns = self.string as NSString
+        let range = replacementRange.location == NSNotFound ? selectedRange() : replacementRange
+        let before = range.location > 0 ? Character(ns.substring(with: ns.rangeOfComposedCharacterSequence(at: range.location - 1))) : nil
+        let end = NSMaxRange(range)
+        let after = end < ns.length ? Character(ns.substring(with: ns.rangeOfComposedCharacterSequence(at: end))) : nil
+        super.insertText(string, replacementRange: replacementRange)
+        let words = TypedWords.count(typed, before: before, after: after)
+        if words > 0 { onTypedWords?(words) }
     }
 
     override func updateTrackingAreas() {
@@ -196,6 +211,10 @@ struct EditorView: NSViewRepresentable {
         tv.onClick = { [weak c] index in c?.handleClick(at: index) }
         tv.onHover = { [weak c] index in c?.handleHover(at: index) }
         tv.contextItems = { [weak c] index in c?.spellingMenuItems(at: index) ?? [] }
+        tv.onTypedWords = { [weak c] words in
+            guard let c else { return }
+            WritingStats.shared.record(words, in: c.model.fileURL)
+        }
         c.applyConfig(config, force: true)
         model.editor = c
         model.scheduleAnalysis()
