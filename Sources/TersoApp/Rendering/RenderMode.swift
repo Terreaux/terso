@@ -11,11 +11,12 @@ enum RenderMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// A construct Mixed can draw in place of its source. Each one shows its
-/// source again on the line being edited. The same names cover both formats:
-/// heading markers are `#` in Markdown and `\section{…}` in TeX.
+/// A group of constructs Mixed can draw in place of its source, as Obsidian's
+/// Live Preview does. Each shows its source again on the line being edited.
+/// The same names cover both formats: heading markers are `#` in Markdown and
+/// `\section{…}` in TeX.
 enum MixedElement: String, CaseIterable, Identifiable {
-    case math, images, links, headings, emphasis
+    case math, images, links, headings, emphasis, code, blocks, tables, footnotes, citations, comments
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -24,13 +25,31 @@ enum MixedElement: String, CaseIterable, Identifiable {
         case .links: "Link targets"
         case .headings: "Heading markers"
         case .emphasis: "Emphasis markers"
+        case .code: "Code markers"
+        case .blocks: "Lists, tasks, quotes and rules"
+        case .tables: "Tables"
+        case .footnotes: "Footnotes"
+        case .citations: "Citations and cross-references"
+        case .comments: "Comments and highlights"
         }
     }
-    /// Mixed as it behaved before these were choices: markers dimmed, not hidden.
-    static let defaults: [MixedElement] = [.math, .images, .links]
+    static let defaults: [MixedElement] = allCases
 
-    static func available(latex: Bool) -> [MixedElement] {
-        latex ? [.math, .headings, .emphasis] : allCases
+    static let addedLater: [MixedElement] = [.code, .blocks, .tables, .footnotes, .citations, .comments]
+
+    /// Extension syntax (Pandoc, Obsidian) is offered only when the document uses it.
+    @MainActor static func available(latex: Bool, text: String) -> [MixedElement] {
+        if latex { return [.math, .headings, .emphasis] }
+        let all = NSRange(location: 0, length: (text as NSString).length)
+        func uses(_ pattern: NSRegularExpression) -> Bool { pattern.firstMatch(in: text, range: all) != nil }
+        return allCases.filter { element in
+            switch element {
+            case .footnotes: uses(MarkdownStyler.footnote)
+            case .citations: uses(PandocSyntax.citation) || uses(PandocSyntax.label)
+            case .comments: uses(MarkdownStyler.highlight) || uses(MarkdownStyler.comment)
+            default: true
+            }
+        }
     }
 }
 
@@ -127,21 +146,32 @@ enum MathPresentation {
     }
 }
 
-/// Heading and emphasis markers recede entirely, revealing on the editing line.
+/// Markers that recede entirely, revealing on the editing line: headings,
+/// emphasis, code, highlights, comments, footnote brackets, citation `@`s and
+/// cross-reference labels.
 @MainActor enum MarkerPresentation {
     static func hiddenSyntax(in text: String, selection: NSRange, latex: Bool, elements: Set<MixedElement>) -> [NSRange] {
-        guard elements.contains(.headings) || elements.contains(.emphasis) else { return [] }
+        let hiding: Set<MixedElement> = [.headings, .emphasis, .code, .comments, .footnotes, .citations]
+        guard !elements.isDisjoint(with: hiding) else { return [] }
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
-        let syntax = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text))
-        let protected = syntax.regions.filter { [.inlineMath, .displayMath, .code, .comment].contains($0.kind) }.map(\.range.nsRange)
-            + [MarkdownSyntax.frontMatter(in: text)].compactMap { $0 }
-            + (latex ? LaTeXSyntax.literalEnvironments(in: text).map(\.range) : MarkdownStyler.fence.matches(in: text, range: all).map(\.range))
+        let regions = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text)).regions
+        func kinds(_ k: [ScientificRegionKind]) -> [NSRange] { regions.filter { k.contains($0.kind) }.map(\.range.nsRange) }
+        let frontMatter = [MarkdownSyntax.frontMatter(in: text)].compactMap { $0 }
+        let fences = latex ? LaTeXSyntax.literalEnvironments(in: text).map(\.range) : MarkdownStyler.fence.matches(in: text, range: all).map(\.range)
+        let math = kinds([.inlineMath, .displayMath])
+        let comments = latex ? [] : MarkdownStyler.comment.matches(in: text, range: all).map(\.range)
+        // Prose markers stay literal inside code, math, metadata and comments.
+        // TeX `%` comments come from the scientific syntax; Markdown has its own.
+        let prose = kinds(latex ? [.code, .comment] : [.code]) + frontMatter + fences + math + comments
         var hidden: [NSRange] = []
+        func revealed(_ range: NSRange) -> Bool { MathPresentation.showsSource(range, selection: selection, text: text) }
+        func clear(_ range: NSRange, of protected: [NSRange]) -> Bool {
+            !protected.contains { NSIntersectionRange($0, range).length > 0 }
+        }
         /// Hides the text before `content` and the `closing` characters after it.
-        func wrap(_ match: NSTextCheckingResult, content: NSRange, closing: Int) {
-            guard !MathPresentation.showsSource(match.range, selection: selection, text: text),
-                  !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { return }
+        func wrap(_ match: NSTextCheckingResult, content: NSRange, closing: Int, protected: [NSRange]) {
+            guard !revealed(match.range), clear(match.range, of: protected) else { return }
             hidden.append(NSRange(location: match.range.location, length: content.location - match.range.location))
             if closing > 0 { hidden.append(NSRange(location: match.range.upperBound - closing, length: closing)) }
         }
@@ -150,20 +180,67 @@ enum MathPresentation {
         }
         if latex {
             if elements.contains(.headings) {
-                each(LaTeXSyntax.section) { wrap($0, content: $0.range(at: 2), closing: 1) }
+                each(LaTeXSyntax.section) { wrap($0, content: $0.range(at: 2), closing: 1, protected: prose) }
             }
             if elements.contains(.emphasis) {
-                each(MarkdownStyler.texEmphasis) { wrap($0, content: $0.range(at: 2), closing: 1) }
-                each(MarkdownStyler.texBold) { wrap($0, content: $0.range(at: 1), closing: 1) }
+                each(MarkdownStyler.texEmphasis) { wrap($0, content: $0.range(at: 2), closing: 1, protected: prose) }
+                each(MarkdownStyler.texBold) { wrap($0, content: $0.range(at: 1), closing: 1, protected: prose) }
             }
-        } else {
-            if elements.contains(.headings) {
-                each(MarkdownStyler.heading) { wrap($0, content: $0.range(at: 3), closing: 0) }
+            return hidden.filter { $0.length > 0 }
+        }
+        if elements.contains(.headings) {
+            each(MarkdownStyler.heading) { wrap($0, content: $0.range(at: 3), closing: 0, protected: prose) }
+        }
+        if elements.contains(.emphasis) {
+            for pattern in [MarkdownStyler.bold, MarkdownStyler.italic, MarkdownStyler.strike] {
+                each(pattern) { wrap($0, content: $0.range(at: 2), closing: $0.range(at: 1).length, protected: prose) }
             }
-            if elements.contains(.emphasis) {
-                for pattern in [MarkdownStyler.bold, MarkdownStyler.italic, MarkdownStyler.strike] {
-                    each(pattern) { wrap($0, content: $0.range(at: 2), closing: $0.range(at: 1).length) }
+        }
+        if elements.contains(.code) {
+            // A code span is itself code, so only blocks and math protect it.
+            each(MarkdownStyler.code) { m in
+                wrap(m, content: NSRange(location: m.range.location + 1, length: m.range.length - 2), closing: 1,
+                     protected: frontMatter + fences + math + comments)
+            }
+        }
+        if elements.contains(.comments) {
+            each(MarkdownStyler.highlight) { wrap($0, content: $0.range(at: 2), closing: 2, protected: prose) }
+            // A comment disappears line by line, so its lines stay apart.
+            for comment in comments where !revealed(comment) && clear(comment, of: kinds([.code]) + fences + frontMatter) {
+                var location = comment.location
+                while location < comment.upperBound {
+                    let line = ns.lineRange(for: NSRange(location: location, length: 0))
+                    var end = min(line.upperBound, comment.upperBound)
+                    while end > location, [10, 13].contains(ns.character(at: end - 1)) { end -= 1 }
+                    hidden.append(NSRange(location: location, length: end - location))
+                    location = line.upperBound
                 }
+            }
+        }
+        if elements.contains(.footnotes) {
+            each(MarkdownStyler.footnote) { m in
+                // References read as raised numbers; definitions keep their syntax.
+                guard m.range(at: 1).length == 0 else { return }
+                wrap(m, content: NSRange(location: m.range.location + 2, length: m.range.length - 3), closing: 1, protected: prose)
+            }
+        }
+        if elements.contains(.citations) {
+            let numbers = PandocSyntax.numbers(in: text)
+            each(PandocSyntax.citation) { m in
+                // Cross-references with a known target are drawn as "fig. 2";
+                // citations lose their `@` and keep the key.
+                guard numbers[PandocSyntax.target(of: m, in: ns)] == nil else { return }
+                wrap(m, content: m.range(at: 2), closing: 0, protected: prose)
+            }
+            // `[@fig:a; @fig:b]` reads as pandoc-crossref prints it, without brackets.
+            each(PandocSyntax.group) { m in
+                let keys = PandocSyntax.citation.matches(in: text, range: m.range(at: 1))
+                guard !keys.isEmpty, keys.allSatisfy({ numbers[PandocSyntax.target(of: $0, in: ns)] != nil }) else { return }
+                wrap(m, content: m.range(at: 1), closing: 1, protected: prose)
+            }
+            each(PandocSyntax.label) { m in
+                guard !revealed(m.range), clear(m.range, of: prose) else { return }
+                hidden.append(m.range)
             }
         }
         return hidden.filter { $0.length > 0 }

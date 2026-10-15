@@ -147,10 +147,28 @@ final class TersoTextView: NSTextView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        if event.clickCount == 1, toggleTask(at: convert(event.locationInWindow, from: nil)) { return }
         super.mouseDown(with: event)
         guard event.clickCount == 1, selectedRange().length == 0 else { return }
         let point = convert(event.locationInWindow, from: nil)
         onClick?(characterIndexForInsertion(at: point))
+    }
+
+    /// A click on a drawn task checkbox ticks it in the source, leaving the
+    /// caret where it was so the checkbox stays drawn.
+    private func toggleTask(at point: NSPoint) -> Bool {
+        guard isEditable, let layout = layoutManager as? MathLayoutManager, let container = textContainer else { return false }
+        let local = NSPoint(x: point.x - textContainerOrigin.x, y: point.y - textContainerOrigin.y)
+        let glyph = layout.glyphIndex(for: local, in: container, fractionOfDistanceThroughGlyph: nil)
+        let index = layout.characterIndexForGlyph(at: glyph)
+        guard let item = layout.rendered.first(where: { $0.range.location == index && $0.toggle != nil }), let box = item.toggle,
+              layout.boundingRect(forGlyphRange: NSRange(location: glyph, length: 1), in: container).contains(local) else { return false }
+        let ticked = (string as NSString).substring(with: box).lowercased() == "[x]" ? "[ ]" : "[x]"
+        guard shouldChangeText(in: box, replacementString: ticked) else { return false }
+        textStorage?.replaceCharacters(in: box, with: ticked)
+        didChangeText()
+        undoManager?.setActionName("Toggle Task")
+        return true
     }
 }
 

@@ -86,8 +86,16 @@ final class Preferences {
         lineSpacing = d.object(forKey: "lineSpacing") as? Double ?? 1.6
         columnWidth = d.object(forKey: "columnWidth") as? Double ?? 720
         syntax = SyntaxVisibility(rawValue: d.string(forKey: "syntax") ?? "") ?? .subdued
-        mixedRendered = Set((d.array(forKey: "mixedRendered") as? [String])?.compactMap(MixedElement.init(rawValue:))
-                            ?? MixedElement.defaults)
+        // Groups added after the first release of these choices are turned on
+        // once for people who had already saved a selection.
+        var mixed = Set((d.array(forKey: "mixedRendered") as? [String])?.compactMap(MixedElement.init(rawValue:))
+                        ?? MixedElement.defaults)
+        if !d.bool(forKey: "mixedGroupsAdded") {
+            mixed.formUnion(MixedElement.addedLater)
+            d.set(mixed.map(\.rawValue), forKey: "mixedRendered")
+            d.set(true, forKey: "mixedGroupsAdded")
+        }
+        mixedRendered = mixed
         // Earlier builds stored only system/light/dark under "appearance".
         theme = EditorTheme(rawValue: d.string(forKey: "theme") ?? d.string(forKey: "appearance") ?? "") ?? .system
         dimInactiveParagraphs = d.object(forKey: "dimInactive") as? Bool ?? true

@@ -149,7 +149,7 @@ private struct DocumentControls: View {
                 Spacer(minLength: 8)
             }
             // How the page looks and how you write on it sit together.
-            ViewControls(model: model, latex: DocumentExport.isLaTeX(document), density: density)
+            ViewControls(model: model, latex: DocumentExport.isLaTeX(document), source: document.contents.text, density: density)
             Spacer(minLength: 8)
             ThemeMenu()
             CopyDocumentButton(text: document.contents.text)
