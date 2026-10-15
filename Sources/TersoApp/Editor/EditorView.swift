@@ -36,6 +36,9 @@ final class TersoTextView: NSTextView {
     var onClick: ((Int) -> Void)?
     /// Character index under the pointer (nil when not over text).
     var onHover: ((Int?) -> Void)?
+    /// Items put at the top of the context menu for the character clicked
+    /// (spelling corrections, since the system checker is off here).
+    var contextItems: ((Int) -> [NSMenuItem])?
     private var hoverArea: NSTrackingArea?
 
     var reviewPassageRange: NSRange? { didSet { needsDisplay = true } }
@@ -115,6 +118,15 @@ final class TersoTextView: NSTextView {
         return lm.characterIndexForGlyph(at: glyph)
     }
 
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let menu = super.menu(for: event) ?? NSMenu()
+        guard let index = characterIndex(under: convert(event.locationInWindow, from: nil)),
+              let items = contextItems?(index), !items.isEmpty else { return menu }
+        menu.insertItem(.separator(), at: 0)
+        for item in items.reversed() { menu.insertItem(item, at: 0) }
+        return menu
+    }
+
     override func mouseDown(with event: NSEvent) {
         super.mouseDown(with: event)
         guard event.clickCount == 1, selectedRange().length == 0 else { return }
@@ -179,6 +191,7 @@ struct EditorView: NSViewRepresentable {
         tv.onGeometryChange = { [weak c] in c?.updateMathPresentation() }
         tv.onClick = { [weak c] index in c?.handleClick(at: index) }
         tv.onHover = { [weak c] index in c?.handleHover(at: index) }
+        tv.contextItems = { [weak c] index in c?.spellingMenuItems(at: index) ?? [] }
         c.applyConfig(config, force: true)
         model.editor = c
         model.scheduleAnalysis()

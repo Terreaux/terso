@@ -77,4 +77,46 @@ extension EditorCoordinator {
         p.show(relativeTo: rect, of: tv, preferredEdge: .maxY)
         popover = p
     }
+
+    /// Corrections, Learn and Ignore for the spelling finding under the pointer.
+    func spellingMenuItems(at index: Int) -> [NSMenuItem] {
+        guard let hit = model.visibleAnnotations.first(where: { a in
+            a.source == .spelling && a.ranges.contains { $0.nsRange.contains(index) }
+        }) else { return [] }
+        let occurrence = hit.ranges.firstIndex { $0.nsRange.contains(index) } ?? 0
+        let model = model
+        var items = hit.corrections.map { word in
+            ClosureMenuItem(word) { model.applyCorrection(word, to: hit, occurrence: occurrence) } as NSMenuItem
+        }
+        if items.isEmpty {
+            let none = NSMenuItem(title: "No Guesses Found", action: nil, keyEquivalent: "")
+            none.isEnabled = false
+            items.append(none)
+        }
+        items.append(.separator())
+        if let word = hit.metadata["word"] {
+            items.append(ClosureMenuItem("Learn Spelling") {
+                NSSpellChecker.shared.learnWord(word)
+                model.ignore(hit)
+                model.scheduleAnalysis()
+            })
+        }
+        items.append(ClosureMenuItem(hit.metadata["word"] == nil ? "Ignore Grammar" : "Ignore Spelling") { model.ignore(hit) })
+        return items
+    }
+}
+
+/// A menu item that runs a closure, for menus built on the fly.
+final class ClosureMenuItem: NSMenuItem {
+    private let handler: () -> Void
+
+    init(_ title: String, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(run), keyEquivalent: "")
+        target = self
+    }
+
+    required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    @objc private func run() { handler() }
 }
