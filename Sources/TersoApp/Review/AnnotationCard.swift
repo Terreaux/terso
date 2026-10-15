@@ -27,7 +27,7 @@ struct AnnotationCard: View {
             }
             .frame(width: 340)
         } else {
-            FindingDetail(finding: annotation, model: model, compact: true, occurrence: occurrence, openInReview: openInReview)
+            FindingDetail(finding: annotation, model: model, compact: true, occurrence: occurrence, openInReview: openInReview, onApplied: close)
                 .padding(12)
                 .frame(width: 320)
         }

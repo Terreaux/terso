@@ -233,9 +233,14 @@ struct FindingDetail: View {
     /// occurrence stepper in the title row, Open in Review among the actions.
     let compact: Bool
     let openInReview: (() -> Void)?
+    /// Called after a correction is applied (the popover closes itself).
+    var onApplied: (() -> Void)?
+    @State private var correctionError: String?
 
-    init(finding: TextAnnotation, model: WorkspaceModel, compact: Bool = false, occurrence: Int = 0, openInReview: (() -> Void)? = nil) {
+    init(finding: TextAnnotation, model: WorkspaceModel, compact: Bool = false, occurrence: Int = 0,
+         openInReview: (() -> Void)? = nil, onApplied: (() -> Void)? = nil) {
         self.finding = finding
+        self.onApplied = onApplied
         self.model = model
         self.compact = compact
         self.openInReview = openInReview
@@ -253,7 +258,9 @@ struct FindingDetail: View {
             if let why = finding.explanation {
                 Text(why).font(ReviewType.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            if let c = finding.consider {
+            if !finding.corrections.isEmpty {
+                corrections
+            } else if let c = finding.consider {
                 Text("Consider: \(c)").font(ReviewType.body).fixedSize(horizontal: false, vertical: true)
             }
             if finding.ranges.count > 1 && !compact {
@@ -283,6 +290,40 @@ struct FindingDetail: View {
             actions
         }
         .onChange(of: finding.id) { occurrenceIndex = 0 }
+    }
+
+    /// Spelling and grammar fixes as buttons: one click replaces this occurrence.
+    private var corrections: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                ForEach(Array(finding.corrections.prefix(3).enumerated()), id: \.offset) { i, word in
+                    Button(word) { applyCorrection(word) }
+                        .buttonStyle(.bordered)
+                        .tint(i == 0 ? .accentColor : nil)
+                        .lineLimit(1)
+                        .help("Replace with “\(word)”")
+                }
+                if finding.corrections.count > 3 {
+                    Menu("More") {
+                        ForEach(finding.corrections.dropFirst(3), id: \.self) { word in
+                            Button(word) { applyCorrection(word) }
+                        }
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                }
+            }
+            .controlSize(compact ? .small : .regular)
+            .disabled(finding.revision != model.revision)
+            if let correctionError {
+                Text(correctionError).font(ReviewType.meta).foregroundStyle(.red)
+            }
+        }
+    }
+
+    private func applyCorrection(_ word: String) {
+        correctionError = model.applyCorrection(word, to: finding, occurrence: occurrenceIndex)
+        if correctionError == nil { onApplied?() }
     }
 
     private func navigateOccurrence(_ offset: Int) {
