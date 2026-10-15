@@ -34,7 +34,7 @@ struct EditorSettings: View {
             Picker("Markdown syntax", selection: $prefs.syntax) { ForEach(SyntaxVisibility.allCases) { Text($0.title).tag($0) } }
             Picker("Theme", selection: $prefs.theme) { ForEach(EditorTheme.allCases) { Text($0.title).tag($0) } }
             Toggle("Smart quotes", isOn: $prefs.smartQuotes)
-            Section("Focus and Zen modes") {
+            Section("Letterbox and Zen modes") {
                 Toggle("Dim inactive paragraphs", isOn: $prefs.dimInactiveParagraphs)
                 Toggle("Typewriter scrolling", isOn: $prefs.typewriterInFocusMode)
             }
