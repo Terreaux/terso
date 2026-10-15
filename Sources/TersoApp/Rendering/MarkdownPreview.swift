@@ -72,7 +72,7 @@ final class PreviewImages: NSObject, WKURLSchemeHandler {
 enum MarkdownPreviewHTML {
     static let scripts: String = {
         let root = Bundle.module.url(forResource: "Markdown", withExtension: nil)!
-        return ["marked.umd.js", "purify.min.js"].map { try! String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
+        return ["marked.umd.js", "terso-markdown.js", "purify.min.js"].map { try! String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
     }()
 
     static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0) -> String {
@@ -112,6 +112,23 @@ enum MarkdownPreviewHTML {
         a {color:\#(dark ? "#8cbcff" : "#1565c0");} img {max-width:100%;height:auto;} hr {border:0;border-top:1px solid #8885;}
         .katex-display {overflow-x:auto; overflow-y:hidden; padding:6px 0;} .katex {font-size:1.08em;}
         .math-source {font-family:ui-monospace,monospace;} section {scroll-margin-top:32px;}
+        mark {background:\#(dark ? "#e8c54a40" : "#ffe36e80"); color:inherit; border-radius:2px; padding:0 1px;}
+        ins.critic {color:\#(dark ? "#7fd18b" : "#1a7f37"); text-decoration-color:currentColor;}
+        del.critic {color:\#(dark ? "#f08b8b" : "#c0362c");}
+        mark.critic {background:\#(dark ? "#5aa2ff33" : "#5aa2ff2e");}
+        .critic-comment {font-size:.85em; font-style:italic; color:\#(dark ? "#aaa" : "#666"); background:#8881; border-radius:4px; padding:1px 6px; margin:0 2px;}
+        .critic-comment::before {content:"\201C";} .critic-comment::after {content:"\201D";}
+        .admonition {--tone:#448aff; border-left:4px solid var(--tone); background:color-mix(in srgb, var(--tone) 8%, transparent); border-radius:4px; padding:.1em 1em; margin:1em 0;}
+        .admonition > :first-child:not(.admonition-title):not(summary) {margin-top:.6em;}
+        .admonition-title, .admonition > summary {font-weight:600; color:var(--tone); margin:.6em 0 .4em;}
+        details.admonition > summary {cursor:pointer;} details.admonition:not([open]) > summary {margin-bottom:.6em;}
+        .admonition:is(.tip,.hint,.success,.check,.done,.important) {--tone:#00a86b;}
+        .admonition:is(.question,.help,.faq) {--tone:#14a3b8;}
+        .admonition:is(.warning,.caution,.attention) {--tone:#e68a00;}
+        .admonition:is(.danger,.error,.failure,.fail,.missing,.bug) {--tone:#e5484d;}
+        .admonition:is(.example) {--tone:#7c4dff;} .admonition:is(.quote,.cite) {--tone:#8a8a8a;}
+        .footnote-ref {line-height:0;} .footnote-ref a, .footnote-back {text-decoration:none;}
+        .footnotes {font-size:.9em; color:\#(dark ? "#bbb" : "#555");} .footnotes li {scroll-margin-top:32px;}
         </style><script>\#(ScienceMathHTML.scripts)
         \#(scripts)</script></head><body><main id="document"></main><script>
         const source = \#(MathPresentation.json(prepared));
@@ -128,13 +145,20 @@ enum MarkdownPreviewHTML {
             for (const r of replacements) { if (r.offset >= offset) break; delta += r.length-r.token.length; }
             return offset+delta;
         }
-        const tokens=marked.lexer(source,{gfm:true}); let offset=0;
+        // Without options marked uses its defaults (GFM), which carry Terso's extensions.
+        const purify={FORBID_TAGS:['style','form','iframe','object','embed'], FORBID_ATTR:['style']};
+        const tokens=marked.lexer(source); let offset=0; const notes=new Map();
         for (const token of tokens) {
             const section=document.createElement('section'); section.dataset.source=sourceOffset(offset);
+            if (token.type==='footnoteDefinition' && !notes.has(token.id)) notes.set(token.id, section.dataset.source);
             const group=[token]; group.links=tokens.links;
-            section.innerHTML=DOMPurify.sanitize(marked.parser(group,{gfm:true}), {FORBID_TAGS:['style','form','iframe','object','embed'], FORBID_ATTR:['style']});
-            root.append(section); offset+=token.raw.length;
+            section.innerHTML=DOMPurify.sanitize(marked.parser(group), purify);
+            if (section.innerHTML) root.append(section);
+            offset+=token.raw.length;
         }
+        const footnotes=document.createElement('section'); footnotes.className='footnotes';
+        footnotes.innerHTML=DOMPurify.sanitize(TersoMarkdown.footnotes(marked, tokens.links, notes), purify);
+        if (footnotes.innerHTML) root.append(footnotes);
         root.querySelectorAll('img').forEach(img => {
             const path=img.getAttribute('src') || '';
             if (!/^(?:[a-z]+:|\/\/|\/)/i.test(path)) img.src='terso-image://document/'+path;

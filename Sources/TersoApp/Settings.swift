@@ -89,13 +89,17 @@ final class Preferences {
         columnWidth = d.object(forKey: "columnWidth") as? Double ?? 720
         syntax = SyntaxVisibility(rawValue: d.string(forKey: "syntax") ?? "") ?? .subdued
         // Groups added after the first release of these choices are turned on
-        // once for people who had already saved a selection.
+        // once for people who had already saved a selection. Builds before
+        // "mixedGroupsOffered" recorded only that the first six had been.
         var mixed = Set((d.array(forKey: "mixedRendered") as? [String])?.compactMap(MixedElement.init(rawValue:))
                         ?? MixedElement.defaults)
-        if !d.bool(forKey: "mixedGroupsAdded") {
-            mixed.formUnion(MixedElement.addedLater)
+        let offered = Set(d.stringArray(forKey: "mixedGroupsOffered")
+                          ?? (d.bool(forKey: "mixedGroupsAdded") ? ["code", "blocks", "tables", "footnotes", "citations", "comments"] : []))
+        let unoffered = MixedElement.addedLater.filter { !offered.contains($0.rawValue) }
+        if !unoffered.isEmpty {
+            mixed.formUnion(unoffered)
             d.set(mixed.map(\.rawValue), forKey: "mixedRendered")
-            d.set(true, forKey: "mixedGroupsAdded")
+            d.set(MixedElement.addedLater.map(\.rawValue), forKey: "mixedGroupsOffered")
         }
         mixedRendered = mixed
         // Earlier builds stored only system/light/dark under "appearance".
