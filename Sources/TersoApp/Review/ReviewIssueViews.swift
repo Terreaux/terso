@@ -226,23 +226,37 @@ struct FindingOrSuggestion: View {
 
 /// A local finding: what, why, and Explain / Suggest Rewrite / Ignore.
 struct FindingDetail: View {
-    @State private var occurrenceIndex = 0
+    @State private var occurrenceIndex: Int
     let finding: TextAnnotation
     let model: WorkspaceModel
+    /// The popover at the text: no excerpt (the text is right there), the
+    /// occurrence stepper in the title row, Open in Review among the actions.
+    let compact: Bool
+    let openInReview: (() -> Void)?
+
+    init(finding: TextAnnotation, model: WorkspaceModel, compact: Bool = false, occurrence: Int = 0, openInReview: (() -> Void)? = nil) {
+        self.finding = finding
+        self.model = model
+        self.compact = compact
+        self.openInReview = openInReview
+        _occurrenceIndex = State(initialValue: occurrence)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
-            Text("“\(excerpt(finding, in: model, limit: 300))”")
-                .font(.system(size: 13, design: .serif)).italic()
-                .fixedSize(horizontal: false, vertical: true)
+            if !compact {
+                Text("“\(excerpt(finding.ranges.indices.contains(occurrenceIndex) ? finding.ranges[occurrenceIndex] : finding.ranges.first, in: model, limit: 300))”")
+                    .font(.system(size: 13, design: .serif)).italic()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let why = finding.explanation {
                 Text(why).font(ReviewType.body).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             if let c = finding.consider {
                 Text("Consider: \(c)").font(ReviewType.body).fixedSize(horizontal: false, vertical: true)
             }
-            if finding.ranges.count > 1 {
+            if finding.ranges.count > 1 && !compact {
                 HStack {
                     Button("Previous location") { navigateOccurrence(-1) }
                     Text("\(occurrenceIndex + 1) of \(finding.ranges.count)").monospacedDigit()
@@ -273,9 +287,31 @@ struct FindingDetail: View {
             HStack(spacing: 6) {
                 FamilyGlyph(family: finding.category.family)
                 Text(finding.message).font(ReviewType.findingTitleSelected)
+                if compact && finding.ranges.count > 1 {
+                    Spacer(minLength: 8)
+                    occurrenceStepper
+                }
             }
-            Text("\(finding.categoryLabel) · \(model.provenance(finding))").font(ReviewType.meta).foregroundStyle(.tertiary)
+            // Local provenance is the default; say it only where it adds something.
+            Text(compact && finding.source != .aiSuggestion && finding.source != .spelling
+                 ? finding.categoryLabel : "\(finding.categoryLabel) · \(model.provenance(finding))")
+                .font(ReviewType.meta).foregroundStyle(.tertiary)
         }
+    }
+
+    private var occurrenceStepper: some View {
+        HStack(spacing: 2) {
+            Button { navigateOccurrence(-1) } label: { Image(systemName: "chevron.left") }
+                .accessibilityLabel("Previous location")
+            Text("\(occurrenceIndex + 1) of \(finding.ranges.count)").monospacedDigit().foregroundStyle(.secondary)
+            Button { navigateOccurrence(1) } label: { Image(systemName: "chevron.right") }
+                .accessibilityLabel("Next location")
+        }
+        .buttonStyle(.borderless)
+        .font(ReviewType.meta)
+        .fixedSize()
+        .disabled(finding.revision != model.revision)
+        .help("Step through every place this finding applies")
     }
 
     @ViewBuilder private var aiStatus: some View {
@@ -319,8 +355,14 @@ struct FindingDetail: View {
                 }
             }
             Button("Ignore") { model.ignore(finding) }.help("Hide this finding")
+            if let openInReview {
+                Button(action: openInReview) { Image(systemName: "sidebar.right") }
+                    .buttonStyle(.borderless)
+                    .help("Open in Review")
+                    .accessibilityLabel("Open in Review")
+            }
         }
-        .controlSize(.regular)
+        .controlSize(compact ? .small : .regular)
         .disabled(model.request(for: finding)?.running == true)
     }
 }
