@@ -106,6 +106,11 @@ enum MarkdownStyler {
             return
         }
 
+        if c.latex {
+            styleLaTeX(storage, range: range, config: c, block: block)
+            return
+        }
+
         // Literal regions — metadata, fenced code, code spans, math — are
         // claimed first so no other rule reaches inside them.
         var literal: [NSRange] = []
@@ -221,6 +226,84 @@ enum MarkdownStyler {
         for r in fences {
             storage.addAttribute(.font, value: mono, range: r)
             storage.addAttribute(.foregroundColor, value: c.theme.secondary, range: r)
+        }
+        styleMath(storage, maths, range: range, config: c, block: block)
+    }
+
+    static let texCommand = re(#"\\(?:[A-Za-z@]+\*?|[^A-Za-z\s])"#, [])
+    static let texComment = re(#"(?<!\\)%.*$"#)
+    static let texBrace = re(#"(?<!\\)[{}]"#, [])
+    static let texEnvironment = re(#"\\(?:begin|end)\{[^}\n]*\}"#, [])
+    static let texEmphasis = re(#"\\(emph|textit|textsl)\{([^{}\n]*)\}"#, [])
+    static let texBold = re(#"\\textbf\{([^{}\n]*)\}"#, [])
+    static let texCode = re(#"\\(?:texttt|url|path)\{([^{}\n]*)\}"#, [])
+    static let texReference = re(#"\\(?:cite[pt]?|citeauthor|citeyear|ref|eqref|autoref|cref|Cref|pageref|label)\*?(?:\[[^\]\n]*\])*\{[^{}\n]*\}"#, [])
+
+    /// LaTeX source: sectioning set like headings, commands and braces receded
+    /// to syntax, emphasis shown, citations and labels quiet, comments and
+    /// verbatim environments set apart. The characters are never changed.
+    static func styleLaTeX(_ storage: NSTextStorage, range: NSRange, config c: EditorConfig, block: (NSRange, CGFloat) -> Void) {
+        let text = storage.string
+        let base = c.font.font(size: c.fontSize)
+        let mono = NSFont.monospacedSystemFont(ofSize: c.fontSize * codeScale, weight: .regular)
+        let syntax = syntaxColor(c)
+        func each(_ r: NSRegularExpression, in scope: NSRange = range, _ body: (NSTextCheckingResult) -> Void) {
+            r.enumerateMatches(in: text, range: scope) { m, _, _ in if let m { body(m) } }
+        }
+        func color(_ col: NSColor, _ r: NSRange) { storage.addAttribute(.foregroundColor, value: col, range: r) }
+
+        // Literal regions are found across the whole text, since an edit may
+        // fall in the middle of an environment that opened paragraphs earlier.
+        var literal: [NSRange] = []
+        func inLiteral(_ r: NSRange) -> Bool { literal.contains { NSIntersectionRange($0, r).length > 0 } }
+        for env in LaTeXSyntax.literalEnvironments(in: text) where LaTeXSyntax.codeEnvironments.contains(env.name) {
+            let r = NSIntersectionRange(env.range, range)
+            guard r.length > 0 else { continue }
+            literal.append(env.range)
+            storage.addAttributes([.font: mono, .foregroundColor: c.theme.secondary], range: r)
+        }
+        var comments: [NSRange] = []
+        each(texComment) { m in
+            guard !inLiteral(m.range) else { return }
+            comments.append(m.range)
+        }
+        literal += comments
+        let maths = MarkdownSyntax.mathRanges(in: text, range: range).filter { !inLiteral($0) }
+        literal += maths
+
+        each(texCommand) { m in if !inLiteral(m.range) { color(syntax, m.range) } }
+        each(texBrace) { m in if !inLiteral(m.range) { color(syntax, m.range) } }
+        each(texEnvironment) { m in if !inLiteral(m.range) { color(syntax, m.range) } }
+        each(texEmphasis) { m in
+            guard !inLiteral(m.range) else { return }
+            storage.addAttribute(.font, value: base.adding(.italic), range: m.range(at: 2))
+        }
+        each(texBold) { m in
+            guard !inLiteral(m.range) else { return }
+            storage.addAttribute(.font, value: base.adding(.bold), range: m.range(at: 1))
+        }
+        each(texCode) { m in
+            guard !inLiteral(m.range) else { return }
+            storage.addAttributes([.font: mono, .foregroundColor: c.theme.secondary], range: m.range(at: 1))
+        }
+        each(texReference) { m in
+            guard !inLiteral(m.range) else { return }
+            color(c.theme.tertiary, m.range)
+        }
+        // Sectioning: the title reads as a heading, its command recedes.
+        let sections = LaTeXSyntax.section.matches(in: text, range: range).filter { !inLiteral($0.range) }
+        // Levels depend on every sectioning command in the file, not only the edited span.
+        let all = LaTeXSyntax.section.matches(in: text, range: NSRange(location: 0, length: (text as NSString).length))
+        let levels = LaTeXSyntax.levels(for: Set(all.map { (text as NSString).substring(with: $0.range(at: 1)) }))
+        for m in sections {
+            let level = levels[(text as NSString).substring(with: m.range(at: 1))] ?? 1
+            storage.addAttribute(.font, value: headingFont(c, level: min(level, 6)), range: m.range)
+            color(c.theme.quaternary, m.range)
+            color(c.theme.label, m.range(at: 2))
+        }
+        each(LaTeXSyntax.item) { m in if !inLiteral(m.range) { color(syntax, m.range) } }
+        for r in comments {
+            storage.addAttributes([.foregroundColor: c.theme.quaternary, .font: base.adding(.italic)], range: r)
         }
         styleMath(storage, maths, range: range, config: c, block: block)
     }

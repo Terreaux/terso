@@ -20,6 +20,10 @@ Full Markdown preview sanitizes HTML and disables document scripts and network r
 
 Tectonic is discovered on PATH or in standard macOS package-manager locations. It is an optional runtime dependency, not copied into Terso. Compilation uses the unsaved text, the document directory for relative inputs, a temporary output directory, untrusted-input mode, and cached support files by default. Source files are not overwritten. If a font/package is absent from the cache, **Compile and fetch missing packages** explicitly retries with downloads enabled. Errors expose bounded compiler output; changing modes cancels compilation. A 45-second limit terminates stalled jobs.
 
+## LaTeX source
+
+`.tex` and `.latex` files (or unnamed text that opens with `\documentclass`) are read as LaTeX by the editor and every analyser. Sectioning commands (`\part` … `\subparagraph`) become outline headings, levelled by the commands the file actually uses. The preamble, anything after `\end{document}`, comments, and tabular, drawing, verbatim/listing and bibliography environments are excluded from prose; `\item` starts a list item. Markdown-only rules — `#` headings, tables, emphasis markers, front matter — do not apply. Mixed mode colours commands, braces and environments as syntax, sets section titles as headings, shows `\emph`/`\textbf`, and quiets citations, labels and comments.
+
 ## Validation
 
 Automated coverage exercises original UTF-16 ranges, active-line/multiline reveal, code/currency exclusions, macro isolation, glyph geometry, source preservation, undo across mode switches, Markdown tables and code, source links, HTML sanitization, and local vector snapshots. The opt-in `TERSO_TEST_TECTONIC=1 swift test` smoke test compiles unsaved TeX, then verifies the cached path. Native checks confirmed Mixed math and full Markdown preview in a separate test app.

@@ -37,7 +37,12 @@ public struct ProseText: Sendable {
 
     public func sentences(inBlock index: Int) -> [Sentence] { sentences.filter { $0.blockIndex == index } }
 
-    public init(markdown text: String) {
+    public init(markdown text: String) { self.init(text, format: .markdown) }
+    public init(latex text: String) { self.init(text, format: .latex) }
+    /// Prose for a snapshot, read as LaTeX or Markdown according to its name.
+    public init(_ snapshot: DocumentSnapshot) { self.init(snapshot.text, format: snapshot.format) }
+
+    public init(_ text: String, format: SourceFormat) {
         original = text
         let ns = text as NSString
         var units = Array(text.utf16)
@@ -56,57 +61,86 @@ public struct ProseText: Sendable {
         }
 
         // Front matter.
-        if let r = MarkdownSyntax.frontMatter(in: text) { blank(r) }
+        if format == .markdown, let r = MarkdownSyntax.frontMatter(in: text) { blank(r) }
         // One structural scan gives code precedence over LaTeX and preserves
         // all UTF-16 offsets for rules, statistics, and spelling.
         let syntax = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text))
         syntax.regions.filter { $0.kind != .prose }.forEach { blank($0.range.nsRange) }
-        codeBlockCount = syntax.regions.filter {
+        let fencedCode = syntax.regions.filter {
             let raw = $0.rawText.trimmingCharacters(in: .whitespaces)
             return $0.kind == .code && (raw.hasPrefix("```") || raw.hasPrefix("~~~")) && raw.contains("\n")
         }.count
-        // Headings (recorded for the outline, removed from prose).
         var hs: [Heading] = []
-        for m in matches(#"^(#{1,6})[ \t]+(.*?)[ \t#]*$"#) {
-            let r = m.range
-            if units[r.location] != UInt16(UInt8(ascii: "#")) { continue } // already masked (inside code)
-            hs.append(Heading(level: m.range(at: 1).length, title: ns.substring(with: m.range(at: 2)), range: TextSpan(r)))
-            blank(r)
+        var blockStarts: [(Int, Block.Kind)] = []
+        if format == .latex {
+            // The preamble, anything after \end{document}, and environments
+            // holding tables, drawings, code or references are not prose.
+            if let r = LaTeXSyntax.preamble(in: text) { blank(r) }
+            if let r = LaTeXSyntax.trailer(in: text) { blank(r) }
+            let environments = LaTeXSyntax.literalEnvironments(in: text)
+            environments.forEach { blank($0.range) }
+            codeBlockCount = fencedCode + environments.filter { LaTeXSyntax.codeEnvironments.contains($0.name) }.count
+            // Sectioning commands are headings unless commented out or inside
+            // code, which the structural scan has already classified.
+            let hidden = syntax.regions.filter { $0.kind == .comment || $0.kind == .code }.map(\.range.nsRange)
+                + (LaTeXSyntax.preamble(in: text).map { [$0] } ?? []) + environments.map(\.range)
+            let sections = LaTeXSyntax.section.matches(in: text, range: NSRange(location: 0, length: ns.length))
+                .filter { m in !hidden.contains { NSLocationInRange(m.range.location, $0) } }
+            let levels = LaTeXSyntax.levels(for: Set(sections.map { ns.substring(with: $0.range(at: 1)) }))
+            for m in sections {
+                let title = LaTeXSyntax.plainTitle(ns.substring(with: m.range(at: 2)))
+                hs.append(Heading(level: levels[ns.substring(with: m.range(at: 1))] ?? 1, title: title, range: TextSpan(m.range)))
+                blank(m.range)
+            }
+            // \item opens a list item; its marker is already masked as a command.
+            for m in LaTeXSyntax.item.matches(in: text, range: NSRange(location: 0, length: ns.length))
+                where !hidden.contains(where: { NSLocationInRange(m.range.location, $0) }) {
+                blank(m.range)
+                blockStarts.append((m.range.location, .listItem))
+            }
+        } else {
+            codeBlockCount = fencedCode
+            // Headings (recorded for the outline, removed from prose).
+            for m in matches(#"^(#{1,6})[ \t]+(.*?)[ \t#]*$"#) {
+                let r = m.range
+                if units[r.location] != UInt16(UInt8(ascii: "#")) { continue } // already masked (inside code)
+                hs.append(Heading(level: m.range(at: 1).length, title: ns.substring(with: m.range(at: 2)), range: TextSpan(r)))
+                blank(r)
+            }
+            // Setext underlines, horizontal rules, tables, HTML, images, URLs.
+            matches(#"^[ \t]*(?:[-*_][ \t]*){3,}$"#).forEach { blank($0.range) }
+            matches(#"^[ \t]*=+[ \t]*$"#).forEach { blank($0.range) }
+            matches(#"^[ \t]*\|.*$"#).forEach { blank($0.range) }
+            matches(#"!\[[^\]\n]*\]\([^)\n]*\)"#, []).forEach { blank($0.range) }
+            matches(#"<[A-Za-z/!][^>\n]*>"#, []).forEach { blank($0.range) }
+            // Links: keep the link text, drop the brackets and target.
+            for m in matches(#"\[([^\]\n]+)\]\(([^)\n]*)\)"#, []) {
+                let inner = m.range(at: 1)
+                blank(NSRange(location: m.range.location, length: 1))
+                blank(NSRange(location: inner.upperBound, length: m.range.upperBound - inner.upperBound))
+            }
+            matches(#"https?://[^\s)>\]]+"#, []).forEach { blank($0.range) }
+            matches(#"`[^`\n]+`"#, []).forEach { blank($0.range) }
+            // Emphasis markers adjacent to text.
+            matches(#"(?<![\p{L}\p{N}\\])(\*{1,3}|_{1,3}|~~)(?=\S)"#, []).forEach { blank($0.range(at: 1)) }
+            matches(#"(?<=\S)(\*{1,3}|_{1,3}|~~)(?![\p{L}\p{N}])"#, []).forEach { blank($0.range(at: 1)) }
+
+            // Block markers: record list items and quotes, then blank the markers.
+            for m in matches(#"^([ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+)(?:\[[ xX]\][ \t]+)?"#) {
+                blank(m.range)
+                blockStarts.append((m.range.location, .listItem))
+            }
+            for m in matches(#"^[ \t]*(?:>[ \t]?)+"#) {
+                blank(m.range)
+                blockStarts.append((m.range.location, .quote))
+            }
+
         }
         headings = hs
-        // Setext underlines, horizontal rules, tables, HTML, images, URLs.
-        matches(#"^[ \t]*(?:[-*_][ \t]*){3,}$"#).forEach { blank($0.range) }
-        matches(#"^[ \t]*=+[ \t]*$"#).forEach { blank($0.range) }
-        matches(#"^[ \t]*\|.*$"#).forEach { blank($0.range) }
-        matches(#"!\[[^\]\n]*\]\([^)\n]*\)"#, []).forEach { blank($0.range) }
-        matches(#"<[A-Za-z/!][^>\n]*>"#, []).forEach { blank($0.range) }
-        // Links: keep the link text, drop the brackets and target.
-        for m in matches(#"\[([^\]\n]+)\]\(([^)\n]*)\)"#, []) {
-            let inner = m.range(at: 1)
-            blank(NSRange(location: m.range.location, length: 1))
-            blank(NSRange(location: inner.upperBound, length: m.range.upperBound - inner.upperBound))
-        }
-        matches(#"https?://[^\s)>\]]+"#, []).forEach { blank($0.range) }
-        matches(#"`[^`\n]+`"#, []).forEach { blank($0.range) }
-        // Emphasis markers adjacent to text.
-        matches(#"(?<![\p{L}\p{N}\\])(\*{1,3}|_{1,3}|~~)(?=\S)"#, []).forEach { blank($0.range(at: 1)) }
-        matches(#"(?<=\S)(\*{1,3}|_{1,3}|~~)(?![\p{L}\p{N}])"#, []).forEach { blank($0.range(at: 1)) }
-
-        // Block markers: record list items and quotes, then blank the markers.
-        var blockStarts: [(Int, Block.Kind)] = []
-        for m in matches(#"^([ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+)(?:\[[ xX]\][ \t]+)?"#) {
-            blank(m.range)
-            blockStarts.append((m.range.location, .listItem))
-        }
-        for m in matches(#"^[ \t]*(?:>[ \t]?)+"#) {
-            blank(m.range)
-            blockStarts.append((m.range.location, .quote))
-        }
 
         let maskedText = String(utf16CodeUnits: units, count: units.count)
         masked = maskedText
         let mns = maskedText as NSString
-
         // Split into blocks: blank lines end a block; a list item or quote line starts one.
         let startKinds = Dictionary(blockStarts.map { ($0.0, $0.1) }, uniquingKeysWith: { a, _ in a })
         var blocks: [Block] = []

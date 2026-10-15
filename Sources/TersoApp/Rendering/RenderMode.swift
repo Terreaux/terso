@@ -7,8 +7,7 @@ enum RenderMode: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     static func isLaTeX(source: String, fileURL: URL?) -> Bool {
-        if let fileURL { return ["tex", "latex"].contains(fileURL.pathExtension.lowercased()) }
-        return source.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("\\documentclass")
+        SourceFormat.detect(text: source, fileName: fileURL?.lastPathComponent) == .latex
     }
 }
 

@@ -131,7 +131,8 @@ public struct ScientificDocumentModel: Sendable, Codable {
         let clean = String(utf16CodeUnits: source, count: source.count)
         let cleanNS = clean as NSString
         var headings = prose.headings.map { ($0.range.location, $0.title) }
-        for m in SciencePattern.matches(#"\\(?:section|subsection|subsubsection|chapter)\*?\{([^{}]+)\}|\\begin\{(abstract)\}"#, clean) {
+        let known = Set(headings.map(\.0))
+        for m in SciencePattern.matches(#"\\(?:section|subsection|subsubsection|chapter)\*?\{([^{}]+)\}|\\begin\{(abstract)\}"#, clean) where !known.contains(m.range.location) {
             let r = m.range(at: m.range(at: 1).location == NSNotFound ? 2 : 1)
             headings.append((m.range.location, cleanNS.substring(with: r)))
         }

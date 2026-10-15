@@ -170,7 +170,7 @@ final class WorkspaceModel {
             // Analysis runs off the main actor on an immutable snapshot.
             let work = Task.detached(priority: .utility) {
                 try Task.checkCancellation()
-                let prose = ProseText(markdown: snap.text)
+                let prose = ProseText(snap)
                 try Task.checkCancellation()
                 let local = WritingAnalyzer(profile: scienceProfile).analyze(snap)
                 try Task.checkCancellation()
@@ -414,7 +414,7 @@ final class WorkspaceModel {
     func sentenceRange(for a: TextAnnotation) -> TextSpan? {
         guard let r = a.ranges.first, let snap = editor?.currentSnapshot else { return nil }
         if AnnotationLayout.isBlockLevel(a) { return r }
-        let prose = ProseText(markdown: snap.text)
+        let prose = ProseText(snap)
         let covering = prose.sentences.filter { $0.range.intersects(r) }
         guard let first = covering.first, let last = covering.last else { return r }
         return TextSpan(location: first.range.location, length: last.range.upperBound - first.range.location)
