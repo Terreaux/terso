@@ -292,29 +292,42 @@ struct FindingDetail: View {
         .onChange(of: finding.id) { occurrenceIndex = 0 }
     }
 
-    /// Spelling and grammar fixes as buttons: one click replaces this occurrence.
+    /// Spelling and grammar fixes as one-click chips. The best one reads as
+    /// the change itself (~~recieve~~ → receive); the rest are just words.
     private var corrections: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                ForEach(Array(finding.corrections.prefix(3).enumerated()), id: \.offset) { i, word in
-                    Button(word) { applyCorrection(word) }
-                        .buttonStyle(.bordered)
-                        .tint(i == 0 ? .accentColor : nil)
-                        .lineLimit(1)
-                        .help("Replace with “\(word)”")
+        let all = finding.corrections
+        return VStack(alignment: .leading, spacing: 6) {
+            if let best = all.first {
+                Button { applyCorrection(best) } label: {
+                    CorrectionChange(original: finding.flaggedText, replacement: best)
                 }
-                if finding.corrections.count > 3 {
-                    Menu("More") {
-                        ForEach(finding.corrections.dropFirst(3), id: \.self) { word in
-                            Button(word) { applyCorrection(word) }
-                        }
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .help("Replace with “\(best)”")
+                .accessibilityLabel("Replace \(finding.flaggedText ?? "") with \(best)")
+                .disabled(finding.revision != model.revision)
             }
-            .controlSize(compact ? .small : .regular)
-            .disabled(finding.revision != model.revision)
+            if all.count > 1 {
+                HStack(spacing: 6) {
+                    ForEach(all.dropFirst().prefix(3), id: \.self) { word in
+                        Button(word) { applyCorrection(word) }
+                            .buttonStyle(.bordered)
+                            .lineLimit(1)
+                            .help("Replace with “\(word)”")
+                    }
+                    if all.count > 4 {
+                        Menu("More") {
+                            ForEach(all.dropFirst(4), id: \.self) { word in
+                                Button(word) { applyCorrection(word) }
+                            }
+                        }
+                        .menuStyle(.borderlessButton)
+                        .fixedSize()
+                    }
+                }
+                .controlSize(compact ? .small : .regular)
+                .disabled(finding.revision != model.revision)
+            }
             if let correctionError {
                 Text(correctionError).font(ReviewType.meta).foregroundStyle(.red)
             }
@@ -390,11 +403,18 @@ struct FindingDetail: View {
         let hasSuggestion = !model.pendingSuggestions(for: finding).isEmpty
         return HStack {
             if model.prefs.aiEnabled {
-                Button("Explain") { model.explain(finding) }
-                    .help("Ask the assistant why this was flagged. Sends only this sentence.")
+                // A spelling or grammar slip needs no explaining, only fixing.
+                if finding.source != .spelling {
+                    Button("Explain") { model.explain(finding) }
+                        .help("Ask the assistant why this was flagged. Sends only this sentence.")
+                }
                 if !hasSuggestion {
-                    Button("Suggest Rewrite") { model.suggestRewrite(finding) }
-                        .help("Ask for a revision you can accept or reject. Sends only this sentence.")
+                    Button { model.suggestRewrite(finding) } label: {
+                        Label("Suggest Rewrite", systemImage: "sparkles")
+                    }
+                    .help(finding.source == .spelling
+                          ? "Ask for a corrected version of this sentence you can accept or reject. Sends only this sentence."
+                          : "Ask for a revision you can accept or reject. Sends only this sentence.")
                 }
             }
             Spacer()
@@ -415,6 +435,25 @@ struct FindingDetail: View {
         }
         .controlSize(compact ? .small : .regular)
         .disabled(model.request(for: finding)?.running == true)
+    }
+}
+
+/// The best spelling or grammar fix shown as the change it makes:
+/// the flagged text struck through, then its replacement.
+struct CorrectionChange: View {
+    let original: String?
+    let replacement: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let original, !original.isEmpty {
+                Text(original).strikethrough().opacity(0.7).lineLimit(1)
+                Image(systemName: "arrow.right").font(.caption.weight(.semibold)).opacity(0.7)
+                    .accessibilityHidden(true)
+            }
+            Text(replacement).fontWeight(.semibold).lineLimit(1)
+        }
+        .truncationMode(.middle)
     }
 }
 
