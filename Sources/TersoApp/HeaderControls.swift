@@ -166,7 +166,7 @@ struct ViewControls: View {
             if model.renderMode == .mixed { mixedSection }
             Picker("Writing", selection: Binding(get: { model.writingMode }, set: { model.setWritingMode($0) })) {
                 ForEach(WritingMode.allCases) { mode in
-                    Text(mode.title).tag(mode).disabled(mode.followsCaret && !caretModesAvailable)
+                    Text(mode.title).tag(mode).disabled(mode.shapesEditor && !caretModesAvailable)
                 }
             }.pickerStyle(.inline)
         } label: { Image(systemName: "eye") }
@@ -198,7 +198,7 @@ struct ViewControls: View {
                 .accessibilityLabel("Mixed rendering options")
             HStack(spacing: 2) {
                 ForEach(WritingMode.allCases) { mode in
-                    let unavailable = mode.followsCaret && !caretModesAvailable
+                    let unavailable = mode.shapesEditor && !caretModesAvailable
                     HeaderToggle(isOn: model.writingMode == mode,
                                  help: unavailable ? "\(mode.title) needs an editable view" : mode.help) {
                         model.setWritingMode(mode)

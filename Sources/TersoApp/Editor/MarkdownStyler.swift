@@ -40,7 +40,57 @@ enum MarkdownStyler {
         // lineSpacing (not lineHeightMultiple) keeps highlight backgrounds aligned with glyphs.
         p.lineSpacing = c.fontSize * max(0, c.lineSpacing - 1)
         p.paragraphSpacing = c.fontSize * 0.8
+        // A book page: justified and hyphenated, with no space between paragraphs.
+        if c.book {
+            p.alignment = .justified
+            p.hyphenationFactor = 0.9
+            p.paragraphSpacing = 0
+        }
         return p
+    }
+
+    /// Manutius sets paragraphs as print does: the blank line between them
+    /// closes up, prose that follows prose is indented, the first paragraph
+    /// after a heading or block is flush, and headings get room above.
+    static func styleBook(_ storage: NSTextStorage, range: NSRange, config c: EditorConfig) {
+        let ns = storage.string as NSString
+        let blank = NSMutableParagraphStyle()
+        blank.minimumLineHeight = 2
+        blank.maximumLineHeight = 2
+        let indented = paragraphStyle(c).mutableCopy() as! NSMutableParagraphStyle
+        indented.firstLineHeadIndent = c.fontSize * 1.2
+        let heading = NSMutableParagraphStyle()
+        heading.paragraphSpacingBefore = c.fontSize * 1.4
+        heading.paragraphSpacing = c.fontSize * 0.5
+        let block = NSMutableParagraphStyle()
+        block.lineSpacing = paragraphStyle(c).lineSpacing
+        func isProse(_ line: String) -> Bool {
+            let trimmed = line.drop { $0 == " " || $0 == "\t" }
+            guard let first = trimmed.first else { return false }
+            if "#>|-*+`$![<".contains(first) { return false }
+            return trimmed.range(of: #"^\d{1,3}[.)]\s"#, options: .regularExpression) == nil
+        }
+        /// The nearest non-blank paragraph before `location`, if it is prose.
+        func followsProse(_ location: Int) -> Bool {
+            var cursor = location
+            while cursor > 0 {
+                let previous = ns.paragraphRange(for: NSRange(location: cursor - 1, length: 0))
+                let text = ns.substring(with: previous).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !text.isEmpty { return isProse(text) }
+                cursor = previous.location
+            }
+            return false
+        }
+        ns.enumerateSubstrings(in: ns.paragraphRange(for: range), options: .byParagraphs) { line, inner, enclosing, _ in
+            let target = NSIntersectionRange(enclosing, range)
+            guard target.length > 0, let line else { return }
+            let style: NSParagraphStyle
+            if inner.length == 0 || line.trimmingCharacters(in: .whitespaces).isEmpty { style = blank }
+            else if line.hasPrefix("#") { style = heading }
+            else if isProse(line) { style = followsProse(enclosing.location) ? indented : paragraphStyle(c) }
+            else { style = block }
+            storage.addAttribute(.paragraphStyle, value: style, range: target)
+        }
     }
 
     /// Metadata, tables and display math read as compact blocks: no gap
@@ -85,6 +135,7 @@ enum MarkdownStyler {
         let mono = NSFont.monospacedSystemFont(ofSize: c.fontSize * codeScale, weight: .regular)
         let syntax = syntaxColor(c)
         storage.setAttributes(baseAttributes(c), range: range)
+        if c.book { styleBook(storage, range: range, config: c) }
         if c.renderMode == .source {
             storage.addAttribute(.font, value: NSFont.monospacedSystemFont(ofSize: c.fontSize, weight: .regular), range: range)
             return
