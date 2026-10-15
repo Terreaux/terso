@@ -6,10 +6,21 @@ struct DocumentTabsView: View {
     @Bindable var workspace: TabWorkspace
 
     var body: some View {
-        if workspace.documents.isEmpty {
-            WorkspaceStartView(workspace: workspace)
-        } else {
-            tabbedEditor
+        Group {
+            if workspace.documents.isEmpty {
+                WorkspaceStartView(workspace: workspace)
+            } else {
+                tabbedEditor
+            }
+        }
+        .overlay {
+            // Only the front window greets, so restored windows don't each show one.
+            if let quote = DocumentTabs.shared.launchQuote, DocumentTabs.shared.activeWorkspace === workspace {
+                LaunchQuoteView(quote: quote) {
+                    withAnimation(.easeOut(duration: 0.4)) { DocumentTabs.shared.launchQuote = nil }
+                }
+                .transition(.opacity)
+            }
         }
         .overlay(alignment: .bottomTrailing) {
             if DocumentTabs.shared.activeWorkspace === workspace, let award = WritingStats.shared.latestAward {

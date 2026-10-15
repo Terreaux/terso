@@ -12,6 +12,8 @@ final class DocumentTabs {
     private var recoveryTask: Task<Void, Never>?
     private var restoring = false
     var isRunning = false
+    /// Shown over the front window at launch, then cleared.
+    var launchQuote: WritingQuote?
     private let recoveryURL: URL
 
     init(recoveryURL: URL = URL.applicationSupportDirectory.appendingPathComponent("Terso/DocumentTabs.json")) {
@@ -287,6 +289,7 @@ final class TersoAppDelegate: NSObject, NSApplicationDelegate {
         DocumentTabs.shared.isRunning = true
         DocumentTabs.shared.restore()
         if DocumentTabs.shared.workspaces.isEmpty { DocumentTabs.shared.showStartWindow() }
+        if Preferences.shared.greetWithQuote { DocumentTabs.shared.launchQuote = WritingQuote.next() }
         NSApp.activate(ignoringOtherApps: true)
     }
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }

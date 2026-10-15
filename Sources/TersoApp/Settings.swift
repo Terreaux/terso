@@ -65,6 +65,8 @@ final class Preferences {
     var typewriterInFocusMode: Bool { didSet { d.set(typewriterInFocusMode, forKey: "typewriterInFocus") } }
     var showDocumentMap: Bool { didSet { d.set(showDocumentMap, forKey: "documentMap") } }
     var smartQuotes: Bool { didSet { d.set(smartQuotes, forKey: "smartQuotes") } }
+    /// Opt-in: a quote about writing greets the writer when Terso launches.
+    var greetWithQuote: Bool { didSet { d.set(greetWithQuote, forKey: "greetWithQuote") } }
     var domain: WritingDomain { didSet { d.set(domain.rawValue, forKey: "domain") } }
     var enabledLayers: Set<AnnotationCategory> { didSet { d.set(enabledLayers.map(\.rawValue), forKey: "layers") } }
 
@@ -98,6 +100,7 @@ final class Preferences {
         let layers = (d.array(forKey: "layers") as? [String])?.compactMap(AnnotationCategory.init(rawValue:))
         enabledLayers = Set(layers ?? [.readability, .complexity, .passiveVoice, .style, .repetition, .specificity, .spelling,
                                      .filler, .adverbs, .loosePronouns, .misused, .lexicalIllusions, .rhythm, .aiSuggestion, .notation, .quantities, .references, .claims, .evidence])
+        greetWithQuote = d.bool(forKey: "greetWithQuote")
         aiEnabled = d.bool(forKey: "aiEnabled")
         defaultScope = ContextScope(rawValue: d.string(forKey: "defaultScope") ?? "") ?? .selection
         dataAccess = AIDataAccess(rawValue: d.string(forKey: "dataAccess") ?? "") ?? .upToSection
