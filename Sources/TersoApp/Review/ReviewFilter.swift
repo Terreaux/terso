@@ -6,7 +6,7 @@ import TersoCore
 /// Toggling a layer changes only what is shown, never the text.
 struct ReviewFilter: View {
     let model: WorkspaceModel
-    static let writing: [AnnotationCategory] = [
+    nonisolated static let writing: [AnnotationCategory] = [
         .filler, .adverbs, .passiveVoice, .loosePronouns, .misused, .repetition, .lexicalIllusions,
         .readability, .complexity, .rhythm, .specificity,
     ]
