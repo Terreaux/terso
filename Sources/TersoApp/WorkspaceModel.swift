@@ -21,6 +21,8 @@ protocol EditorController: TextMutationTarget {
 
 enum InspectorTab: String, CaseIterable, Identifiable {
     case review = "Review", ai = "Assistant", science = "Science", statistics = "Statistics"
+    /// The book's design: only while Manutius sets the document as pages.
+    case book = "Book"
     var id: String { rawValue }
 }
 
@@ -131,6 +133,12 @@ final class WorkspaceModel {
     var bookOutline = BookOutline()
     /// The sheet that edits the book's title page, dedication and the rest.
     var showBookDetails = false
+
+    /// The book's design lives in the inspector, beside Review.
+    func showBookDesign() {
+        inspectorTab = .book
+        showInspector = true
+    }
     /// Zen: Focus plus no tab bar, full screen, nothing on screen but the text.
     private(set) var zenMode = false
     @ObservationIgnored private var zenEnteredFullScreen = false

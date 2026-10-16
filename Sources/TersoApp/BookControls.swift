@@ -2,52 +2,16 @@
 import AppKit
 import SwiftUI
 
-/// Manutius's book options, after manutius.app: shown only while Manutius
-/// sets the document, as one header menu, or a section of the View menu
-/// when the header is narrow.
-struct BookOptions: View {
-    @Bindable var model: WorkspaceModel
-
-    var body: some View {
-        Button("Whole Book…") { model.showBookOverview = true }
-        Picker("Trim Size", selection: design(\.trim)) {
-            ForEach(BookTrim.allCases) { Text($0.title).tag($0) }
-        }
-        Picker("Chapters Start On", selection: design(\.openers)) {
-            ForEach(ChapterOpener.allCases) { Text($0.title).tag($0) }
-        }
-        Picker("Chapter Headings", selection: design(\.headings)) {
-            ForEach(ChapterHeadingStyle.allCases) { Text($0.title).tag($0) }
-        }
-        Toggle("Drop Caps", isOn: design(\.dropCaps))
-        Toggle("Small Caps After Headings", isOn: design(\.smallCapsOpening))
-        Picker("Scene Breaks", selection: design(\.sceneBreak)) {
-            ForEach(SceneBreak.allCases) { Text($0.title).tag($0) }
-        }
-        Picker("Running Heads", selection: design(\.runningHeads)) {
-            ForEach(RunningHeads.allCases) { Text($0.title).tag($0) }
-        }
-        Picker("Page Numbers", selection: design(\.folios)) {
-            ForEach(FolioPosition.allCases) { Text($0.title).tag($0) }
-        }
-        Toggle("Large Print", isOn: design(\.largePrint))
-        Toggle("Facing Pages", isOn: design(\.facingPages))
-    }
-
-    private func design<T>(_ path: WritableKeyPath<BookDesign, T>) -> Binding<T> {
-        Binding(get: { model.prefs.bookDesign[keyPath: path] }, set: { model.prefs.bookDesign[keyPath: path] = $0 })
-    }
-}
-
-/// The header's book menu and whole-book button.
+/// The header's book buttons: the design, which opens the inspector's Book
+/// tab, and the whole book.
 struct BookControls: View {
     @Bindable var model: WorkspaceModel
 
     var body: some View {
         HStack(spacing: 2) {
-            Menu { BookOptions(model: model) } label: { Image(systemName: "textformat.size") }
-                .menuIndicator(.hidden).fixedSize()
-                .help("Book design: trim, chapters, drop caps, ornaments, running heads")
+            HeaderToggle(isOn: model.showInspector && model.inspectorTab == .book, help: "Book design: type, page, chapters, front and back matter") {
+                if model.showInspector && model.inspectorTab == .book { model.showInspector = false } else { model.showBookDesign() }
+            } label: { Image(systemName: "textformat.size") }
                 .accessibilityLabel("Book design")
             HeaderToggle(isOn: model.showBookOverview, help: "Whole book: every page as spreads (⇧⌘B)") {
                 model.showBookOverview = true

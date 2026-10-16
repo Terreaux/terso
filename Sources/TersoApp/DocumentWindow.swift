@@ -13,21 +13,14 @@ struct DocumentWindow: View {
         // avoids NavigationSplitView installing another title-bar toggle in
         // the retained document's hosting view.
         HSplitView {
-            // Manutius trades the sidebars for the book's: its chapters on
-            // the left, its design on the right.
             if model.showSidebar && !model.focusMode {
-                Group {
-                    if model.manutius { BookSidebar(model: model) } else { SidebarView(model: model, fileURL: fileURL) }
-                }
-                .frame(minWidth: 180, idealWidth: 230, maxWidth: 320)
+                SidebarView(model: model, fileURL: fileURL)
+                    .frame(minWidth: 180, idealWidth: 220, maxWidth: 320)
             }
             editor
                 .inspector(isPresented: $model.showInspector) {
-                    if model.manutius {
-                        BookInspector(model: model).inspectorColumnWidth(min: 260, ideal: 300, max: 420)
-                    } else {
-                        InspectorView(model: model).inspectorColumnWidth(min: 300, ideal: 380, max: 560)
-                    }
+                    InspectorView(model: model)
+                        .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
                 }
         }
         .toolbar(.hidden, for: .windowToolbar)

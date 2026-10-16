@@ -164,7 +164,10 @@ struct ViewControls: View {
                 ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.inline)
             if model.renderMode == .mixed { mixedSection }
-            if model.writingMode == .manutius { Menu("Book") { BookOptions(model: model) } }
+            if model.writingMode == .manutius {
+                Button("Book Design…") { model.showBookDesign() }
+                Button("Whole Book…") { model.showBookOverview = true }
+            }
             Picker("Writing", selection: Binding(get: { model.writingMode }, set: { model.setWritingMode($0) })) {
                 ForEach(WritingMode.allCases) { mode in
                     Text(mode.title).tag(mode).disabled(mode.shapesEditor && !caretModesAvailable)
