@@ -426,6 +426,15 @@ struct LaTeXBookSummary: View {
                 } else if let error = book.compiler.error {
                     Text(error).font(.caption).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
                 }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Set Up as Book gives it Manutius's design instead: one \\usepackage line in the preamble and terso-book.sty beside the file. Anything your preamble already sets stays as it is.")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    Button("Set Up as Book") { model.setUpAsBook() }
+                        .help("Load terso-book in the preamble, so the Book tab's controls set this book")
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
                 Divider()
                 WordGoal(model: model)
                 HStack {

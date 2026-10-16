@@ -145,12 +145,22 @@ final class WorkspaceModel {
     /// The design Manutius sets the document in.
     var bookDesign: BookDesign { documentBook ?? prefs.bookDesign }
 
+    /// LaTeX keeps its book design in the preamble, as terso-book's
+    /// options; Markdown in its metadata.
+    var isLaTeXDocument: Bool {
+        RenderMode.isLaTeX(source: editor?.currentSnapshot.text ?? "", fileURL: fileURL)
+    }
+
     /// Changes the design where it lives: in the document once it is set
-    /// up as a book (an edit to its metadata, undoable), else the defaults.
+    /// up as a book (an edit to its metadata or its terso-book line,
+    /// undoable), else the defaults.
     func updateBookDesign(_ change: (inout BookDesign) -> Void) {
         guard var design = documentBook else { change(&prefs.bookDesign); return }
         change(&design)
-        guard design != documentBook, let editor, let edit = design.edit(of: editor.currentSnapshot.text) else { return }
+        guard design != documentBook, let editor else { return }
+        let text = editor.currentSnapshot.text
+        let edit = isLaTeXDocument ? LaTeXBookDesign.edit(of: text, design: design) : design.edit(of: text)
+        guard let edit else { return }
         editor.replace(TextSpan(edit.range), with: edit.replacement, actionName: "Book Design")
     }
 
@@ -160,6 +170,7 @@ final class WorkspaceModel {
     func setUpAsBook() {
         guard let editor else { return }
         let text = editor.currentSnapshot.text
+        if isLaTeXDocument { setUpLaTeXBook(text); return }
         var meta = BookMetadata.read(text)
         if meta.title == nil { meta.title = fileURL?.deletingPathExtension().lastPathComponent }
         let titled = meta.edit(of: text)
@@ -170,9 +181,26 @@ final class WorkspaceModel {
         editor.replace(TextSpan(edit.range), with: edit.replacement, actionName: "Set Up as Book")
     }
 
-    /// Reads the document's `book:` block after each change to the text.
+    /// A LaTeX document is set up with one line after `\documentclass`
+    /// loading terso-book, and the package written beside the file — kept
+    /// as it is if one is there already. An unsaved file has nowhere to put
+    /// it yet; Tectonic is given Terso's copy when it compiles.
+    private func setUpLaTeXBook(_ text: String) {
+        guard let editor, let edit = LaTeXBookDesign.setupEdit(of: text, design: prefs.bookDesign) else { return }
+        editor.replace(TextSpan(edit.range), with: edit.replacement, actionName: "Set Up as Book")
+        if let directory = fileURL?.deletingLastPathComponent() {
+            do { try LaTeXBookDesign.install(in: directory) }
+            catch { NSLog("Terso: could not write terso-book.sty beside the file: \(error.localizedDescription)") }
+        }
+    }
+
+    /// Reads the document's `book:` block, or for LaTeX its terso-book
+    /// line, after each change to the text.
     func refreshDocumentBook() {
-        let found = BookDesign.read(from: editor?.currentSnapshot.text ?? "", defaults: prefs.bookDesign)
+        let text = editor?.currentSnapshot.text ?? ""
+        let found = RenderMode.isLaTeX(source: text, fileURL: fileURL)
+            ? BookDesign.read(latex: text, defaults: prefs.bookDesign)
+            : BookDesign.read(from: text, defaults: prefs.bookDesign)
         if found != documentBook { documentBook = found }
     }
 

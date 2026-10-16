@@ -19,7 +19,12 @@ import TersoCore
 extension BookDesign {
     /// The design a document carries, or nil when it has no `book:` key.
     @MainActor static func read(from text: String, defaults: BookDesign) -> BookDesign? {
-        guard let fields = BookBlock.fields(in: text) else { return nil }
+        BookBlock.fields(in: text).map { read(fields: $0, defaults: defaults) }
+    }
+
+    /// A design from its keys and values, as a `book:` block or a LaTeX
+    /// option list gives them; keys left out take `defaults`.
+    static func read(fields: [String: String], defaults: BookDesign) -> BookDesign {
         var d = defaults
         func value<T>(_ key: String, _ parse: (String) -> T?) -> T? { fields[key].flatMap(parse) }
         d.trim = value("trim", BookTrim.init(yaml:)) ?? d.trim
@@ -44,30 +49,35 @@ extension BookDesign {
         return d
     }
 
+    /// Every key and its value, in the order they are written. `matter` is
+    /// a bare list, which YAML wraps in brackets and LaTeX in braces.
+    var fields: [(key: String, value: String)] {
+        [
+            ("trim", trim.yaml),
+            ("typeface", typeface?.yaml ?? "editor"),
+            ("size", Self.number(typeSize)),
+            ("line-spacing", Self.number(lineSpacing)),
+            ("paragraphs", paragraphs.yaml),
+            ("indent", Self.number(indent)),
+            ("justify", "\(justify)"),
+            ("hyphenate", "\(hyphenate)"),
+            ("facing-pages", "\(facingPages)"),
+            ("headings", headings.yaml),
+            ("chapters-start", openers.yaml),
+            ("drop-caps", "\(dropCaps)"),
+            ("small-caps-opening", "\(smallCapsOpening)"),
+            ("scene-break", sceneBreak.yaml),
+            ("running-heads", runningHeads.yaml),
+            ("page-numbers", folios.yaml),
+            ("matter", MatterPage.allCases.filter(matter.contains).map(\.yaml).joined(separator: ", ")),
+            ("word-goal", "\(wordGoal)"),
+        ]
+    }
+
     /// The `book:` block as written into the metadata, every key spelled out
     /// so the writer can see and change each one.
     var yaml: [String] {
-        [
-            "book:",
-            "  trim: \(trim.yaml)",
-            "  typeface: \(typeface?.yaml ?? "editor")",
-            "  size: \(Self.number(typeSize))",
-            "  line-spacing: \(Self.number(lineSpacing))",
-            "  paragraphs: \(paragraphs.yaml)",
-            "  indent: \(Self.number(indent))",
-            "  justify: \(justify)",
-            "  hyphenate: \(hyphenate)",
-            "  facing-pages: \(facingPages)",
-            "  headings: \(headings.yaml)",
-            "  chapters-start: \(openers.yaml)",
-            "  drop-caps: \(dropCaps)",
-            "  small-caps-opening: \(smallCapsOpening)",
-            "  scene-break: \(sceneBreak.yaml)",
-            "  running-heads: \(runningHeads.yaml)",
-            "  page-numbers: \(folios.yaml)",
-            "  matter: [\(MatterPage.allCases.filter(matter.contains).map(\.yaml).joined(separator: ", "))]",
-            "  word-goal: \(wordGoal)",
-        ]
+        ["book:"] + fields.map { "  \($0.key): \($0.key == "matter" ? "[\($0.value)]" : $0.value)" }
     }
 
     private static func number(_ v: Double) -> String {

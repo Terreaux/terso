@@ -40,7 +40,7 @@ let package = Package(
         .executableTarget(
             name: "TersoApp",
             dependencies: ["TersoCore", "TersoAnalysis", "TersoStyle", "TersoAI", "TersoDocument"],
-            resources: [.copy("Resources/KaTeX"), .copy("Resources/Markdown")]
+            resources: [.copy("Resources/KaTeX"), .copy("Resources/Markdown"), .copy("Resources/LaTeX")]
         ),
         .executableTarget(
             name: "terso-eval",
