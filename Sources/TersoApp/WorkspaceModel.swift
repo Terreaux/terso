@@ -131,6 +131,8 @@ final class WorkspaceModel {
     var showBookOverview = false
     /// Manutius's chapters and pages as last laid out, for the sidebars.
     var bookOutline = BookOutline()
+    /// A LaTeX document's compiled pages, which Manutius shows as the book.
+    let latexBook = LaTeXBook()
     /// The sheet that edits the book's title page, dedication and the rest.
     var showBookDetails = false
 
