@@ -134,6 +134,46 @@ final class WorkspaceModel {
     /// The sheet that edits the book's title page, dedication and the rest.
     var showBookDetails = false
 
+    /// The design this document carries in its metadata's `book:` block;
+    /// nil until it is set up as a book, when Terso's defaults apply.
+    private(set) var documentBook: BookDesign?
+    /// "Not now" to setting this document up as a book, for this session.
+    var bookSetupDeclined = false
+
+    /// The design Manutius sets the document in.
+    var bookDesign: BookDesign { documentBook ?? prefs.bookDesign }
+
+    /// Changes the design where it lives: in the document once it is set
+    /// up as a book (an edit to its metadata, undoable), else the defaults.
+    func updateBookDesign(_ change: (inout BookDesign) -> Void) {
+        guard var design = documentBook else { change(&prefs.bookDesign); return }
+        change(&design)
+        guard design != documentBook, let editor, let edit = design.edit(of: editor.currentSnapshot.text) else { return }
+        editor.replace(TextSpan(edit.range), with: edit.replacement, actionName: "Book Design")
+    }
+
+    /// Writes Terso's default design into the document's metadata, with a
+    /// title from the file's name if it has none, so the file says how it
+    /// is to be set.
+    func setUpAsBook() {
+        guard let editor else { return }
+        let text = editor.currentSnapshot.text
+        var meta = BookMetadata.read(text)
+        if meta.title == nil { meta.title = fileURL?.deletingPathExtension().lastPathComponent }
+        let titled = meta.edit(of: text)
+        let afterTitle = titled.map { (text as NSString).replacingCharacters(in: $0.range, with: $0.replacement) } ?? text
+        let book = prefs.bookDesign.edit(of: afterTitle)
+        // One edit, so one undo: the title, then the design after it.
+        guard let edit = BookBlock.combine(text, [titled, book]) else { return }
+        editor.replace(TextSpan(edit.range), with: edit.replacement, actionName: "Set Up as Book")
+    }
+
+    /// Reads the document's `book:` block after each change to the text.
+    func refreshDocumentBook() {
+        let found = BookDesign.read(from: editor?.currentSnapshot.text ?? "", defaults: prefs.bookDesign)
+        if found != documentBook { documentBook = found }
+    }
+
     /// The book's design lives in the inspector, beside Review.
     func showBookDesign() {
         inspectorTab = .book
@@ -168,6 +208,7 @@ final class WorkspaceModel {
 
     func textDidChange() {
         revision = revision.next()
+        refreshDocumentBook()
         selectedScienceObjectID = nil
         previewAnnotation(nil)
         scienceReview.occurrencePositions.removeAll()
