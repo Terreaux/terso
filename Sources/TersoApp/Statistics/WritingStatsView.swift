@@ -36,6 +36,47 @@ struct TodayButton: View {
     }
 }
 
+/// The latest awards beside today's words, as overlapping badges. Hidden
+/// until the first award is earned.
+struct AwardStack: View {
+    let density: HeaderDensity
+    let action: () -> Void
+
+    var body: some View {
+        let earned = WritingStats.shared.shown.earned
+        let recent = Award.all.filter { earned[$0.id] != nil }
+            .sorted { earned[$0.id]! > earned[$1.id]! }
+        let shown = recent.prefix(density == .minimal ? 1 : 3)
+        if !recent.isEmpty {
+            Button(action: action) {
+                HStack(spacing: 4) {
+                    HStack(spacing: -7) {
+                        // Newest on top, leftmost.
+                        ForEach(Array(shown.enumerated()), id: \.element.id) { index, award in
+                            // Each badge cuts a thin gap out of the one behind it,
+                            // so the stack reads on any header theme or material.
+                            AwardBadge(symbol: award.symbol, earned: true, size: 18)
+                                .background(Circle().padding(-1.5).blendMode(.destinationOut))
+                                .zIndex(Double(shown.count - index))
+                        }
+                    }
+                    .compositingGroup()
+                    if density == .full, recent.count > shown.count {
+                        Text("+\(recent.count - shown.count)").monospacedDigit().foregroundStyle(.secondary)
+                    }
+                }
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 4)
+                .frame(minHeight: 22)
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("\(recent.count) of \(Award.all.count) awards earned. Latest: \(recent[0].title). Open awards.")
+            .accessibilityLabel("Awards, \(recent.count) earned, latest \(recent[0].title)")
+        }
+    }
+}
+
 struct GoalRing: View {
     let fraction: Double
     var lineWidth: CGFloat = 6
