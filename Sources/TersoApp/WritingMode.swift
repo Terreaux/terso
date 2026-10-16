@@ -66,6 +66,9 @@ extension WorkspaceModel {
         case .zen: toggleZenMode()
         case .manutius: manutius = true
         }
+        // The Book tab belongs to Manutius: it comes forward with it and
+        // gives way to Review when the pages go.
+        if manutius { inspectorTab = .book } else if inspectorTab == .book { inspectorTab = .review }
         editor?.refreshDecorations()
     }
 

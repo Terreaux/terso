@@ -89,58 +89,35 @@ extension EditorCoordinator {
     }
 }
 
-// MARK: - Left: the book
+// MARK: - Sidebar: the chapters
 
-/// Manutius's sidebar: the book, its front and back matter, its chapters
-/// with the pages they take, and how far the draft has come.
-struct BookSidebar: View {
-    @Bindable var model: WorkspaceModel
-    @State private var showMatter = true
-    @State private var showChapters = true
-
-    private var meta: BookMetadata { BookMetadata.read(model.editor?.currentSnapshot.text ?? "") }
-    private var editor: EditorCoordinator? { model.editor as? EditorCoordinator }
+/// In Manutius the sidebar's outline becomes the book's chapters, each with
+/// the pages it takes; a click turns to it.
+struct BookChapters: View {
+    let model: WorkspaceModel
 
     var body: some View {
-        let meta = meta
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(meta.title ?? model.fileURL?.deletingPathExtension().lastPathComponent ?? "Untitled")
-                    .font(.title3.weight(.semibold)).lineLimit(2)
-                Text(meta.author ?? "Add an author…")
-                    .font(.callout).foregroundStyle(meta.author == nil ? .tertiary : .secondary)
-                    .onTapGesture { if meta.author == nil { model.showBookDetails = true } }
-            }
-            .padding(.horizontal, 16).padding(.top, 14).padding(.bottom, 8)
-            List {
-                Section(isExpanded: $showMatter) {
-                    MatterToggles(model: model, meta: meta)
-                    Button("Edit front & back matter…") { model.showBookDetails = true }
-                        .buttonStyle(.link).font(.callout)
-                } header: { Text("Front & back matter") }
-                Section(isExpanded: $showChapters) {
-                    if model.bookOutline.chapters.isEmpty {
-                        Text("Each # heading starts a chapter").foregroundStyle(.tertiary).font(.callout)
-                    }
-                    ForEach(model.bookOutline.chapters) { chapter in
-                        ChapterRow(chapter: chapter, current: chapter.id == model.bookOutline.current) {
-                            model.editor?.reveal(TextSpan(location: chapter.heading.location, length: 0), select: true)
-                        }
-                    }
-                } header: {
-                    HStack {
-                        Text("Chapters")
-                        Spacer()
-                        Button { editor?.appendChapter() } label: { Image(systemName: "plus") }
-                            .buttonStyle(.borderless).help("Add a chapter at the end").accessibilityLabel("Add Chapter")
-                    }
-                }
-            }
-            .listStyle(.sidebar)
-            Divider()
-            WordGoal(model: model).padding(14)
+        if model.bookOutline.chapters.isEmpty {
+            Text("Each # heading starts a chapter").foregroundStyle(.tertiary)
         }
-        .themedPanel(model.prefs.theme)
+        ForEach(model.bookOutline.chapters) { chapter in
+            ChapterRow(chapter: chapter, current: chapter.id == model.bookOutline.current) {
+                model.editor?.reveal(TextSpan(location: chapter.heading.location, length: 0), select: true)
+            }
+        }
+    }
+}
+
+struct BookChaptersHeader: View {
+    let model: WorkspaceModel
+
+    var body: some View {
+        HStack {
+            Text("Chapters")
+            Spacer()
+            Button { (model.editor as? EditorCoordinator)?.appendChapter() } label: { Image(systemName: "plus") }
+                .buttonStyle(.borderless).help("Add a chapter at the end").accessibilityLabel("Add Chapter")
+        }
     }
 }
 
@@ -214,42 +191,36 @@ struct WordGoal: View {
     }
 }
 
-// MARK: - Right: the design
+// MARK: - Inspector: the design
 
-enum BookInspectorTab: String, CaseIterable, Identifiable {
-    case type = "Type", page = "Page", chapters = "Chapters", book = "Book"
-    var id: String { rawValue }
-}
-
-/// Manutius's inspector, after manutius.app: the type, the page, the
-/// chapters and the book as a whole.
-struct BookInspector: View {
+/// The inspector's Book tab: the book's design in four groups, each opened
+/// or closed as the writer left it.
+struct BookDesignPane: View {
     @Bindable var model: WorkspaceModel
-    @AppStorage("bookInspectorTab") private var tab: BookInspectorTab = .type
+    @AppStorage("bookDesignType") private var type = true
+    @AppStorage("bookDesignPage") private var page = false
+    @AppStorage("bookDesignChapters") private var chapters = false
+    @AppStorage("bookDesignMatter") private var matter = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $tab) {
-                ForEach(BookInspectorTab.allCases) { Text($0.rawValue).tag($0) }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                group("Type", $type) { TypePane(model: model) }
+                group("Page", $page) { PagePane(model: model) }
+                group("Chapters", $chapters) { ChaptersPane(model: model) }
+                group("Front & back matter", $matter) { BookPane(model: model) }
             }
-            .pickerStyle(.segmented).labelsHidden()
-            .padding(.horizontal, 12).padding(.vertical, 10)
-            Divider()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    switch tab {
-                    case .type: TypePane(model: model)
-                    case .page: PagePane(model: model)
-                    case .chapters: ChaptersPane(model: model)
-                    case .book: BookPane(model: model)
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(minHeight: 0, maxHeight: .infinity, alignment: .top)
-        .themedPanel(model.prefs.theme)
+    }
+
+    private func group<Content: View>(_ title: String, _ open: Binding<Bool>, @ViewBuilder content: @escaping () -> Content) -> some View {
+        DisclosureGroup(isExpanded: open) {
+            VStack(alignment: .leading, spacing: 14, content: content).padding(.top, 10)
+        } label: {
+            SectionLabel(title)
+        }
     }
 }
 
@@ -407,7 +378,7 @@ private struct BookPane: View {
 
     var body: some View {
         let meta = BookMetadata.read(model.editor?.currentSnapshot.text ?? "")
-        Field("Front & back matter") {
+        Field("Pages") {
             MatterToggles(model: model, meta: meta)
             Button("Edit front & back matter…") { model.showBookDetails = true }
         }

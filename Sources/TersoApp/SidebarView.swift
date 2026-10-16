@@ -39,6 +39,47 @@ struct SidebarView: View {
                     }
                 }
             }
+            if model.manutius {
+                Section { BookChapters(model: model) } header: { BookChaptersHeader(model: model) }
+            } else {
+                outline
+            }
+            if !files.isEmpty {
+                Section("Folder") {
+                    ForEach(files, id: \.self) { url in
+                        documentButton(url, systemImage: "doc.text")
+                            .contextMenu { addToProjectMenu([url]) }
+                    }
+                }
+            }
+        }
+        .listStyle(.sidebar)
+        // A book's progress, under everything else.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if model.manutius {
+                VStack(spacing: 0) { Divider(); WordGoal(model: model).padding(14) }
+                    .background(.bar)
+            }
+        }
+        .themedPanel(Preferences.shared.theme)
+        .task(id: fileURL) { loadFiles() }
+        .alert(naming.map { if case .rename = $0 { "Rename Project" } else { "New Project" } } ?? "",
+               isPresented: Binding(get: { naming != nil }, set: { if !$0 { naming = nil } })) {
+            TextField("Name", text: $draftName)
+            Button("Cancel", role: .cancel) { naming = nil }
+            Button(naming.map { if case .rename = $0 { "Rename" } else { "Create" } } ?? "OK") { commitName() }
+        } message: {
+            if case .new(let urls)? = naming, !urls.isEmpty {
+                Text(urls.count == 1 ? "Links \(urls[0].lastPathComponent). Files stay where they are."
+                                     : "Links \(urls.count) documents. Files stay where they are.")
+            } else {
+                Text("A project links documents from anywhere on disk. Files stay where they are.")
+            }
+        }
+    }
+
+    /// The document's headings; in Manutius, its chapters take their place.
+    private var outline: some View {
             Section("Outline") {
                 if let hs = model.local?.headings, !hs.isEmpty {
                     ForEach(hs, id: \.range) { h in
@@ -55,31 +96,6 @@ struct SidebarView: View {
                     Text("Headings appear here").foregroundStyle(.tertiary)
                 }
             }
-            if !files.isEmpty {
-                Section("Folder") {
-                    ForEach(files, id: \.self) { url in
-                        documentButton(url, systemImage: "doc.text")
-                            .contextMenu { addToProjectMenu([url]) }
-                    }
-                }
-            }
-        }
-        .listStyle(.sidebar)
-        .themedPanel(Preferences.shared.theme)
-        .task(id: fileURL) { loadFiles() }
-        .alert(naming.map { if case .rename = $0 { "Rename Project" } else { "New Project" } } ?? "",
-               isPresented: Binding(get: { naming != nil }, set: { if !$0 { naming = nil } })) {
-            TextField("Name", text: $draftName)
-            Button("Cancel", role: .cancel) { naming = nil }
-            Button(naming.map { if case .rename = $0 { "Rename" } else { "Create" } } ?? "OK") { commitName() }
-        } message: {
-            if case .new(let urls)? = naming, !urls.isEmpty {
-                Text(urls.count == 1 ? "Links \(urls[0].lastPathComponent). Files stay where they are."
-                                     : "Links \(urls.count) documents. Files stay where they are.")
-            } else {
-                Text("A project links documents from anywhere on disk. Files stay where they are.")
-            }
-        }
     }
 
     // MARK: Projects
