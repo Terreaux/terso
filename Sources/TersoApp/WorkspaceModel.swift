@@ -127,6 +127,10 @@ final class WorkspaceModel {
     var manutius = false
     /// Manutius's whole-book view: every page as spreads.
     var showBookOverview = false
+    /// Manutius's chapters and pages as last laid out, for the sidebars.
+    var bookOutline = BookOutline()
+    /// The sheet that edits the book's title page, dedication and the rest.
+    var showBookDetails = false
     /// Zen: Focus plus no tab bar, full screen, nothing on screen but the text.
     private(set) var zenMode = false
     @ObservationIgnored private var zenEnteredFullScreen = false

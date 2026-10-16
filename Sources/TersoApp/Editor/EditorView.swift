@@ -21,6 +21,9 @@ struct EditorConfig: Equatable {
     /// Manutius: book pages, justified and hyphenated, at a book measure,
     /// set as the book design asks.
     var book: BookDesign?
+    /// The editor's own size, which sets the scale of a book's pages while
+    /// `fontSize` is the book's type.
+    var pageScale: Double
     /// TeX source: styled as LaTeX rather than Markdown.
     var latex: Bool
 
@@ -32,7 +35,12 @@ struct EditorConfig: Equatable {
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
         theme = prefs.theme; mixedRendered = prefs.mixedRendered
         book = model.manutius ? prefs.bookDesign : nil
-        if book?.largePrint == true { fontSize *= BookDesign.largePrintScale }
+        pageScale = prefs.fontSize
+        if let book {
+            font = book.typeface ?? prefs.font
+            fontSize = book.screenSize(editorSize: prefs.fontSize)
+            lineSpacing = book.lineSpacing
+        }
     }
 }
 
@@ -53,7 +61,30 @@ final class TersoTextView: NSTextView {
     private var hoverArea: NSTrackingArea?
 
     var reviewPassageRange: NSRange? { didSet { needsDisplay = true } }
-    var book: BookPage? { didSet { if book != oldValue { needsDisplay = true; setFrameSize(frame.size) } } }
+    /// The book as designed; `book` is it as laid out here, in spreads when
+    /// the design asks for facing pages and the view has room for two.
+    var bookLayout: BookPage? { didSet { if bookLayout != oldValue { updateSpread() } } }
+    private(set) var book: BookPage? {
+        didSet {
+            guard book != oldValue else { return }
+            updateInsets()
+            (textContainer as? PagedTextContainer)?.book = book
+            needsDisplay = true
+            setFrameSize(frame.size)
+        }
+    }
+    var facingPages = true { didSet { if facingPages != oldValue { updateSpread() } } }
+
+    private func updateSpread() {
+        book = bookLayout.map { page in
+            var page = page
+            page.spread = false
+            var spread = page
+            spread.spread = true
+            page.spread = facingPages && bounds.width >= spread.viewWidth + 48
+            return page
+        }
+    }
     var bookDecoration = BookDecoration() { didSet { if book != nil { needsDisplay = true } } }
 
     override func drawBackground(in rect: NSRect) {
@@ -85,15 +116,24 @@ final class TersoTextView: NSTextView {
                                         width: 4, height: paragraphRect.height), xRadius: 2, yRadius: 2).fill()
     }
 
+    /// NSTextView moves the container up to where its text starts; a book's
+    /// pages start at the top, with front matter before any text.
+    override var textContainerOrigin: NSPoint {
+        let origin = super.textContainerOrigin
+        return book == nil ? origin : NSPoint(x: origin.x, y: textContainerInset.height)
+    }
+
     override func setFrameSize(_ newSize: NSSize) {
         let widthChanged = frame.width != newSize.width
         var newSize = newSize
-        // The last page is shown whole, however little text is on it.
+        // The last page is shown whole, however little text is on it, and
+        // the back matter after it.
         if let book, let lm = layoutManager, let container = textContainer {
-            let pages = book.pages(through: lm.usedRect(for: container).maxY)
-            newSize.height = max(newSize.height, textContainerOrigin.y * 2 + CGFloat(pages) * book.stride)
+            let rows = bookPageTotal(book).map(book.rows) ?? book.pages(through: lm.usedRect(for: container).maxY)
+            newSize.height = max(newSize.height, textContainerOrigin.y * 2 + CGFloat(rows) * book.stride)
         }
         super.setFrameSize(newSize)
+        if widthChanged, bookLayout != nil { updateSpread() }
         updateInsets()
         if widthChanged { DispatchQueue.main.async { [weak self] in self?.onGeometryChange?() } }
     }
@@ -104,7 +144,7 @@ final class TersoTextView: NSTextView {
     }
 
     func updateInsets() {
-        let h = max(28, (bounds.width - columnWidth) / 2)
+        let h = max(28, (bounds.width - (book?.containerWidth ?? columnWidth)) / 2)
         let visible = enclosingScrollView?.contentView.bounds.height ?? 600
         let v: CGFloat = typewriter ? visible / 2 : 56
         let inset = NSSize(width: h.rounded(), height: v.rounded())
@@ -287,6 +327,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
     let mathRenderer = MathImageRenderer()
     let imageLoader = InlineImageLoader()
     var mathTask: Task<Void, Never>?
+    var outlineTask: Task<Void, Never>?
     var mathSource = ""
     /// Clusters currently drawn, for hit-testing clicks and hovers.
     var clusters: [AnnotationCluster] = []
@@ -367,12 +408,14 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         textBinding.wrappedValue = tv.string
         model.textDidChange()
         updateMathPresentation()
+        if tv.book != nil { scheduleBookOutline() }
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
         updateMathPresentation()
         applyDimming()
         if model.typewriter { centerCaret() }
+        if textView?.book != nil { refreshBookPosition() }
     }
 
     nonisolated func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
@@ -404,12 +447,13 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         if old?.renderMode == .preview, new.renderMode != .preview {
             DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
         }
-        let page = new.book.map { BookPage(column: BookPage.measure(fontSize: new.fontSize, columnWidth: new.columnWidth), aspect: $0.trim.aspect) }
+        var page = new.book.map { BookPage(trim: $0.trim, fontSize: new.pageScale) }
+        page?.front = tv.bookLayout?.front ?? 0
+        page?.back = tv.bookLayout?.back ?? 0
         tv.columnWidth = page?.column ?? CGFloat(new.columnWidth)
-        let container = tv.textContainer as? PagedTextContainer
-        container?.book = page
-        container?.opener = new.book?.openers ?? .continuous
-        tv.book = page
+        (tv.textContainer as? PagedTextContainer)?.opener = new.book?.openers ?? .continuous
+        tv.facingPages = new.book?.facingPages ?? true
+        tv.bookLayout = page
         tv.typewriter = new.typewriter
         tv.isAutomaticQuoteSubstitutionEnabled = new.smartQuotes
         if force || old?.theme != new.theme {
@@ -425,7 +469,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             storage.endEditing()
             tv.typingAttributes = MarkdownStyler.baseAttributes(new)
         }
-        if styleChanged { applyBook() }
+        if styleChanged { applyBook(); scheduleBookOutline() }
         if styleChanged || old?.columnWidth != new.columnWidth || old?.mixedRendered != new.mixedRendered || old?.latex != new.latex { updateMathPresentation() }
         if force || old?.focusMode != new.focusMode || old?.dimInactive != new.dimInactive || old?.typewriter != new.typewriter {
             popover?.close()
@@ -461,13 +505,24 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
                     }
                 }
             }
+            let meta = BookMetadata.read(tv.string)
+            let matter = config.renderMode == .source ? (front: [], back: []) : MatterPage.layout(design.matter, meta: meta, chapters: chapters.count)
             decoration = BookDecoration(design: design, title: bookTitle(tv.string), chapters: chapters,
-                                        font: body, ink: config.theme.bodyInk, lineSpacing: spacing)
+                                        font: body, ink: config.theme.bodyInk, lineSpacing: spacing,
+                                        front: matter.front, back: matter.back, metadata: meta, face: config.font.title)
         }
         let changed = openers != container.openers || caps != container.dropCaps
         container.openers = openers
         container.dropCaps = caps
         tv.bookDecoration = decoration
+        // Front and back matter change the pages, so the text is laid out
+        // again by the new geometry.
+        if var page = tv.bookLayout, page.front != decoration.front.count || page.back != decoration.back.count {
+            page.front = decoration.front.count
+            page.back = decoration.back.count
+            if let location { DispatchQueue.main.async { [weak tv] in tv?.bookLayout = page } } else { tv.bookLayout = page }
+            return
+        }
         guard changed, !restyledAll else { return }
         guard let location else { tv.layoutManager?.textContainerChangedGeometry(container); return }
         // Inside an edit the layout manager has not yet seen the new text.

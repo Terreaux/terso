@@ -51,11 +51,12 @@ enum MarkdownStyler {
         // lineSpacing (not lineHeightMultiple) keeps highlight backgrounds aligned with glyphs.
         p.lineSpacing = c.fontSize * max(0, c.lineSpacing - 1)
         p.paragraphSpacing = c.fontSize * 0.8
-        // A book page: justified and hyphenated, with no space between paragraphs.
-        if c.book != nil {
-            p.alignment = .justified
-            p.hyphenationFactor = 0.9
-            p.paragraphSpacing = 0
+        // A book page: justified and hyphenated, as the design asks, with
+        // paragraphs told apart by an indent or by space between them.
+        if let book = c.book {
+            p.alignment = book.justify ? .justified : .natural
+            p.hyphenationFactor = book.hyphenate ? 0.9 : 0
+            p.paragraphSpacing = book.paragraphs == .spaced ? c.fontSize * 0.7 : 0
         }
         return p
     }
@@ -70,7 +71,7 @@ enum MarkdownStyler {
         blank.minimumLineHeight = 2
         blank.maximumLineHeight = 2
         let indented = paragraphStyle(c).mutableCopy() as! NSMutableParagraphStyle
-        indented.firstLineHeadIndent = c.fontSize * 1.2
+        if c.book?.paragraphs != .spaced { indented.firstLineHeadIndent = c.fontSize * (c.book?.indent ?? 1.2) }
         let heading = NSMutableParagraphStyle()
         heading.paragraphSpacingBefore = c.fontSize * 1.4
         heading.paragraphSpacing = c.fontSize * 0.5
@@ -522,6 +523,14 @@ enum MarkdownStyler {
         metaComment.enumerateMatches(in: text, range: fm) { m, _, _ in
             guard let m else { return }
             storage.addAttribute(.foregroundColor, value: c.theme.quaternary, range: m.range)
+        }
+        // A book prints its metadata as the title page and the rest, so the
+        // block folds away; Source still shows it.
+        if c.book != nil {
+            let folded = NSMutableParagraphStyle()
+            folded.minimumLineHeight = 0.01
+            folded.maximumLineHeight = 0.01
+            storage.addAttributes([.font: c.font.font(size: 0.01), .foregroundColor: NSColor.clear, .paragraphStyle: folded], range: fm)
         }
     }
 

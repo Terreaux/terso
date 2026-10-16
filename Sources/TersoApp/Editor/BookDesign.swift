@@ -15,10 +15,87 @@ struct BookDesign: Codable, Equatable {
     var sceneBreak: SceneBreak = .asterism
     var runningHeads: RunningHeads = .titleAndChapter
     var folios: FolioPosition = .centre
-    var largePrint = false
+    /// Verso and recto side by side when the window has room for both.
+    var facingPages = true
 
-    /// Large print sets the type a quarter larger; the measure follows it.
-    static let largePrintScale = 1.25
+    // Type: the book's own face and size, apart from the editor's.
+    /// nil sets the book in the editor's font.
+    var typeface: EditorFont?
+    /// The body size in printer's points on the trimmed page.
+    var typeSize: Double = 11
+    var lineSpacing: Double = 1.4
+    var paragraphs: BookParagraphs = .indented
+    /// The first-line indent, in ems.
+    var indent: Double = 1.5
+    var justify = true
+    var hyphenate = true
+
+    /// Pages drawn around the text from the document's metadata.
+    var matter: Set<MatterPage> = [.halfTitle, .titlePage, .copyright, .dedication, .contents, .aboutAuthor]
+    /// The length the book is aiming for, in words.
+    var wordGoal = 80_000
+
+    /// Large print sets the type at 14 points, from a book's usual 11.
+    static let standardSize = 11.0, largePrintSize = 14.0
+    var largePrint: Bool {
+        get { typeSize >= Self.largePrintSize }
+        set { typeSize = newValue ? Self.largePrintSize : Self.standardSize }
+    }
+
+    init() {}
+
+    // Options added later decode to their defaults from older settings.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        func get<T: Decodable>(_ key: CodingKeys, _ fallback: T) -> T { (try? c.decodeIfPresent(T.self, forKey: key)) ?? fallback }
+        let d = BookDesign()
+        trim = get(.trim, d.trim); openers = get(.openers, d.openers); headings = get(.headings, d.headings)
+        dropCaps = get(.dropCaps, d.dropCaps); smallCapsOpening = get(.smallCapsOpening, d.smallCapsOpening)
+        sceneBreak = get(.sceneBreak, d.sceneBreak); runningHeads = get(.runningHeads, d.runningHeads)
+        folios = get(.folios, d.folios); facingPages = get(.facingPages, d.facingPages)
+        typeface = get(.typeface, d.typeface); typeSize = get(.typeSize, d.typeSize)
+        lineSpacing = get(.lineSpacing, d.lineSpacing); paragraphs = get(.paragraphs, d.paragraphs)
+        indent = get(.indent, d.indent); justify = get(.justify, d.justify); hyphenate = get(.hyphenate, d.hyphenate)
+        matter = get(.matter, d.matter); wordGoal = get(.wordGoal, d.wordGoal)
+        if get(.largePrint, false) { largePrint = true }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(trim, forKey: .trim); try c.encode(openers, forKey: .openers); try c.encode(headings, forKey: .headings)
+        try c.encode(dropCaps, forKey: .dropCaps); try c.encode(smallCapsOpening, forKey: .smallCapsOpening)
+        try c.encode(sceneBreak, forKey: .sceneBreak); try c.encode(runningHeads, forKey: .runningHeads)
+        try c.encode(folios, forKey: .folios); try c.encode(facingPages, forKey: .facingPages)
+        try c.encodeIfPresent(typeface, forKey: .typeface); try c.encode(typeSize, forKey: .typeSize)
+        try c.encode(lineSpacing, forKey: .lineSpacing); try c.encode(paragraphs, forKey: .paragraphs)
+        try c.encode(indent, forKey: .indent); try c.encode(justify, forKey: .justify); try c.encode(hyphenate, forKey: .hyphenate)
+        try c.encode(matter, forKey: .matter); try c.encode(wordGoal, forKey: .wordGoal)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case trim, openers, headings, dropCaps, smallCapsOpening, sceneBreak, runningHeads, folios, facingPages
+        case typeface, typeSize, lineSpacing, paragraphs, indent, justify, hyphenate, matter, wordGoal, largePrint
+    }
+
+    /// The book's body size on screen: printer's points scaled as the page
+    /// is, where a 6-inch page is 42 ems of the editor's size across — a
+    /// 28-em text block — so an inch is 7 of those ems.
+    func screenSize(editorSize: Double) -> Double {
+        typeSize * editorSize * 7 / 72
+    }
+}
+
+/// How paragraphs are told apart: a novel's first-line indent, or the
+/// space between blocks that non-fiction often takes.
+enum BookParagraphs: String, Codable, CaseIterable, Identifiable {
+    case indented, spaced
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .indented: "First-line indent (novel)"
+        case .spaced: "Space between (non-fiction)"
+        }
+    }
 }
 
 /// Trim sizes from a mass-market paperback to a large hardcover. 6 × 9 is
@@ -32,6 +109,15 @@ enum BookTrim: String, Codable, CaseIterable, Identifiable {
         case .digest: "5.5 × 8.5 in"
         case .sixByNine: "6 × 9 in"
         case .sevenByTen: "7 × 10 in"
+        }
+    }
+    /// Width and height in inches.
+    var inches: CGSize {
+        switch self {
+        case .fiveByEight: CGSize(width: 5, height: 8)
+        case .digest: CGSize(width: 5.5, height: 8.5)
+        case .sixByNine: CGSize(width: 6, height: 9)
+        case .sevenByTen: CGSize(width: 7, height: 10)
         }
     }
     /// Height over width.

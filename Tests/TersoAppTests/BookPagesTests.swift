@@ -75,13 +75,14 @@ import Testing
         """
         var rules = BookDesign()
         rules.headings = .rules; rules.sceneBreak = .fleuron; rules.folios = .outside; rules.trim = .fiveByEight
-        for (name, manutius, design) in [("mixed", false, BookDesign()), ("manutius", true, BookDesign()), ("manutius-rules", true, rules)] {
-            let text = manutius ? String(repeating: sample + "\n\n", count: 3) : sample
-            let (tv, layout, container, close) = editor(text: text, manutius: manutius, mixed: Set(MixedElement.allCases), design: design)
+        let meta = "---\ntitle: \"On Printing\"\nauthor: Aldus Manutius\ndedication: \"For the readers of small books\"\nabout: \"Aldus Manutius printed in Venice from 1494, and gave the world italic type and the pocket book.\"\n---\n\n"
+        for (name, manutius, design, width) in [("mixed", false, BookDesign(), 1000.0), ("manutius", true, BookDesign(), 1000), ("manutius-rules", true, rules, 1000), ("manutius-spread", true, BookDesign(), 1700)] {
+            let text = manutius ? meta + String(repeating: sample + "\n\n", count: 3) : sample
+            let (tv, layout, container, close) = editor(text: text, manutius: manutius, mixed: Set(MixedElement.allCases), design: design, width: width)
             defer { close() }
             tv.setSelectedRange(NSRange(location: (text as NSString).length, length: 0))
             layout.ensureLayout(for: container)
-            let bounds = NSRect(x: 0, y: 0, width: tv.bounds.width, height: min(tv.bounds.height, manutius ? 4 * (tv.book?.stride ?? 425) : 1100))
+            let bounds = NSRect(x: 0, y: 0, width: tv.bounds.width, height: min(tv.bounds.height, manutius ? 5 * (tv.book?.stride ?? 425) : 1100))
             let rep = try #require(tv.bitmapImageRepForCachingDisplay(in: bounds))
             tv.cacheDisplay(in: bounds, to: rep)
             try rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
@@ -129,8 +130,9 @@ import Testing
             #expect(book.isRecto(page))
             #expect(abs(rect.minY - (CGFloat(page) * book.stride + book.top + book.sink)) < 1)
         }
-        // The first chapter opens the book; each later one a fresh recto.
-        #expect(pages.first == 0 && pages == pages.sorted() && Set(pages).count == pages.count, "\(pages)")
+        // The first chapter opens the text, after the front matter; each
+        // later one a fresh recto.
+        #expect(pages.first == book.front + (book.isRecto(book.front) ? 0 : 1) && pages == pages.sorted() && Set(pages).count == pages.count, "\(pages)")
         // Source shows the letter as written; elsewhere the opening's first
         // lines stand aside for the cap, and later ones don't.
         guard mode != .source else { return }
@@ -153,7 +155,56 @@ import Testing
         #expect(thumb.size.width == 120 && abs(thumb.size.height - 120 * book.height / book.width) < 1)
     }
 
-    private func editor(text: String, manutius: Bool, mixed: Set<MixedElement>, design: BookDesign? = nil, mode: RenderMode = .mixed)
+    @Test func spreadsSetVersoBesideRecto() throws {
+        let paragraph = "The printer set his pages with care, and the reader turned them without noticing the care at all. "
+        let text = (1...30).map { "Paragraph \($0). " + String(repeating: paragraph, count: 3) }.joined(separator: "\n\n")
+        var design = BookDesign()
+        design.matter = []
+        let (tv, layout, container, close) = editor(text: text, manutius: true, mixed: [], design: design, width: 1800)
+        defer { close() }
+        let book = try #require(tv.book)
+        #expect(book.spread && abs(container.size.width - book.containerWidth) <= 1)
+        layout.ensureLayout(for: container)
+        var pages: [Int] = []
+        layout.enumerateLineFragments(forGlyphRange: NSRange(location: 0, length: layout.numberOfGlyphs)) { rect, _, _, _, _ in
+            let page = book.page(at: rect.origin)
+            let block = book.textBlock(page)
+            #expect(rect.minY >= block.minY - 0.5 && rect.maxY <= block.maxY + 0.5)
+            #expect(rect.minX >= block.minX - 0.5 && rect.maxX <= block.maxX + 0.5)
+            pages.append(page)
+        }
+        // Page after page, each filled before the next, two to a row.
+        #expect(pages == pages.sorted() && pages.first == 0 && (pages.last ?? 0) > 4)
+        #expect(Set(pages) == Set(0...(pages.last ?? 0)))
+        #expect(abs(book.rect(1).maxX + BookPage.spine - book.rect(2).minX) < 0.01 && book.rect(1).minY == book.rect(2).minY)
+        #expect(tv.frame.height >= CGFloat(book.rows(pages.last! + 1)) * book.stride)
+        // Too narrow for two pages: one page at a time again.
+        tv.setFrameSize(NSSize(width: 900, height: tv.frame.height))
+        #expect(tv.book?.spread == false)
+    }
+
+    @Test func frontMatterFromMetadata() {
+        let text = "---\ntitle: \"The Keeper's Daughter\"\nauthor: Alex Rubin\n---\n\n# One\n\nText.\n\n# Two\n\nMore.\n"
+        var meta = BookMetadata.read(text)
+        #expect(meta.title == "The Keeper's Daughter" && meta.author == "Alex Rubin" && meta.dedication == nil)
+        let all = Set(MatterPage.allCases)
+        let layout = MatterPage.layout(all, meta: meta, chapters: 2)
+        // Display pages open on rectos: a blank backs the half title, and
+        // another the contents, so the text's page 1 is a recto.
+        #expect(layout.front == [.halfTitle, nil, .titlePage, .copyright, .contents, nil] && layout.back.isEmpty)
+        meta.dedication = "For \"M\""
+        meta.author = nil
+        let edit = meta.edit(of: text)!
+        let edited = (text as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
+        #expect(edited.hasPrefix("---\ntitle: \"The Keeper's Daughter\"\ndedication: \"For \\\"M\\\"\"\n---\n\n# One"))
+        #expect(BookMetadata.read(edited).dedication == "For \"M\"")
+        // Without metadata, a block is added at the top.
+        let plain = BookMetadata(title: "T").edit(of: "Body.\n")!
+        #expect(plain.range.location == 0 && plain.replacement == "---\ntitle: \"T\"\n---\n\n")
+        #expect(BookPage.roman(14) == "xiv")
+    }
+
+    private func editor(text: String, manutius: Bool, mixed: Set<MixedElement>, design: BookDesign? = nil, mode: RenderMode = .mixed, width: CGFloat = 1000)
         -> (TersoTextView, MathLayoutManager, NSTextContainer, () -> Void) {
         let model = WorkspaceModel()
         model.manutius = manutius
@@ -164,7 +215,7 @@ import Testing
         container.widthTracksTextView = true
         container.lineFragmentPadding = 0
         layout.addTextContainer(container)
-        let tv = TersoTextView(frame: NSRect(x: 0, y: 0, width: 1000, height: 800), textContainer: container)
+        let tv = TersoTextView(frame: NSRect(x: 0, y: 0, width: width, height: 800), textContainer: container)
         tv.isVerticallyResizable = true
         tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         let window = NSWindow(contentRect: tv.frame, styleMask: [.titled], backing: .buffered, defer: false)
