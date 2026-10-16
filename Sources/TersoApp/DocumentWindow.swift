@@ -13,14 +13,21 @@ struct DocumentWindow: View {
         // avoids NavigationSplitView installing another title-bar toggle in
         // the retained document's hosting view.
         HSplitView {
+            // Manutius trades the sidebars for the book's: its chapters on
+            // the left, its design on the right.
             if model.showSidebar && !model.focusMode {
-                SidebarView(model: model, fileURL: fileURL)
-                    .frame(minWidth: 180, idealWidth: 220, maxWidth: 320)
+                Group {
+                    if model.manutius { BookSidebar(model: model) } else { SidebarView(model: model, fileURL: fileURL) }
+                }
+                .frame(minWidth: 180, idealWidth: 230, maxWidth: 320)
             }
             editor
                 .inspector(isPresented: $model.showInspector) {
-                    InspectorView(model: model)
-                        .inspectorColumnWidth(min: 300, ideal: 380, max: 560)
+                    if model.manutius {
+                        BookInspector(model: model).inspectorColumnWidth(min: 260, ideal: 300, max: 420)
+                    } else {
+                        InspectorView(model: model).inspectorColumnWidth(min: 300, ideal: 380, max: 560)
+                    }
                 }
         }
         .toolbar(.hidden, for: .windowToolbar)
@@ -28,6 +35,7 @@ struct DocumentWindow: View {
         .sheet(isPresented: $model.showAskPanel) { AskPanel(model: model) }
         .sheet(item: $model.writingStats) { WritingStatsView(tab: $0) }
         .sheet(isPresented: $model.showBookOverview) { BookOverview(model: model) }
+        .sheet(isPresented: $model.showBookDetails) { BookDetailsSheet(model: model) }
         .focusedSceneValue(\.workspace, model)
         .onAppear { model.fileURL = fileURL; RecentDocuments.shared.note(fileURL) }
         .onChange(of: fileURL) { _, new in model.fileURL = new; RecentDocuments.shared.note(new) }
@@ -57,6 +65,7 @@ struct DocumentWindow: View {
             }
             .overlay(alignment: .bottom) {
                 if model.zenMode { ZenExit(model: model) } else if model.focusMode { FocusFooter(model: model) }
+                else if model.manutius && model.renderMode != .preview { BookStatusBar(model: model) }
             }
             .ignoresSafeArea(edges: model.focusMode ? .top : [])
     }

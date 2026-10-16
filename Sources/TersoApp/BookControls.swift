@@ -31,6 +31,7 @@ struct BookOptions: View {
             ForEach(FolioPosition.allCases) { Text($0.title).tag($0) }
         }
         Toggle("Large Print", isOn: design(\.largePrint))
+        Toggle("Facing Pages", isOn: design(\.facingPages))
     }
 
     private func design<T>(_ path: WritableKeyPath<BookDesign, T>) -> Binding<T> {
@@ -130,13 +131,13 @@ private struct BookPageThumbnail: View {
             }
             .frame(width: width, height: image.map { width * $0.size.height / max(1, $0.size.width) } ?? width * 1.5)
             .overlay(alignment: .bottom) {
-                Text("\(index + 1)").font(.caption2).monospacedDigit().foregroundStyle(.secondary)
+                Text(editor?.textView?.book?.folio(index) ?? "\(index + 1)").font(.caption2).monospacedDigit().foregroundStyle(.secondary)
                     .offset(y: 16)
             }
         }
         .buttonStyle(.plain)
-        .help("Turn to page \(index + 1)")
-        .accessibilityLabel("Page \(index + 1)")
+        .help("Turn to page \(editor?.textView?.book?.folio(index) ?? "\(index + 1)")")
+        .accessibilityLabel("Page \(editor?.textView?.book?.folio(index) ?? "\(index + 1)")")
         // Pages are drawn as they scroll into view, then kept.
         .task { if image == nil { image = editor?.bookPageImage(index, width: width) } }
     }
@@ -148,7 +149,7 @@ extension EditorCoordinator {
         guard let tv = textView, let book = tv.book, let lm = tv.layoutManager, let container = tv.textContainer else { return 0 }
         lm.ensureLayout(for: container)
         tv.setFrameSize(tv.frame.size)
-        return book.pages(through: lm.usedRect(for: container).maxY)
+        return tv.bookPageTotal(book) ?? book.pages(through: lm.usedRect(for: container).maxY)
     }
 
     /// One page as drawn in the editor, scaled down to `width` points.
@@ -177,7 +178,8 @@ extension EditorCoordinator {
         guard let tv = textView, let book = tv.book else { return }
         let origin = tv.textContainerOrigin
         let page = book.rect(index).offsetBy(dx: origin.x, dy: origin.y)
-        let point = NSPoint(x: origin.x + 1, y: page.minY + book.top + 2)
+        let block = book.textBlock(index).offsetBy(dx: origin.x, dy: origin.y)
+        let point = NSPoint(x: block.minX + 1, y: block.minY + 2)
         tv.setSelectedRange(NSRange(location: tv.characterIndexForInsertion(at: point), length: 0))
         tv.scrollToVisible(page.insetBy(dx: 0, dy: -12))
         tv.window?.makeFirstResponder(tv)

@@ -203,7 +203,8 @@ extension EditorCoordinator {
         }
         let source = tv.string
         let selection = tv.selectedRange()
-        let width = max(80, min(config.columnWidth, Double(tv.textContainer?.size.width ?? CGFloat(config.columnWidth))))
+        // A book's text block, which a spread's container is two of.
+        let width = max(80, tv.book.map { Double($0.column) } ?? min(config.columnWidth, Double(tv.textContainer?.size.width ?? CGFloat(config.columnWidth))))
         let shown = config.mixedRendered.intersection(MixedElement.available(latex: config.latex, text: source))
         let decor = MixedPresentation.layout(in: source, selection: selection, config: config, elements: shown, width: width)
         layout.hiddenSyntax = (shown.contains(.links) ? LinkPresentation.hiddenSyntax(in: source, selection: selection) : [])

@@ -11,8 +11,8 @@ enum SyntaxVisibility: String, CaseIterable, Identifiable {
     var title: String { rawValue.capitalized }
 }
 
-enum EditorFont: String, CaseIterable, Identifiable {
-    case newYork, iowan, charter, georgia, system, mono
+enum EditorFont: String, Codable, CaseIterable, Identifiable {
+    case newYork, iowan, charter, georgia, baskerville, palatino, hoefler, system, mono
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -20,8 +20,25 @@ enum EditorFont: String, CaseIterable, Identifiable {
         case .iowan: "Iowan Old Style"
         case .charter: "Charter"
         case .georgia: "Georgia"
+        case .baskerville: "Baskerville"
+        case .palatino: "Palatino"
+        case .hoefler: "Hoefler Text"
         case .system: "SF Pro"
         case .mono: "SF Mono"
+        }
+    }
+    /// A word on how the face reads, for choosing a book's type.
+    var character: String {
+        switch self {
+        case .newYork: "Crisp, contemporary"
+        case .iowan: "Warm, readable"
+        case .charter: "Sturdy, plain"
+        case .georgia: "Generous, open"
+        case .baskerville: "Classic, literary"
+        case .palatino: "Calligraphic, elegant"
+        case .hoefler: "Old-style, bookish"
+        case .system: "Clean, modern"
+        case .mono: "Typewritten"
         }
     }
     func font(size: CGFloat) -> NSFont {
@@ -30,6 +47,9 @@ enum EditorFont: String, CaseIterable, Identifiable {
         case .iowan: NSFont(name: "Iowan Old Style", size: size) ?? NSFont.systemFont(ofSize: size).withDesign(.serif)
         case .charter: NSFont(name: "Charter", size: size) ?? NSFont.systemFont(ofSize: size).withDesign(.serif)
         case .georgia: NSFont(name: "Georgia", size: size) ?? NSFont.systemFont(ofSize: size)
+        case .baskerville: NSFont(name: "Baskerville", size: size) ?? NSFont.systemFont(ofSize: size).withDesign(.serif)
+        case .palatino: NSFont(name: "Palatino-Roman", size: size) ?? NSFont.systemFont(ofSize: size).withDesign(.serif)
+        case .hoefler: NSFont(name: "HoeflerText-Regular", size: size) ?? NSFont.systemFont(ofSize: size).withDesign(.serif)
         case .system: NSFont.systemFont(ofSize: size)
         case .mono: NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
         }
