@@ -156,7 +156,10 @@ private struct DocumentControls: View {
             HighlightControls(model: model, density: density).padding(.leading, 6)
             Spacer(minLength: 8)
             if Preferences.shared.showWritingProgress {
-                TodayButton(density: density) { model.writingStats = .overview }
+                HStack(spacing: 6) {
+                    TodayButton(density: density) { model.writingStats = .overview }
+                    AwardStack(density: density) { model.writingStats = .awards }
+                }
                 Spacer(minLength: 8)
             }
             // How the page looks and how you write on it sit together.
