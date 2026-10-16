@@ -19,6 +19,7 @@ jobs:
   autolabel:
     if: github.event_name == 'pull_request'
     permissions:
+      contents: read # job-level permissions replace the workflow's; needed to read the config
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
