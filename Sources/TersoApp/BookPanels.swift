@@ -243,7 +243,9 @@ struct BookDesignPane: View {
     @AppStorage("bookDesignMatter") private var matter = false
 
     var body: some View {
-        if model.latexBook.isLaTeX { LaTeXBookSummary(model: model) } else { designControls }
+        // A LaTeX file is set by its own preamble until it loads terso-book;
+        // then the same controls as Markdown rewrite that package's options.
+        if model.latexBook.isLaTeX && model.documentBook == nil { LaTeXBookSummary(model: model) } else { designControls }
     }
 
     private var designControls: some View {
@@ -413,7 +415,9 @@ private struct ChaptersPane: View {
         }
         Toggle("Drop caps", isOn: design(model, \.dropCaps)).toggleStyle(.checkbox)
         Toggle("Small caps after headings", isOn: design(model, \.smallCapsOpening)).toggleStyle(.checkbox)
-        Text("Applied to every chapter at once. Each # heading starts a chapter; a line of *** or --- between paragraphs is a scene break.")
+        Text(model.isLaTeXDocument
+             ? "Applied to every chapter at once. Each \\chapter starts a chapter; \\scenebreak between paragraphs is a scene break."
+             : "Applied to every chapter at once. Each # heading starts a chapter; a line of *** or --- between paragraphs is a scene break.")
             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
     }
 }
@@ -425,7 +429,12 @@ private struct BookPane: View {
         let meta = BookMetadata.read(model.editor?.currentSnapshot.text ?? "")
         Field("Pages") {
             MatterToggles(model: model, meta: meta)
-            Button("Edit front & back matter…") { model.showBookDetails = true }
+            if model.isLaTeXDocument {
+                Text("Set from \\title and \\author, and \\subtitle, \\dedication, \\copyrightnotice and \\aboutauthor in the preamble.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            } else {
+                Button("Edit front & back matter…") { model.showBookDetails = true }
+            }
         }
         Divider()
         Field("Word goal") {
@@ -450,7 +459,8 @@ private struct BookSource: View {
 
     var body: some View {
         if model.documentBook != nil {
-            Label("Saved in this document's metadata, under book:", systemImage: "doc.text")
+            Label(model.isLaTeXDocument ? "Saved in this document's preamble, as terso-book's options" : "Saved in this document's metadata, under book:",
+                  systemImage: "doc.text")
                 .font(.caption).foregroundStyle(.secondary)
         } else {
             VStack(alignment: .leading, spacing: 8) {
@@ -476,7 +486,9 @@ struct BookSetupBanner: View {
             Image(systemName: "book.closed").foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 1) {
                 Text("Set this document up as a book?").font(.callout.weight(.medium))
-                Text("Its trim, type and chapters are saved in the metadata at the top, under book:.")
+                Text(model.isLaTeXDocument
+                     ? "Adds one \\usepackage line to the preamble and terso-book.sty beside the file; your preamble's own settings are kept."
+                     : "Its trim, type and chapters are saved in the metadata at the top, under book:.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 12)

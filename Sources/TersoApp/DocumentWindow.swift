@@ -81,7 +81,7 @@ struct DocumentWindow: View {
                 }
             }
             .overlay(alignment: .top) {
-                if model.manutius, model.documentBook == nil, !model.bookSetupDeclined, model.renderMode != .preview, !latex {
+                if model.manutius, model.documentBook == nil, !model.bookSetupDeclined, model.renderMode != .preview {
                     BookSetupBanner(model: model).transition(.move(edge: .top).combined(with: .opacity))
                 }
             }

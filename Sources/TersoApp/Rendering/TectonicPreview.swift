@@ -95,6 +95,9 @@ private struct CompiledPDF: NSViewRepresentable {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let input = directory.appendingPathComponent("source.tex")
             try source.write(to: input, atomically: true, encoding: .utf8)
+            // An unsaved book compiles where it is written, beside Terso's
+            // own terso-book.sty; a saved one uses the copy beside its file.
+            if fileURL == nil, LaTeXBookDesign.line(in: source) != nil { try? LaTeXBookDesign.install(in: directory) }
             let output = directory.appendingPathComponent("compiler.txt")
             FileManager.default.createFile(atPath: output.path, contents: nil)
             let writer = try FileHandle(forWritingTo: output)

@@ -1,0 +1,547 @@
+% terso-book.sty -- Manutius's book design for a LaTeX document.
+% SPDX-License-Identifier: AGPL-3.0-only
+%
+% Terso writes this file beside a .tex file when the writer chooses
+% Set Up as Book, and one line into its preamble:
+%
+%   \usepackage[trim=6x9, typeface=baskerville, size=11, ...]{terso-book}
+%
+% The options are the keys a Markdown book keeps under `book:` in its
+% metadata, spelled the same way. Terso's Book tab rewrites that line; the
+% file can be read and changed by hand like any package.
+%
+%   trim=6x9                 paper in inches, W x H (5x8, 5.5x8.5, 6x9, 7x10)
+%   typeface=baskerville     new-york, iowan, charter, georgia, baskerville,
+%                            palatino, hoefler, system, mono, or editor
+%                            (editor leaves the class's face alone)
+%   size=11                  body size in points
+%   line-spacing=1.4         baseline to baseline, in body sizes
+%   paragraphs=indented      indented, or spaced
+%   indent=1.5               first-line indent in ems
+%   justify=true             false sets the text ragged right
+%   hyphenate=true           false stops words breaking at line ends
+%   headings=classic         classic, small-caps, uppercase, big-numeral,
+%                            rules, plain
+%   chapters-start=right-page  right-page, new-page, continuous
+%   drop-caps=true           a three-line initial opens each chapter
+%   small-caps-opening=true  the opening words in small capitals
+%   scene-break=asterism     what \scenebreak draws: asterism, asterisks,
+%                            fleuron, lozenge, rule, space
+%   running-heads=title-and-chapter   off, title, title-and-chapter
+%   page-numbers=centre      centre, outside, off
+%   matter={half-title, title-page, copyright, dedication, contents,
+%           about-author}    the pages set around the text
+%   facing-pages, word-goal  read by Terso for the screen, ignored here
+%
+% Unknown keys and values are passed over with a warning, so a file
+% written by a newer Terso still compiles.
+%
+% The particulars come from the preamble: \title and \author as usual, and
+% \subtitle{...}, \dedication{...}, \copyrightnotice{...} and
+% \aboutauthor{...}, which this package provides. A preamble that defines
+% one of those itself should do so with \renewcommand.
+%
+% HOW IT BACKS OFF
+%
+% This package never overrides a preamble that already does the job. It
+% reads its options when loaded but sets nothing then: each part of the
+% design is applied at the very end of the preamble (the kernel's
+% begindocument/before hook), once everything the preamble does is known,
+% so it does not matter whether the \usepackage line comes before or after
+% the writer's own packages. At that point each part checks whether the
+% document has already taken it on -- by loading the package that does
+% that job, or by changing the setting itself since terso-book was loaded
+% -- and if so, leaves that part alone and goes on to the next, noting in
+% the log what it left to the preamble:
+%
+%   page (trim)       geometry or typearea loaded, a memoir class, or
+%                     \paperwidth, \paperheight, \textwidth or \textheight
+%                     changed
+%   typeface          \rmdefault changed to anything but fontspec's own
+%                     Latin Modern (so \setmainfont, or a font package)
+%   size              a class size option (11pt, 12pt) or a new \normalsize
+%   line-spacing      setspace loaded, or \linespread used
+%   paragraphs        parskip loaded, or \parindent or \parskip changed
+%   justify           \raggedright or similar (\rightskip changed)
+%   hyphenate         \hyphenpenalty changed
+%   headings          titlesec, sectsty or titlesec-like classes (memoir,
+%                     KOMA-Script) -- chapters-start's run-on chapters
+%                     need titlesec, so they back off with it; right-page
+%                     and new-page only set the class's openright switch
+%   running heads     fancyhdr or scrlayer-scrpage loaded, a memoir or
+%   and page numbers  KOMA class, or \pagestyle changed
+%   drop caps and     lettrine loaded (the writer places their own)
+%   small caps opening
+%   \scenebreak       already defined
+%   front matter      the title pages back off when \maketitle has been
+%                     redefined; the body's own \maketitle,
+%                     \tableofcontents and \frontmatter/\mainmatter are
+%                     honoured (see below)
+%
+% Front matter is set lazily: the half title, title page, copyright and
+% dedication where the body calls \maketitle, the contents where it calls
+% \tableofcontents, and whatever is still missing just before the first
+% chapter (or \mainmatter). A body with none of these gets the whole front
+% matter, between \frontmatter and \mainmatter, ahead of its first chapter;
+% a body that calls them itself keeps its order, and a second \maketitle
+% or \tableofcontents does not set those pages twice.
+\NeedsTeXFormat{LaTeX2e}[2020/10/01]
+\ProvidesPackage{terso-book}[2026/10/16 v1.0 Manutius book design from Terso]
+
+% ---------------------------------------------------------------- options
+
+\def\terso@trim{6x9}
+\def\terso@typeface{editor}
+\def\terso@size{11}
+\def\terso@linespacing{1.4}
+\def\terso@paragraphs{indented}
+\def\terso@indent{1.5}
+\def\terso@justify{true}
+\def\terso@hyphenate{true}
+\def\terso@headings{classic}
+\def\terso@chaptersstart{right-page}
+\def\terso@dropcaps{true}
+\def\terso@smallcapsopening{true}
+\def\terso@scenebreak{asterism}
+\def\terso@runningheads{title-and-chapter}
+\def\terso@pagenumbers{centre}
+\def\terso@matter{half-title,title-page,copyright,dedication,contents,about-author}
+
+% Each key sets the macro of the same name to its value as given.
+\def\terso@key#1#2{\expandafter\def\csname terso@set@#1\endcsname##1{\def#2{##1}}}
+\terso@key{trim}\terso@trim
+\terso@key{typeface}\terso@typeface
+\terso@key{size}\terso@size
+\terso@key{line-spacing}\terso@linespacing
+\terso@key{paragraphs}\terso@paragraphs
+\terso@key{indent}\terso@indent
+\terso@key{justify}\terso@justify
+\terso@key{hyphenate}\terso@hyphenate
+\terso@key{headings}\terso@headings
+\terso@key{chapters-start}\terso@chaptersstart
+\terso@key{drop-caps}\terso@dropcaps
+\terso@key{small-caps-opening}\terso@smallcapsopening
+\terso@key{scene-break}\terso@scenebreak
+\terso@key{running-heads}\terso@runningheads
+\terso@key{page-numbers}\terso@pagenumbers
+% A list: the spaces after its commas go.
+\@namedef{terso@set@matter}#1{\edef\terso@matter{\zap@space#1 \@empty}}
+\@namedef{terso@set@facing-pages}#1{}
+\@namedef{terso@set@word-goal}#1{}
+
+% `key=value`, spaces dropped; a braced value loses its braces.
+\def\terso@option#1{%
+  \edef\terso@item{\zap@space#1 \@empty}%
+  \ifx\terso@item\@empty\else\expandafter\terso@split\terso@item==\@nil\fi}
+\def\terso@split#1=#2=#3\@nil{%
+  \@ifundefined{terso@set@#1}%
+    {\PackageWarningNoLine{terso-book}{Unknown option `#1' passed over}}%
+    {\csname terso@set@#1\endcsname{#2}}}
+\DeclareOption*{}
+\ProcessOptions\relax
+\expandafter\let\expandafter\terso@raw\csname @raw@opt@\@currname.\@currext\endcsname
+\ifx\terso@raw\relax\else
+  \expandafter\@for\expandafter\terso@each\expandafter:\expandafter=\terso@raw\do{%
+    \expandafter\terso@option\expandafter{\terso@each}}%
+\fi
+
+% Branching on a value takes both branches as arguments, never as
+% \else...\fi around a macro: TeX skipping a branch counts only primitive
+% conditionals, and would pair the wrong \fi.
+\def\terso@if#1#2{\def\terso@tmp{#2}\ifx#1\terso@tmp
+  \expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi}
+\newif\ifterso@matter
+% Whether `matter` lists a page.
+\def\terso@hasmatter#1{\global\terso@matterfalse
+  \@for\terso@m:=\terso@matter\do{\def\terso@tmp{#1}%
+    \ifx\terso@m\terso@tmp\global\terso@mattertrue\fi}}
+\def\terso@ifhas#1#2{\terso@hasmatter{#1}\ifterso@matter#2\fi}
+
+% ---------------------------------------------------- what the class set
+
+% The document as it was when this package was loaded, so that the end of
+% the preamble can tell what the preamble has changed since.
+\edef\terso@was@paper{\the\paperwidth,\the\paperheight,\the\textwidth,\the\textheight}
+\edef\terso@was@par{\the\parindent,\the\parskip}
+\edef\terso@was@rightskip{\the\rightskip}
+\edef\terso@was@hyphen{\the\hyphenpenalty}
+\edef\terso@was@stretch{\baselinestretch}
+\let\terso@was@rm\rmdefault
+\let\terso@was@normalsize\normalsize
+\let\terso@was@maketitle\maketitle
+\let\terso@was@oddhead\@oddhead
+\let\terso@was@oddfoot\@oddfoot
+\begingroup\normalsize\xdef\terso@was@fsize{\f@size}\endgroup
+\def\terso@notitle{\@latex@error{No \noexpand\title given}\@ehc}
+\def\terso@noauthor{\@latex@warning@no@line{No \noexpand\author given}}
+
+\newif\ifterso@fontspec
+\def\terso@leave#1{\PackageInfo{terso-book}{#1 left to the preamble}}
+\def\terso@ifloaded#1{\@ifpackageloaded{#1}}
+% Classes that set their own headings, heads and page.
+\def\terso@ifclass{\@ifclassloaded{memoir}{\@firstoftwo}{%
+  \@ifclassloaded{scrbook}{\@firstoftwo}{\@ifclassloaded{scrreprt}{\@firstoftwo}{%
+  \@ifclassloaded{scrartcl}{\@firstoftwo}{\@secondoftwo}}}}}
+% The chapter level: \chapter where the class has one, else \section.
+\edef\terso@level{\ifdefined\chapter chapter\else section\fi}
+
+% -------------------------------------------------------------- particulars
+
+\def\terso@subtitle{}\def\terso@dedication{}\def\terso@copyright{}\def\terso@about{}
+\providecommand\subtitle[1]{\def\terso@subtitle{#1}}
+\providecommand\dedication[1]{\def\terso@dedication{#1}}
+\providecommand\copyrightnotice[1]{\def\terso@copyright{#1}}
+\providecommand\aboutauthor[1]{\def\terso@about{#1}}
+
+% ------------------------------------------------------------------ sizes
+
+% A size `#1` times the body's, leaded as the body is.
+\let\terso@body\terso@was@fsize
+\def\terso@scaled#1{%
+  \fontsize{\strip@pt\dimexpr#1\dimexpr\terso@body pt\relax\relax}%
+    {\strip@pt\dimexpr#1\dimexpr\terso@body pt\relax*6/5\relax}\selectfont}
+% Letter-spacing, where fontspec sets the face.
+\def\terso@spaced#1#2{{\ifterso@fontspec\addfontfeature{LetterSpace=#1}\fi#2}}
+\def\terso@caps#1{\terso@spaced{8}{\scshape\MakeLowercase{#1}}}
+\def\terso@upper#1{\terso@spaced{14}{\MakeUppercase{#1}}}
+
+% ----------------------------------------------------- the end of the
+% preamble: each part of the design, unless the preamble has done it.
+
+\AddToHook{begindocument/before}{\terso@apply}
+
+\def\terso@apply{%
+  \terso@page
+  \terso@face
+  \terso@typesize
+  \terso@leading
+  \terso@paragraphing
+  \terso@measure
+  \terso@chapters
+  \terso@pagestyle
+  \terso@openings
+  \terso@ornament
+  \terso@matterpages}
+
+% Page: the trim with the Van de Graaf canon's margins, ninths of the page:
+% inner and top one ninth of its width and height, outer and bottom two.
+\def\terso@trimsplit#1x#2x#3\@nil{\def\terso@w{#1}\def\terso@h{#2}}
+\def\terso@page{%
+  \edef\terso@now{\the\paperwidth,\the\paperheight,\the\textwidth,\the\textheight}%
+  \terso@ifloaded{geometry}{\terso@leave{Page size (geometry)}}{%
+  \terso@ifloaded{typearea}{\terso@leave{Page size (typearea)}}{%
+  \@ifclassloaded{memoir}{\terso@leave{Page size (memoir)}}{%
+  \ifx\terso@now\terso@was@paper
+    \expandafter\terso@trimsplit\terso@trim xx\@nil
+    \dimen@=\terso@w in\relax \dimen@ii=\terso@h in\relax
+    \edef\terso@geometry{paperwidth=\the\dimen@, paperheight=\the\dimen@ii,
+      inner=\the\dimexpr\dimen@/9\relax, outer=\the\dimexpr2\dimen@/9\relax,
+      top=\the\dimexpr\dimen@ii/9\relax, bottom=\the\dimexpr2\dimen@ii/9\relax,
+      twoside, headsep=1.5em, footskip=2.5em}%
+    \expandafter\PassOptionsToPackage\expandafter{\terso@geometry}{geometry}%
+    \RequirePackage{geometry}%
+  \else\terso@leave{Page size (\string\textwidth)}\fi}}}}
+
+% Typeface: system fonts by name through fontspec, which XeTeX (and so
+% Tectonic) reads directly. A face the Mac lacks is left out with a warning.
+\@namedef{terso@face@new-york}{New York}
+\@namedef{terso@face@iowan}{Iowan Old Style}
+\@namedef{terso@face@charter}{Charter}
+\@namedef{terso@face@georgia}{Georgia}
+\@namedef{terso@face@baskerville}{Baskerville}
+\@namedef{terso@face@palatino}{Palatino}
+\@namedef{terso@face@hoefler}{Hoefler Text}
+\@namedef{terso@face@system}{SF Pro}
+\@namedef{terso@face@mono}{SF Mono}
+\def\terso@font{}
+\def\terso@lmr{lmr}
+\def\terso@face{%
+  \@ifundefined{terso@face@\terso@typeface}{}{%
+    \edef\terso@font{\csname terso@face@\terso@typeface\endcsname}}%
+  \ifx\terso@font\@empty\else
+    \ifx\rmdefault\terso@was@rm \expandafter\@firstoftwo
+    \else\ifx\rmdefault\terso@lmr \expandafter\expandafter\expandafter\@firstoftwo
+    \else\expandafter\expandafter\expandafter\@secondoftwo\fi\fi
+    {\RequirePackage{fontspec}%
+     \IfFontExistsTF{\terso@font}%
+       {\setmainfont{\terso@font}[Ligatures=TeX, Numbers=OldStyle]\terso@fontspectrue}%
+       {\PackageWarningNoLine{terso-book}{The face `\terso@font' is not on this
+          computer; the class's face stays}\def\terso@font{}}}%
+    {\terso@leave{Typeface (\string\rmdefault)}\def\terso@font{}}%
+  \fi}
+
+% Size: the body at `size` points, the class's other sizes in proportion.
+\def\terso@sz#1#2{\@setfontsize#1%
+  {\strip@pt\dimexpr#2\dimexpr\terso@size pt\relax\relax}%
+  {\strip@pt\dimexpr#2\dimexpr\terso@size pt\relax*6/5\relax}}
+\def\terso@typesize{%
+  \ifx\normalsize\terso@was@normalsize
+    \ifdim\terso@was@fsize pt=10pt
+      \let\terso@body\terso@size
+      \DeclareRobustCommand\normalsize{\terso@sz\normalsize{1}%
+        \abovedisplayskip\terso@size\p@ \@plus3\p@ \@minus5\p@
+        \abovedisplayshortskip\z@ \@plus3\p@ \belowdisplayshortskip.6\abovedisplayskip
+        \belowdisplayskip\abovedisplayskip \let\@listi\@listI}%
+      \DeclareRobustCommand\small{\terso@sz\small{.9}}%
+      \DeclareRobustCommand\footnotesize{\terso@sz\footnotesize{.8}}%
+      \DeclareRobustCommand\scriptsize{\terso@sz\scriptsize{.7}}%
+      \DeclareRobustCommand\tiny{\terso@sz\tiny{.5}}%
+      \DeclareRobustCommand\large{\terso@sz\large{1.2}}%
+      \DeclareRobustCommand\Large{\terso@sz\Large{1.44}}%
+      \DeclareRobustCommand\LARGE{\terso@sz\LARGE{1.728}}%
+      \DeclareRobustCommand\huge{\terso@sz\huge{2.074}}%
+      \DeclareRobustCommand\Huge{\terso@sz\Huge{2.488}}%
+      \normalsize
+    \else\terso@leave{Type size (class option)}\fi
+  \else\terso@leave{Type size (\string\normalsize)}\fi}
+
+% Line spacing: the sizes above lead at 1.2, so the stretch makes up the rest.
+\def\terso@leading{%
+  \terso@ifloaded{setspace}{\terso@leave{Line spacing (setspace)}}{%
+  \edef\terso@now{\baselinestretch}%
+  \ifx\terso@now\terso@was@stretch
+    \linespread{\strip@pt\dimexpr\terso@linespacing pt*5/6\relax}\selectfont
+  \else\terso@leave{Line spacing (\string\linespread)}\fi}}
+
+\def\terso@paragraphing{%
+  \edef\terso@now{\the\parindent,\the\parskip}%
+  \terso@ifloaded{parskip}{\terso@leave{Paragraphs (parskip)}}{%
+  \ifx\terso@now\terso@was@par
+    \terso@if\terso@paragraphs{spaced}%
+      {\AtBeginDocument{\setlength\parindent{\z@}\setlength\parskip{.6\baselineskip\@plus2\p@}}}%
+      {\AtBeginDocument{\setlength\parindent{\terso@indent em}\setlength\parskip{\z@}}}%
+  \else\terso@leave{Paragraphs (\string\parindent)}\fi}}
+
+% Justification and hyphenation, each unless the preamble has set it.
+\def\terso@measure{%
+  \edef\terso@now{\the\rightskip}%
+  \terso@if\terso@justify{false}{%
+    \ifx\terso@now\terso@was@rightskip
+      \IfFileExists{ragged2e.sty}{\RequirePackage{ragged2e}\AtBeginDocument{\RaggedRight}}%
+        {\AtBeginDocument{\raggedright}}%
+    \else\terso@leave{Justification (\string\rightskip)}\fi}{}%
+  \edef\terso@now{\the\hyphenpenalty}%
+  \terso@if\terso@hyphenate{false}{%
+    \ifx\terso@now\terso@was@hyphen
+      \hyphenpenalty\@M \exhyphenpenalty\@M \emergencystretch2em
+    \else\terso@leave{Hyphenation (\string\hyphenpenalty)}\fi}{}}
+
+% Chapters: where they start, and their headings in one of six styles.
+\def\terso@chapters{%
+  \terso@if\terso@chaptersstart{right-page}{\ifdefined\@openrighttrue\@openrighttrue\fi}{}%
+  \terso@if\terso@chaptersstart{new-page}{\ifdefined\@openrightfalse\@openrightfalse\fi}{}%
+  \terso@ifloaded{titlesec}{\terso@leave{Chapter headings (titlesec)}}{%
+  \terso@ifloaded{sectsty}{\terso@leave{Chapter headings (sectsty)}}{%
+  \terso@ifclass{\terso@leave{Chapter headings (class)}}{%
+    \RequirePackage{titlesec}%
+    \expandafter\terso@heading\csname\terso@level\endcsname}}}}
+
+\def\terso@ruled#1{\rule{.33\textwidth}{.4pt}\par\vspace{.7em}%
+  \terso@caps{#1}\par\vspace{.5em}\rule{.33\textwidth}{.4pt}}
+\def\terso@numeral{{\terso@scaled{3.4}\csname the\terso@level\endcsname}}
+\def\terso@style@classic#1{%
+  \titleformat{#1}[block]{\filcenter\normalfont\terso@scaled{1.6}}{}{0pt}{}}
+\@namedef{terso@style@small-caps}#1{%
+  \titleformat{#1}[block]{\filcenter\normalfont\terso@scaled{1.3}}{}{0pt}{\terso@caps}}
+\def\terso@style@uppercase#1{%
+  \titleformat{#1}[block]{\filcenter\normalfont\terso@scaled{1.3}}{}{0pt}{\terso@upper}}
+\@namedef{terso@style@big-numeral}#1{%
+  \titleformat{#1}[display]{\filcenter\normalfont\terso@scaled{1.1}}{\terso@numeral}{.4em}{\terso@caps}}
+\def\terso@style@rules#1{%
+  \titleformat{#1}[block]{\filcenter\normalfont\terso@scaled{1.1}}{}{0pt}{\terso@ruled}}
+\def\terso@style@plain#1{%
+  \titleformat{#1}[block]{\filright\normalfont\bfseries\terso@scaled{1.44}}{}{0pt}{}}
+\def\terso@heading#1{%
+  \@ifundefined{terso@style@\terso@headings}%
+    {\terso@style@classic#1}{\csname terso@style@\terso@headings\endcsname#1}%
+  % Sunk a quarter down the page, as Manutius sets an opening; run on, a
+  % chapter takes three lines' space above.
+  \terso@if\terso@chaptersstart{continuous}%
+    {\ifx#1\chapter\titleclass{\chapter}{straight}\fi
+     \titlespacing*{#1}{0pt}{3\baselineskip}{2.2\baselineskip}}%
+    {\titlespacing*{#1}{0pt}{.25\textheight}{2.2\baselineskip}}}
+
+% Running heads and folios through fancyhdr: none on a chapter's opening
+% page, nor on the blank verso a right-hand chapter leaves.
+\def\terso@pagestyle{%
+  \terso@ifloaded{fancyhdr}{\terso@leave{Running heads (fancyhdr)}}{%
+  \terso@ifloaded{scrlayer-scrpage}{\terso@leave{Running heads (scrlayer-scrpage)}}{%
+  \terso@ifclass{\terso@leave{Running heads (class)}}{%
+  \ifx\@oddhead\terso@was@oddhead\ifx\@oddfoot\terso@was@oddfoot
+    \RequirePackage{fancyhdr}\AtBeginDocument{\terso@fancy}%
+  \else\terso@leave{Running heads (\string\pagestyle)}\fi
+  \else\terso@leave{Running heads (\string\pagestyle)}\fi}}}}
+\def\terso@headfont{\normalfont\footnotesize\terso@spaced{6}}
+\@namedef{terso@folio@centre}{\fancyfoot[C]{\normalfont\small\thepage}}
+\@namedef{terso@folio@outside}{\fancyfoot[LE,RO]{\normalfont\small\thepage}}
+\@namedef{terso@folio@off}{}
+\@namedef{terso@heads@off}{}
+\@namedef{terso@heads@title}{\fancyhead[C]{\terso@headfont{\scshape\MakeLowercase{\terso@title}}}}
+\@namedef{terso@heads@title-and-chapter}{%
+  \fancyhead[CE]{\terso@headfont{\scshape\MakeLowercase{\terso@title}}}%
+  \fancyhead[CO]{\terso@headfont{\itshape\rightmark}}}
+\def\terso@use#1#2{\@ifundefined{terso@#1@#2}{}{\csname terso@#1@#2\endcsname}}
+\def\terso@fancy{%
+  \setlength\headwidth\textwidth
+  \fancypagestyle{plain}{\fancyhf{}\renewcommand\headrulewidth{\z@}%
+    \terso@use{folio}\terso@pagenumbers}%
+  \fancypagestyle{terso}{\fancyhf{}\renewcommand\headrulewidth{\z@}%
+    \terso@use{folio}\terso@pagenumbers \terso@use{heads}\terso@runningheads}%
+  \pagestyle{terso}%
+  \expandafter\renewcommand\csname\terso@level mark\endcsname[1]{\markboth{##1}{##1}}%
+  \def\cleardoublepage{\clearpage\if@twoside\ifodd\c@page\else
+    \hbox{}\thispagestyle{empty}\newpage\if@twocolumn\hbox{}\newpage\fi\fi\fi}}
+
+% A chapter's opening: a drop cap from its first letter, and its first
+% words in small capitals. The paragraph after a chapter heading is found
+% by arming \everypar in \@afterheading, which headings call once they are
+% set; only the chapter level arms it, and only for one paragraph. A
+% paragraph that opens with anything but a letter (a quotation mark, a
+% command such as \lettrine) is left as it is.
+\newif\ifterso@pending \newif\ifterso@armed \newif\ifterso@inmatter
+\newcount\terso@words
+\def\terso@openings{%
+  \terso@if\terso@dropcaps{false}{\terso@if\terso@smallcapsopening{false}{\@gobble}{\@firstofone}}%
+    {\@firstofone}%
+  {\terso@ifloaded{lettrine}{\terso@leave{Chapter openings (lettrine)}}{%
+    \terso@if\terso@dropcaps{true}{\RequirePackage{lettrine}}{}%
+    \AtBeginDocument{%
+      \expandafter\let\csname terso@was@level\expandafter\endcsname\csname\terso@level\endcsname
+      \expandafter\def\csname\terso@level\endcsname{%
+        \ifterso@inmatter\else\global\terso@pendingtrue\fi\csname terso@was@level\endcsname}%
+      \let\terso@was@afterheading\@afterheading
+      \def\@afterheading{\terso@was@afterheading
+        \ifterso@pending\global\terso@pendingfalse\global\terso@armedtrue
+          \everypar\expandafter{\the\everypar\terso@everypar}\fi}}}}}
+\def\terso@everypar{\ifterso@armed\global\terso@armedfalse\expandafter\terso@peek\fi}
+\def\terso@peek{\futurelet\terso@next\terso@check}
+\def\terso@check{\ifcat\noexpand\terso@next a\expandafter\terso@initial\fi}
+\def\terso@initial#1{\def\terso@cap{#1}\def\terso@text{}\terso@words\z@\terso@scan}
+% The words are read a character at a time, and reading stops at anything
+% that is not a letter or punctuation -- a command, a brace, the end of
+% the paragraph -- so nothing but text is ever taken into the opening.
+% It takes the rest of the first word, then, for small capitals, up to two
+% more: three words, as Manutius sets them.
+\def\terso@scan{\futurelet\terso@next\terso@scancheck}
+\def\terso@scancheck{\let\terso@do\terso@emit
+  \ifx\terso@next\@sptoken\let\terso@do\terso@wordend\else
+  \ifcat\noexpand\terso@next a\let\terso@do\terso@take\else
+  \ifcat\noexpand\terso@next .\let\terso@do\terso@take\fi\fi\fi
+  \terso@do}
+\def\terso@take#1{\expandafter\def\expandafter\terso@text\expandafter{\terso@text#1}\terso@scan}
+\def\terso@wordend{\advance\terso@words\@ne
+  \terso@if\terso@smallcapsopening{true}%
+    {\ifnum\terso@words<3 \expandafter\terso@eatspace\else\expandafter\terso@emit\fi}%
+    {\terso@emit}}
+% Its parameter text is a space: it takes the space between two words.
+\@firstofone{\def\terso@eatspace} {\futurelet\terso@next\terso@nextword}
+\def\terso@nextword{\ifcat\noexpand\terso@next a\expandafter\@firstoftwo\else\expandafter\@secondoftwo\fi
+  {\expandafter\def\expandafter\terso@text\expandafter{\terso@text\ }\terso@scan}%
+  {\terso@emit\space}}
+\def\terso@emit{%
+  \terso@if\terso@dropcaps{true}%
+    {\terso@if\terso@smallcapsopening{true}{}{\renewcommand\LettrineTextFont{\normalfont}}%
+     \edef\terso@tmp{\noexpand\lettrine[lines=3]{\unexpanded\expandafter{\terso@cap}}%
+       {\unexpanded\expandafter{\terso@text}}}\terso@tmp}%
+    {\textsc{\terso@cap\terso@text}}}
+
+% \scenebreak: the ornament between scenes, centred with a line's space
+% either side, and the next paragraph set full out. A glyph the face lacks
+% is drawn from Zapf Dingbats, or built from asterisks.
+\def\terso@glyph#1#2{\iffontchar\font"#1 \char"#1 \else#2\fi}
+\def\terso@ding#1{\ifdefined\ding\ding{#1}\else*\fi}
+\def\terso@asterism{\raisebox{-.1em}{\makebox[0pt][l]{\raisebox{.6em}{\kern.28em*}}*\kern.02em*}}
+\def\terso@break@asterism{\terso@glyph{2042}{\terso@asterism}}
+\def\terso@break@asterisks{*\quad*\quad*}
+\def\terso@break@fleuron{\terso@glyph{2767}{\terso@ding{167}}}
+\def\terso@break@lozenge{\terso@glyph{25C6}{\terso@ding{117}}}
+\def\terso@break@rule{\rule[.5ex]{3em}{.4pt}}
+\def\terso@break@space{\mbox{}}
+\def\terso@ornament{%
+  \ifdefined\scenebreak\terso@leave{\string\scenebreak}\else
+    \IfFileExists{pifont.sty}{\RequirePackage{pifont}}{}%
+    \def\scenebreak{\par\vspace{\baselineskip}{\centering\normalfont
+      \@ifundefined{terso@break@\terso@scenebreak}{\terso@break@asterism}%
+        {\csname terso@break@\terso@scenebreak\endcsname}\par}%
+      \vspace{\baselineskip}\@afterindentfalse\@afterheading}%
+  \fi}
+
+% ------------------------------------------------------------ front matter
+
+\newif\ifterso@titledone \newif\ifterso@contentsdone
+\newif\ifterso@frontopen \newif\ifterso@ownfront \newif\ifterso@mainopen
+\newif\ifterso@owntitle
+\def\terso@title{}\def\terso@author{}
+% The next page a recto, or a verso as the copyright page is.
+\def\terso@torecto{\clearpage\if@twoside\ifodd\c@page\else\hbox{}\thispagestyle{empty}\newpage\fi\fi}
+\def\terso@toverso{\clearpage\if@twoside\ifodd\c@page\hbox{}\thispagestyle{empty}\newpage\fi\fi}
+% \frontmatter where the class has it, once.
+\def\terso@openfront{\ifterso@frontopen\else\global\terso@frontopentrue
+  \ifdefined\terso@was@frontmatter\terso@was@frontmatter\fi\fi}
+\def\terso@display#1{\terso@openfront\terso@torecto\thispagestyle{empty}\vspace*{#1\textheight}}
+
+\def\terso@halftitle{\ifx\terso@title\@empty\else\terso@display{.22}%
+  {\centering\normalfont\terso@scaled{1.1}\terso@caps{\terso@title}\par}\clearpage\fi}
+\def\terso@titlepage{\ifx\terso@title\@empty\else\terso@display{.18}%
+  {\centering\normalfont{\terso@scaled{2.1}\terso@title\par}%
+   \ifx\terso@subtitle\@empty\else\vspace{.8em}{\terso@scaled{1.1}\itshape\terso@subtitle\par}\fi
+   \vspace{.25\textheight}{\terso@scaled{1.05}\terso@caps{\terso@author}\par}}\clearpage\fi}
+\def\terso@copyrightpage{\terso@openfront\terso@toverso\thispagestyle{empty}\vspace*{\fill}%
+  {\normalfont\footnotesize\raggedright\parindent\z@
+   \ifx\terso@copyright\@empty Copyright \textcopyright\ \the\year
+     \ifx\terso@author\@empty\else\ \terso@author\fi
+   \else\terso@copyright\fi\par All rights reserved.\par
+   \ifx\terso@font\@empty\else\medskip Set in \terso@font\ with Terso.\par\fi}\clearpage}
+\def\terso@dedicationpage{\ifx\terso@dedication\@empty\else\terso@display{.22}%
+  {\centering\normalfont\itshape\terso@dedication\par}\clearpage\fi}
+
+% Half title, title page, copyright and dedication, as `matter` lists them;
+% #1 is the preamble's own \maketitle when the body calls it.
+\def\terso@titles#1{\ifterso@titledone\else\global\terso@titledonetrue
+  \global\terso@inmattertrue
+  \ifterso@owntitle#1\else
+    \terso@ifhas{half-title}\terso@halftitle
+    \terso@ifhas{title-page}\terso@titlepage
+  \fi
+  \terso@ifhas{copyright}\terso@copyrightpage
+  \terso@ifhas{dedication}\terso@dedicationpage
+  \global\terso@inmatterfalse\fi}
+% The contents, after the title pages.
+\def\terso@contents{\ifterso@contentsdone\else\terso@titles{}%
+  \global\terso@contentsdonetrue\global\terso@inmattertrue
+  \terso@openfront\terso@torecto\terso@was@toc\global\terso@inmatterfalse\fi}
+% Before the first chapter: what the body has not placed, then the main
+% matter unless the body opened the front matter itself.
+\def\terso@remaining{\terso@titles{}\terso@ifhas{contents}\terso@contents
+  \ifterso@frontopen\ifterso@ownfront\else\ifterso@mainopen\else
+    \ifdefined\terso@was@mainmatter\global\terso@mainopentrue\terso@was@mainmatter\fi
+  \fi\fi\fi}
+\def\terso@first{\ifterso@inmatter\else\global\let\terso@first\relax\terso@remaining\fi}
+
+\def\terso@matterpages{%
+  \ifx\maketitle\terso@was@maketitle\else\terso@owntitletrue
+    \terso@leave{Title pages (\string\maketitle)}\fi
+  \AtBeginDocument{%
+    \ifx\@title\terso@notitle\else\let\terso@title\@title\fi
+    \ifx\@author\terso@noauthor\else\let\terso@author\@author\fi
+    \let\terso@was@maketitle\maketitle
+    \let\terso@was@toc\tableofcontents
+    \ifdefined\frontmatter\let\terso@was@frontmatter\frontmatter
+      \def\frontmatter{\global\terso@ownfronttrue
+        \ifterso@frontopen\else\global\terso@frontopentrue\terso@was@frontmatter\fi}\fi
+    \ifdefined\mainmatter\let\terso@was@mainmatter\mainmatter
+      \def\mainmatter{\terso@titles{}\terso@ifhas{contents}\terso@contents
+        \global\terso@mainopentrue\terso@was@mainmatter}\fi
+    \def\maketitle{\terso@titles{\terso@was@maketitle}}%
+    \def\tableofcontents{\terso@contents}%
+    \expandafter\let\csname terso@was@open\expandafter\endcsname\csname\terso@level\endcsname
+    \expandafter\def\csname\terso@level\endcsname{\terso@first\csname terso@was@open\endcsname}%
+    \terso@ifhas{about-author}{\AtEndDocument{\terso@backmatter}}}}
+
+\def\terso@backmatter{\ifx\terso@about\@empty\else
+  \ifdefined\backmatter\backmatter\fi
+  \terso@torecto\thispagestyle{empty}\vspace*{.25\textheight}%
+  {\centering\normalfont\terso@scaled{1.1}\terso@caps{About the Author}\par}%
+  \vspace{2\baselineskip}{\normalfont\terso@about\par}\fi}
+
+\endinput
