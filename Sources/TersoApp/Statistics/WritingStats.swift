@@ -2,6 +2,8 @@
 import AppKit
 import Foundation
 import Observation
+import SwiftUI
+import UserNotifications
 
 /// Words the writer typed: the keyboard, dictation and input methods. Paste,
 /// drops, accepted suggestions and undo never reach `insertText`, so they
@@ -99,6 +101,46 @@ struct WritingLog: Codable, Equatable {
         case .sitting: bestSitting
         case .streak: longestStreak
         }
+    }
+
+    /// A made-up record for previewing the stats: a year of uneven writing
+    /// with a recent streak, enough to earn some awards and leave others in
+    /// progress. Awards are dated the day their goal was passed.
+    static func sample<G: RandomNumberGenerator>(endingAt now: Date = .now, calendar: Calendar = .current, using rng: inout G) -> WritingLog {
+        var log = WritingLog()
+        let streak = Int.random(in: 8...45, using: &rng)
+        var lifetime = 0, chronological: [(Date, Int)] = []
+        for back in stride(from: 364, through: 0, by: -1) {
+            guard let day = calendar.date(byAdding: .day, value: -back, to: now) else { continue }
+            let words: Int
+            if back < streak { words = Int.random(in: 300...2_400, using: &rng) }
+            else if back == streak { words = 0 }
+            else if Double.random(in: 0..<1, using: &rng) < 0.55 { words = Int.random(in: 60...1_900, using: &rng) }
+            else { continue }
+            if words > 0 { log.days[key(day, calendar: calendar)] = words }
+            lifetime += words
+            chronological.append((day, lifetime))
+        }
+        for _ in 0..<Int.random(in: 1...3, using: &rng) {
+            if let k = log.days.keys.randomElement(using: &rng) { log.days[k] = Int.random(in: 2_000...5_600, using: &rng) }
+        }
+        let total = log.lifetime
+        let weights = (0..<24).map { h in (7...11).contains(h) || (20...23).contains(h) ? Double.random(in: 2...6, using: &rng) : Double.random(in: 0...1, using: &rng) }
+        let sum = weights.reduce(0, +)
+        log.hours = weights.map { Int(Double(total) * $0 / sum) }
+        log.bestSitting = Int.random(in: 600...min(3_200, log.bestDay), using: &rng)
+        log.dailyGoal = 1_000
+
+        // Running totals give a plausible date for the lifetime awards; the rest
+        // land somewhere in the last few months.
+        for award in Award.all where log.value(for: award.measure) >= award.goal {
+            if award.measure == .lifetime, let passed = chronological.first(where: { $0.1 >= award.goal }) {
+                log.earned[award.id] = passed.0
+            } else {
+                log.earned[award.id] = calendar.date(byAdding: .day, value: -Int.random(in: 0...120, using: &rng), to: now)
+            }
+        }
+        return log
     }
 
     /// A day counts towards a streak from this many typed words.
@@ -201,6 +243,16 @@ final class WritingStats {
     static let shared = WritingStats()
 
     private(set) var log = WritingLog()
+    /// What the stats window shows: the real record, or a sample when the
+    /// writer has asked to preview one.
+    var shown: WritingLog {
+        guard Preferences.shared.sampleWritingStats else { return log }
+        if let sampleLog { return sampleLog }
+        var rng = SystemRandomNumberGenerator()
+        let sample = WritingLog.sample(using: &rng)
+        sampleLog = sample
+        return sample
+    }
     /// The award most recently earned, until it has been shown.
     var latestAward: Award?
 
@@ -209,6 +261,7 @@ final class WritingStats {
     @ObservationIgnored private var lastTyped: Date?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
     @ObservationIgnored private var terminationObserver: NSObjectProtocol?
+    @ObservationIgnored private var sampleLog: WritingLog?
 
     /// A pause longer than this ends a sitting.
     static let sittingGap: TimeInterval = 5 * 60
@@ -238,8 +291,22 @@ final class WritingStats {
 
         let newly = Award.all.filter { log.earned[$0.id] == nil && log.value(for: $0.measure) >= $0.goal }
         for award in newly { log.earned[award.id] = now }
-        if let best = newly.last, Preferences.shared.celebrateAwards { latestAward = best }
+        if let best = newly.last { announce(best) }
         scheduleSave()
+    }
+
+    /// Shows an award the way a real one would be shown, without earning it.
+    func previewAward() {
+        let earned = shown.earned
+        let pool = Award.all.filter { earned[$0.id] != nil }
+        guard let award = pool.randomElement() ?? Award.all.randomElement() else { return }
+        withAnimation(.easeOut(duration: 0.3)) { latestAward = award }
+        AwardNotifications.post(award)
+    }
+
+    private func announce(_ award: Award) {
+        if Preferences.shared.celebrateAwards { latestAward = award }
+        if Preferences.shared.notifyAwards { AwardNotifications.post(award) }
     }
 
     func typed(in url: URL) -> Int { log.typed[Self.key(url)] ?? 0 }
@@ -277,5 +344,29 @@ final class WritingStats {
         } catch {
             NSLog("Terso: could not save writing stats: \(error.localizedDescription)")
         }
+    }
+}
+
+/// macOS notifications for earned awards. Only a bundled app can post them,
+/// so `swift run` builds stay quiet.
+enum AwardNotifications {
+    private static var center: UNUserNotificationCenter? {
+        Bundle.main.bundleIdentifier == nil ? nil : .current()
+    }
+
+    static func requestAuthorization() {
+        center?.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            if !granted { NSLog("Terso: award notifications were not allowed") }
+        }
+    }
+
+    static func post(_ award: Award) {
+        guard let center else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Award earned: \(award.title)"
+        content.body = award.detail
+        content.sound = .default
+        content.threadIdentifier = "awards"
+        center.add(UNNotificationRequest(identifier: "award.\(award.id)", content: content, trigger: nil))
     }
 }

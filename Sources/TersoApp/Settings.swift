@@ -81,6 +81,11 @@ final class Preferences {
     /// Today's typed words in the header, and a quiet note when an award is earned.
     var showWritingProgress: Bool { didSet { d.set(showWritingProgress, forKey: "showWritingProgress") } }
     var celebrateAwards: Bool { didSet { d.set(celebrateAwards, forKey: "celebrateAwards") } }
+    /// Opt-in: a macOS notification when an award is earned, even with Terso in the background.
+    var notifyAwards: Bool { didSet { d.set(notifyAwards, forKey: "notifyAwards") } }
+    /// Opt-in: the stats window shows made-up numbers, to see how it looks with awards.
+    /// Nothing is saved; turning it off brings back the real record.
+    var sampleWritingStats: Bool { didSet { d.set(sampleWritingStats, forKey: "sampleWritingStats") } }
     /// How Manutius sets the book: trim, chapters, openings, ornaments.
     var bookDesign: BookDesign { didSet { save(bookDesign, "bookDesign") } }
 
@@ -124,6 +129,8 @@ final class Preferences {
         httpProviders = Self.load("httpProviders") ?? [.anthropic, .openAI, .ollama, .lmStudio, .llamaCpp]
         showWritingProgress = d.object(forKey: "showWritingProgress") as? Bool ?? true
         celebrateAwards = d.object(forKey: "celebrateAwards") as? Bool ?? true
+        notifyAwards = d.bool(forKey: "notifyAwards")
+        sampleWritingStats = d.bool(forKey: "sampleWritingStats")
         bookDesign = Self.load("bookDesign") ?? BookDesign()
         if !d.bool(forKey: "scienceLayersInitialized") {
             enabledLayers.formUnion([.notation, .quantities, .references, .claims, .evidence])

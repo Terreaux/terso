@@ -78,6 +78,18 @@ import Testing
         #expect(stats.log.earned["day1000"] == nil)
     }
 
+    @Test func sampleEarnsSomeAwardsAndLeavesOthersInProgress() {
+        var rng = SystemRandomNumberGenerator()
+        for _ in 0..<20 {
+            let log = WritingLog.sample(using: &rng)
+            #expect(!log.earned.isEmpty)
+            #expect(log.earned.count < Award.all.count)
+            for award in Award.all {
+                #expect((log.earned[award.id] != nil) == (log.value(for: award.measure) >= award.goal), "\(award.id)")
+            }
+        }
+    }
+
     @Test func awardIDsAreUnique() {
         #expect(Set(Award.all.map(\.id)).count == Award.all.count)
     }

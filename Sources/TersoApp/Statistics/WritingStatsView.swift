@@ -61,6 +61,12 @@ struct WritingStatsView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("Writing").font(.title2.weight(.semibold))
+                if Preferences.shared.sampleWritingStats {
+                    Text("Sample numbers").font(.caption).foregroundStyle(.secondary)
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                        .help("Turn off in Settings › Analysis › Writing stats to see your real record.")
+                }
                 Spacer()
                 Picker("Section", selection: $tab) {
                     ForEach(WritingStatsTab.allCases) { Text($0.rawValue).tag($0) }
@@ -89,7 +95,7 @@ struct WritingStatsView: View {
 private struct OverviewTab: View {
     var body: some View {
         let stats = WritingStats.shared
-        let log = stats.log
+        let log = stats.shown
         let now = Date.now
         let today = log.words(on: now)
         let streak = log.currentStreak(at: now)
@@ -402,7 +408,7 @@ private struct TargetProgress: View {
 
 private struct AwardsTab: View {
     var body: some View {
-        let log = WritingStats.shared.log
+        let log = WritingStats.shared.shown
         let earned = Award.all.filter { log.earned[$0.id] != nil }.count
         VStack(alignment: .leading, spacing: 24) {
             Text("\(earned) of \(Award.all.count) earned").foregroundStyle(.secondary)
