@@ -1,0 +1,35 @@
+name: Release Drafter
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-drafter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Labels pull requests from their titles (rules in .github/release-drafter.yml).
+  autolabel:
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter/autolabeler@v7.10.0
+
+  # Rewrites the draft release for the next version from merged pull requests.
+  draft:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+      pull-requests: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v7.10.0

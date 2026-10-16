@@ -1,0 +1,108 @@
+# Release Drafter keeps a draft GitHub release for the next version up to date
+# as pull requests merge into main. Publishing the draft (with its tag) is manual.
+#
+# Pull requests are sorted by label. The autolabeler below sets labels from the
+# PR title, so gitmoji ("✨ …") and conventional ("feat: …") titles both work.
+# Add `skip-changelog` to keep a PR out of the notes.
+
+name-template: 'Terso $RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: '💥 Breaking changes'
+    labels: ['breaking']
+  - title: '✨ New features'
+    labels: ['enhancement', 'feature']
+  - title: '💄 Interface'
+    labels: ['ui']
+  - title: '🐛 Fixes'
+    labels: ['bug', 'fix']
+  - title: '⚡ Performance'
+    labels: ['performance']
+  - title: '📝 Documentation'
+    labels: ['documentation']
+  - title: '🧰 Maintenance'
+    collapse-after: 5
+    labels: ['maintenance', 'chore']
+  - title: '📦 Dependencies and bundled data'
+    collapse-after: 5
+    labels: ['dependencies']
+
+exclude-labels:
+  - 'skip-changelog'
+
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+change-title-escapes: '\<*_&' # also add # and @ to stop GitHub linking them
+no-changes-template: '_No user-facing changes._'
+
+# Terso is pre-1.0: breaking changes bump the minor version, everything else
+# the patch. Add the `major` label by hand to cut 1.0.
+version-resolver:
+  major:
+    labels: ['major']
+  minor:
+    labels: ['breaking', 'enhancement', 'feature', 'minor']
+  patch:
+    labels: ['bug', 'fix', 'ui', 'performance', 'documentation', 'maintenance', 'dependencies', 'patch']
+  default: patch
+
+template: |
+  $CHANGES
+
+  ## Install
+
+  Download the `.dmg` below (check it against its `.sha256`), open it and drag Terso into Applications.
+  Requires Apple silicon and macOS 15 or later. The app is ad-hoc signed, not notarized:
+  approve it once in System Settings → Privacy & Security.
+
+  **Full changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+  Thanks to $CONTRIBUTORS.
+
+# Title rules. Gitmoji first, then conventional-commit prefixes. Emoji are
+# matched as a prefix so variation selectors (⬆️ vs ⬆) don't matter.
+# The first matching kind wins (stop-on-match), so "🎨 feat: …" is a feature,
+# not maintenance; `breaking` is added on top of whatever kind the PR is.
+sync-labels: true
+autolabeler:
+  - labels: ['breaking']
+    title:
+      - '/^💥/'
+      - '/^(\S+\s+)?\w+(\(.+\))?!:/'
+    body:
+      - '/BREAKING CHANGE/'
+  - labels: ['enhancement']
+    stop-on-match: true
+    title:
+      - '/^(✨|🎉|🚀|🔬|📐|🖥|✍|🎛|🌐|🔊)/'
+      - '/^(\S+\s+)?feat(\(.+\))?!?:/i'
+  - labels: ['bug']
+    stop-on-match: true
+    title:
+      - '/^(🐛|🚑|🩹|🥅)/'
+      - '/^(\S+\s+)?fix(\(.+\))?!?:/i'
+  - labels: ['ui']
+    stop-on-match: true
+    title:
+      - '/^(💄|💫|🍱|🚸|♿)/'
+      - '/^(\S+\s+)?(style|ui)(\(.+\))?!?:/i'
+  - labels: ['performance']
+    stop-on-match: true
+    title:
+      - '/^⚡/'
+      - '/^(\S+\s+)?perf(\(.+\))?!?:/i'
+  - labels: ['documentation']
+    stop-on-match: true
+    title:
+      - '/^(📝|💡)/'
+      - '/^(\S+\s+)?docs(\(.+\))?!?:/i'
+  - labels: ['dependencies']
+    stop-on-match: true
+    title:
+      - '/^(📦|⬆|⬇|➕|➖|📌)/'
+      - '/^(\S+\s+)?(deps|build\(deps\))!?:/i'
+  - labels: ['maintenance']
+    stop-on-match: true
+    title:
+      - '/^(🚨|♻|🔧|🔨|👷|💚|🔥|✅|🧪|🎨|🚚|🏷|🙈|🧹)/'
+      - '/^(\S+\s+)?(chore|refactor|ci|test|build)(\(.+\))?!?:/i'
