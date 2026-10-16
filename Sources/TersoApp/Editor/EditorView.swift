@@ -26,6 +26,9 @@ struct EditorConfig: Equatable {
     var pageScale: Double
     /// TeX source: styled as LaTeX rather than Markdown.
     var latex: Bool
+    /// Manutius on TeX source: TeX sets the pages, so the editor keeps the
+    /// source as written and the compiled PDF stands beside it.
+    var latexBook: Bool
 
     @MainActor init(prefs: Preferences, model: WorkspaceModel, latex: Bool = false) {
         self.latex = latex
@@ -34,7 +37,8 @@ struct EditorConfig: Equatable {
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
         theme = prefs.theme; mixedRendered = prefs.mixedRendered
-        book = model.manutius ? model.bookDesign : nil
+        book = model.manutius && !latex ? model.bookDesign : nil
+        latexBook = model.manutius && latex
         pageScale = prefs.fontSize
         if let book {
             font = book.typeface ?? prefs.font
@@ -409,14 +413,14 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         textBinding.wrappedValue = tv.string
         model.textDidChange()
         updateMathPresentation()
-        if tv.book != nil { scheduleBookOutline() }
+        if tv.book != nil || config?.latexBook == true { scheduleBookOutline() }
     }
 
     func textViewDidChangeSelection(_ notification: Notification) {
         updateMathPresentation()
         applyDimming()
         if model.typewriter { centerCaret() }
-        if textView?.book != nil { refreshBookPosition() }
+        if textView?.book != nil || config?.latexBook == true { refreshBookPosition() }
     }
 
     nonisolated func textStorage(_ textStorage: NSTextStorage, didProcessEditing editedMask: NSTextStorageEditActions, range editedRange: NSRange, changeInLength delta: Int) {
@@ -470,7 +474,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             storage.endEditing()
             tv.typingAttributes = MarkdownStyler.baseAttributes(new)
         }
-        if styleChanged { applyBook(); scheduleBookOutline() }
+        if styleChanged { applyBook(); scheduleBookOutline() } else if old?.latexBook != new.latexBook { refreshBookOutline() }
         if styleChanged || old?.columnWidth != new.columnWidth || old?.mixedRendered != new.mixedRendered || old?.latex != new.latex { updateMathPresentation() }
         if force || old?.focusMode != new.focusMode || old?.dimInactive != new.dimInactive || old?.typewriter != new.typewriter {
             popover?.close()

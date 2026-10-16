@@ -59,6 +59,9 @@ private struct CompiledPDF: NSViewRepresentable {
     var running = false
     var error: String?
     var log = ""
+    /// Keep the last good PDF through a compile and past a failed one, as
+    /// Manutius does so its pages don't blank while the source is mid-edit.
+    var keepsLastPages = false
     private var process: Process?
     private var generation = UUID()
 
@@ -79,7 +82,8 @@ private struct CompiledPDF: NSViewRepresentable {
     func compile(source: String, fileURL: URL?, onlyCached: Bool = true) async {
         cancel()
         let request = generation
-        pdf = nil; error = nil; log = ""
+        if !keepsLastPages { pdf = nil }
+        error = nil; log = ""
         guard let executable = Self.executable else {
             error = "Full LaTeX preview requires Tectonic. Install it, then choose Compile again. Source and Mixed modes remain available."
             return

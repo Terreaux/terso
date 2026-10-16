@@ -37,36 +37,54 @@ struct DocumentWindow: View {
 
     }
 
+    private var latex: Bool { RenderMode.isLaTeX(source: document.text, fileURL: fileURL) }
+
     private var editor: some View {
+        // Manutius on LaTeX: the source stays editable on the left and TeX's
+        // own pages stand beside it; Preview gives the pages the window.
+        let pages = model.manutius && latex
+        return HSplitView {
+            source(pages: pages)
+            if pages && model.renderMode != .preview {
+                LaTeXBookPages(model: model, source: document.text, fileURL: fileURL)
+                    .frame(minWidth: 260, idealWidth: 560, maxWidth: .infinity)
+            }
+        }
+            .overlay(alignment: .bottom) {
+                if model.zenMode { ZenExit(model: model) } else if model.focusMode { FocusFooter(model: model) }
+                else if model.manutius && (model.renderMode != .preview || pages) { BookStatusBar(model: model) }
+            }
+            .onChange(of: latex, initial: true) { _, new in model.latexBook.isLaTeX = new }
+            .ignoresSafeArea(edges: model.focusMode ? .top : [])
+    }
+
+    private func source(pages: Bool) -> some View {
         ZStack {
-            EditorView(text: $document.text, model: model, config: EditorConfig(prefs: prefs, model: model, latex: RenderMode.isLaTeX(source: document.text, fileURL: fileURL)))
+            EditorView(text: $document.text, model: model, config: EditorConfig(prefs: prefs, model: model, latex: latex))
                 .opacity(model.renderMode == .preview ? 0 : 1)
                 .allowsHitTesting(model.renderMode != .preview)
                 .accessibilityHidden(model.renderMode == .preview)
             if model.renderMode == .preview {
-                if RenderMode.isLaTeX(source: document.text, fileURL: fileURL) {
+                if pages {
+                    LaTeXBookPages(model: model, source: document.text, fileURL: fileURL)
+                } else if latex {
                     TectonicPreview(source: document.text, fileURL: fileURL)
                 } else {
                     MarkdownPreview(source: document.text, model: model).id(fileURL?.deletingLastPathComponent())
                 }
             }
         }
+            .frame(minWidth: 280)
             .overlay(alignment: .trailing) {
                 if prefs.showDocumentMap && !model.focusMode && model.renderMode != .preview {
                     IssueRail(model: model).padding(.trailing, 16)
                 }
             }
             .overlay(alignment: .top) {
-                if model.manutius, model.documentBook == nil, !model.bookSetupDeclined, model.renderMode != .preview,
-                   !RenderMode.isLaTeX(source: document.text, fileURL: fileURL) {
+                if model.manutius, model.documentBook == nil, !model.bookSetupDeclined, model.renderMode != .preview, !latex {
                     BookSetupBanner(model: model).transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
-            .overlay(alignment: .bottom) {
-                if model.zenMode { ZenExit(model: model) } else if model.focusMode { FocusFooter(model: model) }
-                else if model.manutius && model.renderMode != .preview { BookStatusBar(model: model) }
-            }
-            .ignoresSafeArea(edges: model.focusMode ? .top : [])
     }
 }
 

@@ -13,7 +13,13 @@ struct BookOutline: Equatable {
         /// Folios of the chapter's first and last pages.
         var first: String?
         var last: String?
+        /// A LaTeX `\part`, listed among the chapters but not numbered.
+        var part = false
+        /// The page index the chapter opens on, in a compiled PDF.
+        var page: Int?
     }
+    /// A chapter's number, parts not counted.
+    func number(_ id: Int) -> Int { chapters.prefix(id + 1).filter { !$0.part }.count }
     var chapters: [Chapter] = []
     /// Every page, front matter to back.
     var pages = 0
@@ -25,6 +31,12 @@ struct BookOutline: Equatable {
 extension EditorCoordinator {
     /// Lays the book out to the end and records where each chapter falls.
     func refreshBookOutline() {
+        if config?.latexBook == true, let tv = textView {
+            var outline = model.latexBook.outline(for: tv.string)
+            locate(in: &outline)
+            if outline != model.bookOutline { model.bookOutline = outline }
+            return
+        }
         guard let tv = textView, let book = tv.book, let lm = tv.layoutManager, let container = tv.textContainer else {
             if model.bookOutline != BookOutline() { model.bookOutline = BookOutline() }
             return
@@ -53,6 +65,11 @@ extension EditorCoordinator {
     }
 
     private func locate(in outline: inout BookOutline) {
+        if config?.latexBook == true, let tv = textView {
+            let caret = tv.selectedRange().location
+            outline.current = outline.chapters.last { !$0.part && $0.heading.location <= caret }?.id
+            return
+        }
         guard let tv = textView, let book = tv.book, let lm = tv.layoutManager else { return }
         let caret = tv.selectedRange().location
         outline.current = outline.chapters.last { $0.heading.location <= caret }?.id
@@ -66,7 +83,7 @@ extension EditorCoordinator {
     /// Lays out and outlines the book once typing pauses.
     func scheduleBookOutline() {
         outlineTask?.cancel()
-        guard config?.book != nil else { refreshBookOutline(); return }
+        guard config?.book != nil || config?.latexBook == true else { refreshBookOutline(); return }
         outlineTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(600))
             guard !Task.isCancelled else { return }
@@ -77,6 +94,7 @@ extension EditorCoordinator {
     /// A new chapter at the end of the book, with the caret in its title.
     func appendChapter() {
         guard let tv = textView else { return }
+        if config?.latex == true { appendLaTeXChapter(); return }
         let ns = tv.string as NSString
         let number = BookChapter.scan(tv.string).count + 1
         let lead = ns.length == 0 ? "" : tv.string.hasSuffix("\n\n") ? "" : tv.string.hasSuffix("\n") ? "\n" : "\n\n"
@@ -84,6 +102,21 @@ extension EditorCoordinator {
         replace(TextSpan(location: ns.length, length: 0), with: lead + "# " + title + "\n\n", actionName: "Add Chapter")
         let start = ns.length + (lead as NSString).length + 2
         tv.setSelectedRange(NSRange(location: start, length: (title as NSString).length))
+        tv.scrollRangeToVisible(tv.selectedRange())
+        tv.window?.makeFirstResponder(tv)
+    }
+
+    /// `\chapter{…}` before `\end{document}`, or at the end.
+    private func appendLaTeXChapter() {
+        guard let tv = textView else { return }
+        let ns = tv.string as NSString
+        let number = LaTeXHeading.scan(tv.string).filter { !$0.part }.count + 1
+        let at = LaTeXSyntax.trailer(in: tv.string)?.location ?? ns.length
+        let before = ns.substring(to: at)
+        let lead = before.isEmpty || before.hasSuffix("\n\n") ? "" : before.hasSuffix("\n") ? "\n" : "\n\n"
+        let title = "Chapter \(number)"
+        replace(TextSpan(location: at, length: 0), with: lead + "\\chapter{" + title + "}\n\n", actionName: "Add Chapter")
+        tv.setSelectedRange(NSRange(location: at + (lead as NSString).length + 9, length: (title as NSString).length))
         tv.scrollRangeToVisible(tv.selectedRange())
         tv.window?.makeFirstResponder(tv)
     }
@@ -98,11 +131,13 @@ struct BookChapters: View {
 
     var body: some View {
         if model.bookOutline.chapters.isEmpty {
-            Text("Each # heading starts a chapter").foregroundStyle(.tertiary)
+            Text(model.latexBook.isLaTeX ? "Each \\chapter starts a chapter" : "Each # heading starts a chapter").foregroundStyle(.tertiary)
         }
         ForEach(model.bookOutline.chapters) { chapter in
-            ChapterRow(chapter: chapter, current: chapter.id == model.bookOutline.current) {
+            ChapterRow(chapter: chapter, number: model.bookOutline.number(chapter.id), current: chapter.id == model.bookOutline.current) {
                 model.editor?.reveal(TextSpan(location: chapter.heading.location, length: 0), select: true)
+                // A LaTeX book's pages turn to the chapter too.
+                if let page = chapter.page { model.latexBook.reveal(page: page) }
             }
         }
     }
@@ -123,14 +158,19 @@ struct BookChaptersHeader: View {
 
 private struct ChapterRow: View {
     let chapter: BookOutline.Chapter
+    let number: Int
     let current: Bool
     let open: () -> Void
 
     var body: some View {
         Button(action: open) {
             HStack(spacing: 8) {
-                Text("\(chapter.id + 1)").monospacedDigit().foregroundStyle(.tertiary).frame(minWidth: 14, alignment: .trailing)
-                Text(chapter.title).lineLimit(1).fontWeight(current ? .semibold : .regular)
+                if chapter.part {
+                    Text(chapter.title).font(.callout.smallCaps()).foregroundStyle(.secondary).lineLimit(1)
+                } else {
+                    Text("\(number)").monospacedDigit().foregroundStyle(.tertiary).frame(minWidth: 14, alignment: .trailing)
+                    Text(chapter.title).lineLimit(1).fontWeight(current ? .semibold : .regular)
+                }
                 Spacer(minLength: 4)
                 if let first = chapter.first {
                     Text(first == chapter.last || chapter.last == nil ? first : "\(first)–\(chapter.last!)")
@@ -141,7 +181,7 @@ private struct ChapterRow: View {
         }
         .buttonStyle(.plain)
         .help("Go to \(chapter.title)")
-        .accessibilityLabel("Chapter \(chapter.id + 1), \(chapter.title)\(chapter.first.map { ", page \($0)" } ?? "")")
+        .accessibilityLabel("\(chapter.part ? "Part" : "Chapter \(number)"), \(chapter.title)\(chapter.first.map { ", page \($0)" } ?? "")")
         .accessibilityAddTraits(current ? .isSelected : [])
     }
 }
@@ -203,6 +243,10 @@ struct BookDesignPane: View {
     @AppStorage("bookDesignMatter") private var matter = false
 
     var body: some View {
+        if model.latexBook.isLaTeX { LaTeXBookSummary(model: model) } else { designControls }
+    }
+
+    private var designControls: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 BookSource(model: model)
@@ -503,7 +547,7 @@ struct BookStatusBar: View {
         let d = model.bookDesign
         HStack(spacing: 6) {
             if let current = outline.current, let chapter = outline.chapters[safe: current] {
-                Text("Chapter \(current + 1) of \(outline.chapters.count)")
+                Text("Chapter \(outline.number(current)) of \(outline.chapters.filter { !$0.part }.count)")
                 if let first = chapter.first {
                     Text("·"); Text(first == chapter.last ? "page \(first)" : "pages \(first)–\(chapter.last ?? first)")
                 }
@@ -514,7 +558,11 @@ struct BookStatusBar: View {
             Text("\(outline.pages) printed pages")
             if let words = model.local?.statistics.words { Text("·"); Text("\(words.formatted()) words") }
             Spacer()
-            Text("\(d.trim.title) · \(String(format: "%.1f", d.typeSize)) pt")
+            if model.latexBook.isLaTeX {
+                Text(model.latexBook.trimTitle ?? "Typeset by LaTeX")
+            } else {
+                Text("\(d.trim.title) · \(String(format: "%.1f", d.typeSize)) pt")
+            }
         }
         .font(.caption).monospacedDigit().foregroundStyle(.secondary)
         .lineLimit(1)

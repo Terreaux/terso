@@ -23,6 +23,7 @@ struct BookControls: View {
 
 /// Every page at once, as a printed book opens: the first page alone on
 /// the right, then verso and recto side by side. A click turns to the page.
+/// A LaTeX book shows its compiled pages.
 struct BookOverview: View {
     let model: WorkspaceModel
     @Environment(\.dismiss) private var dismiss
@@ -30,13 +31,17 @@ struct BookOverview: View {
     private static let thumb: CGFloat = 132
 
     private var editor: EditorCoordinator? { model.editor as? EditorCoordinator }
+    private var latex: LaTeXBook? { model.latexBook.isLaTeX ? model.latexBook : nil }
+    private var aspect: CGFloat {
+        latex?.pageSize.map { $0.height / max(1, $0.width) } ?? model.bookDesign.trim.aspect
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Whole Book").font(.headline)
-                    Text("\(pages) \(pages == 1 ? "page" : "pages") · \(model.bookDesign.trim.title)")
+                    Text("\(pages) \(pages == 1 ? "page" : "pages") · \(latex.map { $0.trimTitle ?? "" } ?? model.bookDesign.trim.title)")
                         .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 }
                 Spacer()
@@ -46,12 +51,12 @@ struct BookOverview: View {
             Divider()
             ScrollView {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(Self.thumb * 2), spacing: 28), count: 2), spacing: 22) {
-                    // Spread 0 is the first recto alone; spread n holds pages 2n-1 and 2n.
-                    ForEach(0..<(pages / 2 + 1), id: \.self) { spread in
+                    ForEach(0..<BookSpreads.count(pages: pages), id: \.self) { spread in
+                        let pair = BookSpreads.pages(inSpread: spread, of: pages)
                         VStack(spacing: 4) {
                             HStack(spacing: 0) {
-                                cell(spread == 0 ? nil : spread * 2 - 1)
-                                cell(spread * 2 < pages ? spread * 2 : nil)
+                                cell(pair.verso)
+                                cell(pair.recto)
                             }
                             .shadow(color: .black.opacity(0.18), radius: 4, y: 1)
                         }
@@ -62,17 +67,22 @@ struct BookOverview: View {
             .background(Color(nsColor: model.prefs.theme.background).opacity(0.6))
         }
         .frame(width: Self.thumb * 4 + 28 + 40 + 20, height: 620)
-        .onAppear { pages = editor?.bookPageCount() ?? 0 }
+        .onAppear { pages = latex?.pageCount ?? editor?.bookPageCount() ?? 0 }
     }
 
     @ViewBuilder private func cell(_ index: Int?) -> some View {
-        if let index {
+        if let index, let latex {
+            PDFPageThumbnail(book: latex, index: index, width: Self.thumb) {
+                latex.reveal(page: index)
+                dismiss()
+            }
+        } else if let index {
             BookPageThumbnail(index: index, width: Self.thumb, editor: editor) {
                 editor?.revealBookPage(index)
                 dismiss()
             }
         } else {
-            Color.clear.frame(width: Self.thumb, height: Self.thumb * model.bookDesign.trim.aspect)
+            Color.clear.frame(width: Self.thumb, height: Self.thumb * aspect)
         }
     }
 }
