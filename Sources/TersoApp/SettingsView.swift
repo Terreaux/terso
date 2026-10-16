@@ -80,6 +80,11 @@ struct AnalysisSettings: View {
             Section("Writing stats") {
                 Toggle("Show today’s typed words in the header", isOn: $prefs.showWritingProgress)
                 Toggle("Show a note when I earn an award", isOn: $prefs.celebrateAwards)
+                Toggle("Send a notification when I earn an award", isOn: $prefs.notifyAwards)
+                    .onChange(of: prefs.notifyAwards) { _, on in if on { AwardNotifications.requestAuthorization() } }
+                Toggle("Fill stats with sample numbers", isOn: $prefs.sampleWritingStats)
+                    .help("Made-up numbers and awards, to see how the stats look. Your real record is untouched.")
+                Button("Preview Award") { WritingStats.shared.previewAward() }
                 Text("Terso counts the words you type, not the ones you paste. Only counts are kept, on this Mac.")
                     .font(.caption).foregroundStyle(.secondary)
             }
