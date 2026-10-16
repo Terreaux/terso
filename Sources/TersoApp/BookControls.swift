@@ -36,7 +36,7 @@ struct BookOverview: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Whole Book").font(.headline)
-                    Text("\(pages) \(pages == 1 ? "page" : "pages") · \(model.prefs.bookDesign.trim.title)")
+                    Text("\(pages) \(pages == 1 ? "page" : "pages") · \(model.bookDesign.trim.title)")
                         .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 }
                 Spacer()
@@ -72,7 +72,7 @@ struct BookOverview: View {
                 dismiss()
             }
         } else {
-            Color.clear.frame(width: Self.thumb, height: Self.thumb * model.prefs.bookDesign.trim.aspect)
+            Color.clear.frame(width: Self.thumb, height: Self.thumb * model.bookDesign.trim.aspect)
         }
     }
 }

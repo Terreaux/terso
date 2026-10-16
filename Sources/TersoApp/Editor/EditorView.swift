@@ -34,7 +34,7 @@ struct EditorConfig: Equatable {
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
         theme = prefs.theme; mixedRendered = prefs.mixedRendered
-        book = model.manutius ? prefs.bookDesign : nil
+        book = model.manutius ? model.bookDesign : nil
         pageScale = prefs.fontSize
         if let book {
             font = book.typeface ?? prefs.font
@@ -292,6 +292,7 @@ struct EditorView: NSViewRepresentable {
         }
         c.applyConfig(config, force: true)
         model.editor = c
+        model.refreshDocumentBook()
         model.scheduleAnalysis()
         DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
         return scroll

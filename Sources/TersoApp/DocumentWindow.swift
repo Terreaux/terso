@@ -56,6 +56,12 @@ struct DocumentWindow: View {
                     IssueRail(model: model).padding(.trailing, 16)
                 }
             }
+            .overlay(alignment: .top) {
+                if model.manutius, model.documentBook == nil, !model.bookSetupDeclined, model.renderMode != .preview,
+                   !RenderMode.isLaTeX(source: document.text, fileURL: fileURL) {
+                    BookSetupBanner(model: model).transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
             .overlay(alignment: .bottom) {
                 if model.zenMode { ZenExit(model: model) } else if model.focusMode { FocusFooter(model: model) }
                 else if model.manutius && model.renderMode != .preview { BookStatusBar(model: model) }

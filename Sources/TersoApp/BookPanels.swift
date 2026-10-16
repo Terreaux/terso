@@ -155,9 +155,9 @@ private struct MatterToggles: View {
     var body: some View {
         ForEach(MatterPage.allCases) { kind in
             let missing = !kind.hasContent(meta, chapters: max(2, model.bookOutline.chapters.count)) && kind != .contents
-            Toggle(isOn: Binding(get: { model.prefs.bookDesign.matter.contains(kind) },
+            Toggle(isOn: Binding(get: { model.bookDesign.matter.contains(kind) },
                                  set: { on in
-                                     if on { model.prefs.bookDesign.matter.insert(kind) } else { model.prefs.bookDesign.matter.remove(kind) }
+                                     model.updateBookDesign { if on { $0.matter.insert(kind) } else { $0.matter.remove(kind) } }
                                  })) {
                 HStack(spacing: 4) {
                     Text(kind.title)
@@ -176,7 +176,7 @@ struct WordGoal: View {
 
     var body: some View {
         let words = model.local?.statistics.words ?? 0
-        let goal = max(1, model.prefs.bookDesign.wordGoal)
+        let goal = max(1, model.bookDesign.wordGoal)
         let fraction = min(1, Double(words) / Double(goal))
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -205,6 +205,7 @@ struct BookDesignPane: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
+                BookSource(model: model)
                 group("Type", $type) { TypePane(model: model) }
                 group("Page", $page) { PagePane(model: model) }
                 group("Chapters", $chapters) { ChaptersPane(model: model) }
@@ -226,7 +227,7 @@ struct BookDesignPane: View {
 
 /// A binding into the stored book design.
 @MainActor private func design<T>(_ model: WorkspaceModel, _ path: WritableKeyPath<BookDesign, T>) -> Binding<T> {
-    Binding(get: { model.prefs.bookDesign[keyPath: path] }, set: { model.prefs.bookDesign[keyPath: path] = $0 })
+    Binding(get: { model.bookDesign[keyPath: path] }, set: { value in model.updateBookDesign { $0[keyPath: path] = value } })
 }
 
 private struct Field<Content: View>: View {
@@ -263,7 +264,7 @@ private struct TypePane: View {
     @Bindable var model: WorkspaceModel
 
     var body: some View {
-        let d = model.prefs.bookDesign
+        let d = model.bookDesign
         let face = d.typeface ?? model.prefs.font
         Field("Font") {
             Picker("Font", selection: design(model, \.typeface)) {
@@ -308,7 +309,7 @@ private struct PagePane: View {
     @Bindable var model: WorkspaceModel
 
     var body: some View {
-        let trim = model.prefs.bookDesign.trim
+        let trim = model.bookDesign.trim
         let inches = trim.inches
         Field("Trim size") {
             Picker("Trim size", selection: design(model, \.trim)) {
@@ -398,6 +399,55 @@ private struct BookPane: View {
     }
 }
 
+/// Where the design is kept: in this document, or Terso's defaults until
+/// it is set up as a book.
+private struct BookSource: View {
+    let model: WorkspaceModel
+
+    var body: some View {
+        if model.documentBook != nil {
+            Label("Saved in this document's metadata, under book:", systemImage: "doc.text")
+                .font(.caption).foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Using Terso's default design. Changes here apply to every document not set up as a book.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Button("Set Up as Book") { model.setUpAsBook() }
+                    .help("Write this design into the document's metadata, so the file keeps it")
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+/// Offered once on entering Manutius with a document that has no book
+/// design of its own: nothing is written until the writer says so.
+struct BookSetupBanner: View {
+    let model: WorkspaceModel
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "book.closed").foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Set this document up as a book?").font(.callout.weight(.medium))
+                Text("Its trim, type and chapters are saved in the metadata at the top, under book:.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 12)
+            Button("Not Now") { model.bookSetupDeclined = true }
+            Button("Set Up as Book") { model.setUpAsBook() }.keyboardShortcut(.defaultAction).buttonStyle(.borderedProminent)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
+        .shadow(color: .black.opacity(0.12), radius: 8, y: 2)
+        .frame(maxWidth: 620)
+        .padding(.top, 12).padding(.horizontal, 20)
+    }
+}
+
 // MARK: - Front & back matter
 
 /// The book's particulars, written into the document's metadata.
@@ -450,7 +500,7 @@ struct BookStatusBar: View {
 
     var body: some View {
         let outline = model.bookOutline
-        let d = model.prefs.bookDesign
+        let d = model.bookDesign
         HStack(spacing: 6) {
             if let current = outline.current, let chapter = outline.chapters[safe: current] {
                 Text("Chapter \(current + 1) of \(outline.chapters.count)")

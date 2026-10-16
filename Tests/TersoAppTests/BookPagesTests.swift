@@ -204,6 +204,43 @@ import Testing
         #expect(BookPage.roman(14) == "xiv")
     }
 
+    @Test func bookDesignLivesInTheMetadata() throws {
+        let text = "---\ntitle: \"On Type\"\nbook:\n  trim: 5.5x8.5\n  typeface: baskerville\n  size: 12.5\n  chapters-start: new-page\n  matter: [title-page, contents]\n  word-goal: 60_000\n  unknown: kept\nauthor: A. Printer\n---\n\n# One\n"
+        var defaults = BookDesign()
+        defaults.headings = .rules
+        let d = try #require(BookDesign.read(from: text, defaults: defaults))
+        #expect(d.trim == .digest && d.typeface == .baskerville && d.typeSize == 12.5 && d.openers == .newPage)
+        #expect(d.matter == [.titlePage, .contents] && d.wordGoal == 60_000)
+        // Keys left out take the defaults; the metadata's own keys are untouched.
+        #expect(d.headings == .rules && BookMetadata.read(text).author == "A. Printer")
+        #expect(BookDesign.read(from: "# One\n", defaults: defaults) == nil)
+
+        // Written back, the block replaces the old one in place and reads the same.
+        var changed = d
+        changed.sceneBreak = .fleuron
+        changed.typeface = nil
+        let edit = try #require(changed.edit(of: text))
+        let written = (text as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
+        #expect(written.contains("  scene-break: fleuron\n") && written.contains("  typeface: editor\n") && written.contains("  unknown: kept\n"))
+        #expect(written.contains("author: A. Printer\n---\n\n# One"))
+        #expect(BookDesign.read(from: written, defaults: defaults) == changed)
+
+        // A document without metadata gains a block at the top.
+        let plain = try #require(BookDesign().edit(of: "# One\n"))
+        #expect(plain.range == NSRange(location: 0, length: 0) && plain.replacement.hasPrefix("---\nbook:\n  trim: 6x9\n"))
+        #expect(BookDesign.read(from: plain.replacement + "# One\n", defaults: defaults) == BookDesign())
+    }
+
+    @Test func settingUpAsABookIsOneUndoableEdit() throws {
+        let text = "Body text.\n"
+        let title = BookMetadata(title: "Draft").edit(of: text)
+        let titled = (text as NSString).replacingCharacters(in: title!.range, with: title!.replacement)
+        let edit = try #require(BookBlock.combine(text, [title, BookDesign().edit(of: titled)]))
+        let result = (text as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
+        #expect(edit.range.location == 0 && result.hasSuffix("---\n\nBody text.\n"))
+        #expect(BookMetadata.read(result).title == "Draft" && BookDesign.read(from: result, defaults: BookDesign()) == BookDesign())
+    }
+
     private func editor(text: String, manutius: Bool, mixed: Set<MixedElement>, design: BookDesign? = nil, mode: RenderMode = .mixed, width: CGFloat = 1000)
         -> (TersoTextView, MathLayoutManager, NSTextContainer, () -> Void) {
         let model = WorkspaceModel()
