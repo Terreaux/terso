@@ -265,7 +265,9 @@ final class WorkspaceModel {
                 try Task.checkCancellation()
                 let prose = ProseText(snap)
                 try Task.checkCancellation()
-                let local = WritingAnalyzer(profile: scienceProfile).analyze(snap)
+                // Story-shape advice is about fiction; essays use the same moves freely.
+                let rules = WritingAnalyzer.defaultRules + (domain == .fiction ? StoryShape.rules : [])
+                let local = WritingAnalyzer(rules: rules, profile: scienceProfile).analyze(snap)
                 try Task.checkCancellation()
                 let style = StyleEngine().analyze(snap, domain: domain)
                 try Task.checkCancellation()

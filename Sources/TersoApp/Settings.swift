@@ -156,6 +156,7 @@ final class Preferences {
         if layers == nil {
             d.set(true, forKey: "scienceLayersInitialized")
             d.set(true, forKey: "writingLayersSplit")
+            d.set(true, forKey: "storyShapeOffered")
         }
         if !d.bool(forKey: "scienceLayersInitialized") {
             enabledLayers.formUnion([.notation, .quantities, .references, .claims, .evidence])
@@ -172,12 +173,18 @@ final class Preferences {
             d.set(enabledLayers.map(\.rawValue), forKey: "layers")
             d.set(true, forKey: "writingLayersSplit")
         }
+        // Story shape arrived later; it only speaks in the Fiction register.
+        if !d.bool(forKey: "storyShapeOffered") {
+            enabledLayers.insert(.storyShape)
+            d.set(enabledLayers.map(\.rawValue), forKey: "layers")
+            d.set(true, forKey: "storyShapeOffered")
+        }
     }
 
     /// A calm first page: mistakes and the clearest style advice. Science,
     /// repetition, rhythm, adverbs and the rest are a click away in the header.
     static let defaultLayers: Set<AnnotationCategory> = [
-        .spelling, .misused, .lexicalIllusions, .filler, .passiveVoice, .complexity, .aiSuggestion,
+        .spelling, .misused, .lexicalIllusions, .filler, .passiveVoice, .complexity, .aiSuggestion, .storyShape,
     ]
 
     private func save<T: Encodable>(_ v: T, _ key: String) {

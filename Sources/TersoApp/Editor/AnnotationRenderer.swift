@@ -46,6 +46,7 @@ enum HighlightStyle {
         case .misused: dynamic(light: 0xBE123C, dark: 0xFB7185)
         case .lexicalIllusions: dynamic(light: 0xA21CAF, dark: 0xE879F9)
         case .rhythm: .systemGray
+        case .storyShape: .systemIndigo
         }
     }
 
