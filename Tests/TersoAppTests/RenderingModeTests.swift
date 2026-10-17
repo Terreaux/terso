@@ -254,6 +254,26 @@ import TersoCore
         #expect(MixedElement.available(latex: true, text: tex) == [.math, .headings, .emphasis])
     }
 
+    @Test func mixedHidesLaTeXFacesAndStarredSectionsWithNestedBraces() {
+        let tex = "\\section*{Preface}\n\\paragraph{Aside} A \\textsc{nasa} and \\texttt{ls} and \\underline{this} "
+            + "and \\textsf{sans}, \\textup{up}, \\textmd{md}.\n\\emph{a {b} c} and \\textbf{x {y}}.\n"
+            + "$\\textsc{m}$ % \\underline{note}\n\nEnd"
+        let ts = tex as NSString
+        let hidden = { (selection: NSRange) in
+            MarkerPresentation.hiddenSyntax(in: tex, selection: selection, latex: true, elements: [.headings, .emphasis])
+                .map { ts.substring(with: $0) }
+        }
+        #expect(hidden(NSRange(location: ts.length, length: 0)) == [
+            "\\section*{", "}", "\\paragraph{", "}", "\\emph{", "}", "\\textbf{", "}",
+            "\\textsc{", "}", "\\texttt{", "}", "\\underline{", "}", "\\textsf{", "}", "\\textup{", "}", "\\textmd{", "}",
+        ])
+        // The caret's line shows its source; the rest stay hidden.
+        let onFaces = hidden(ts.range(of: "nasa"))
+        #expect(onFaces == ["\\section*{", "}", "\\emph{", "}", "\\textbf{", "}"])
+        #expect(hidden(ts.range(of: "{b}")) == ["\\section*{", "}", "\\paragraph{", "}", "\\textsc{", "}", "\\texttt{", "}",
+                                               "\\underline{", "}", "\\textsf{", "}", "\\textup{", "}", "\\textmd{", "}"])
+    }
+
     @Test func extensionGroupsAppearOnlyWhenUsed() {
         let plain = MixedElement.available(latex: false, text: "Just prose.")
         #expect(!plain.contains(.footnotes) && !plain.contains(.citations) && !plain.contains(.comments))
