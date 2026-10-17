@@ -68,6 +68,8 @@ struct AnalysisSettings: View {
                         get: { prefs.enabledLayers.contains(c) },
                         set: { on in if on { prefs.enabledLayers.insert(c) } else { prefs.enabledLayers.remove(c) } }))
                 }
+                Button("Restore Defaults") { prefs.enabledLayers = Preferences.defaultLayers }
+                    .disabled(prefs.enabledLayers == Preferences.defaultLayers)
             }
             Toggle("Show document map", isOn: $prefs.showDocumentMap)
             Section("Style reference") {

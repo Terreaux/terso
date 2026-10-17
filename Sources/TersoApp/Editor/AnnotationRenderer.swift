@@ -69,8 +69,13 @@ enum HighlightStyle {
         (pattern(f).rawValue & ~0xFF) | NSUnderlineStyle.thick.rawValue
     }
 
-    static func passive(_ c: AnnotationCategory, contrast: Bool) -> [NSAttributedString.Key: Any] {
-        [.underlineStyle: thick(c.family), .underlineColor: color(c).withAlphaComponent(contrast ? 1 : 0.8)]
+    /// A quiet finding (a whole sentence, or an AI-style feature's scattered
+    /// words) takes a thin, faint underline so word-level findings stand out.
+    static func passive(_ c: AnnotationCategory, quiet: Bool = false, contrast: Bool) -> [NSAttributedString.Key: Any] {
+        if quiet {
+            return [.underlineStyle: pattern(c.family).rawValue, .underlineColor: color(c).withAlphaComponent(contrast ? 0.8 : 0.45)]
+        }
+        return [.underlineStyle: thick(c.family), .underlineColor: color(c).withAlphaComponent(contrast ? 1 : 0.8)]
     }
 
     static func hover(_ c: AnnotationCategory, contrast: Bool) -> [NSAttributedString.Key: Any] {
@@ -96,11 +101,6 @@ enum HighlightStyle {
     }
 }
 
-/// Least prominent first; within a family, sentence tints before phrase underlines.
-private func paintOrder(_ a: TextAnnotation) -> Int {
-    a.category.family.rawValue * 2 + (AnnotationLayout.isSentenceLevel(a) ? 0 : 1)
-}
-
 extension EditorCoordinator {
     func refreshDecorations() {
         applyHighlights()
@@ -120,21 +120,21 @@ extension EditorCoordinator {
         let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
         let drawn = model.drawnAnnotations
         clusters = AnnotationLayout.clusters(drawn)
-        // Paint each finding's own span, least prominent family first, so the
-        // most prominent treatment wins character by character — one underline
-        // per character, never stacked, and a small grammar finding does not
+        // Paint each finding's own span, least prominent first, so the
+        // strongest finding wins character by character — one underline per
+        // character, never stacked, and a small grammar finding does not
         // recolour the whole sentence around it.
         let hovered = clusters.first { $0.id == model.hoveredClusterID }?.range
-        let inline = drawn.filter { !AnnotationLayout.isBlockLevel($0) }
-            .sorted { paintOrder($0) < paintOrder($1) }
+        let inline = AnnotationLayout.drawOrder(drawn.filter { !AnnotationLayout.isBlockLevel($0) })
         for a in inline {
             for r in a.ranges where r.upperBound <= length && r.length > 0 {
                 let isHovered = hovered.map { $0.intersects(r) } ?? false
                 let look: [NSAttributedString.Key: Any]
-                // Sentence-level findings get the same underline as phrases:
-                // a persistent fill on every flagged sentence drowns the one
+                // Quiet findings get a thin underline rather than a fill: a
+                // persistent fill on every flagged sentence drowns the one
                 // passage that is actually selected.
-                look = isHovered ? HighlightStyle.hover(a.category, contrast: contrast) : HighlightStyle.passive(a.category, contrast: contrast)
+                look = isHovered ? HighlightStyle.hover(a.category, contrast: contrast)
+                    : HighlightStyle.passive(a.category, quiet: AnnotationLayout.isQuiet(a), contrast: contrast)
                 lm.addTemporaryAttributes(look, forCharacterRange: r.nsRange)
             }
         }
@@ -162,14 +162,13 @@ extension EditorCoordinator {
     }
 
     /// Word- and phrase-level findings also take their layer's colour as text,
-    /// so a flagged word reads like the layer menu. Whole sentences keep just
+    /// so a flagged word reads like the layer menu. Quiet findings keep just
     /// the underline. Called from applyDimming, which owns the foreground.
     func applyFindingText() {
         guard let lm = textView?.layoutManager, !model.focusMode else { return }
         let length = ((textView?.string ?? "") as NSString).length
-        let phrases = model.drawnAnnotations
-            .filter { !AnnotationLayout.isBlockLevel($0) && !AnnotationLayout.isSentenceLevel($0) }
-            .sorted { paintOrder($0) < paintOrder($1) }
+        let phrases = AnnotationLayout.drawOrder(model.drawnAnnotations
+            .filter { !AnnotationLayout.isBlockLevel($0) && !AnnotationLayout.isQuiet($0) })
         for a in phrases {
             for r in a.ranges where r.upperBound <= length && r.length > 0 {
                 lm.addTemporaryAttribute(.foregroundColor, value: HighlightStyle.color(a.category), forCharacterRange: r.nsRange)

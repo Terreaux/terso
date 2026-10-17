@@ -57,6 +57,36 @@ public enum AnnotationLayout {
         a.metadata["rule"] == "sentence.difficulty" || a.category == .claims || a.category == .evidence
     }
 
+    /// Findings that mark a whole sentence, or many scattered words at once
+    /// (an AI-style feature's hits), are quiet: a thin underline beneath the
+    /// word-level findings, never text colour.
+    public static func isQuiet(_ a: TextAnnotation) -> Bool {
+        isSentenceLevel(a) || a.category == .aiStyle
+    }
+
+    /// Least prominent first, so drawing in this order lets the strongest
+    /// finding on each character win: family, then word-level over quiet, then
+    /// severity, then the narrower range.
+    public static func drawOrder(_ annotations: [TextAnnotation]) -> [TextAnnotation] {
+        func key(_ a: TextAnnotation) -> (Int, Int, Int, Int) {
+            (a.category.family.rawValue, isQuiet(a) ? 0 : 1, a.severity.rawValue,
+             -(a.ranges.map(\.length).min() ?? 0))
+        }
+        return annotations.sorted { key($0) < key($1) }
+    }
+
+    /// Categories still drawn inside headings: a misspelt or doubled word
+    /// in a title is a mistake; style advice about one is noise.
+    static let headingCategories: Set<AnnotationCategory> = [.spelling, .lexicalIllusions, .aiSuggestion]
+
+    /// Whether a finding lies wholly inside headings and is not one they keep.
+    public static func isInHeading(_ a: TextAnnotation, headings: [TextSpan]) -> Bool {
+        guard !headings.isEmpty, !headingCategories.contains(a.category), !a.ranges.isEmpty else { return false }
+        return a.ranges.allSatisfy { r in
+            headings.contains { $0.location <= r.location && r.upperBound <= $0.upperBound }
+        }
+    }
+
     /// Merge the ranges of inline findings into non-overlapping clusters.
     /// A cluster takes the most prominent family among its members.
     public static func clusters(_ annotations: [TextAnnotation]) -> [AnnotationCluster] {
