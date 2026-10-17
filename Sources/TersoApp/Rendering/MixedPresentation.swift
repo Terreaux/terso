@@ -20,7 +20,8 @@ struct MixedDecorations {
     static func layout(in text: String, selection: NSRange, config: EditorConfig, elements: Set<MixedElement>, width: Double) -> MixedDecorations {
         var result = MixedDecorations()
         let drawing: Set<MixedElement> = [.blocks, .admonitions, .tables, .footnotes, .citations]
-        guard !config.latex, !elements.isDisjoint(with: drawing) else { return result }
+        if config.latex { return LaTeXMixedPresentation.layout(in: text, selection: selection, config: config, elements: elements, width: width) }
+        guard !elements.isDisjoint(with: drawing) else { return result }
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
         let regions = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text)).regions
@@ -270,7 +271,7 @@ struct MixedDecorations {
         return numbers
     }
 
-    private static func image(_ key: String, make: () -> NSImage) -> NSImage {
+    static func image(_ key: String, make: () -> NSImage) -> NSImage {
         if let cached = cache[key] { return cached }
         if cache.count >= 512 { cache.removeAll(keepingCapacity: true) }
         let made = make()
@@ -352,11 +353,11 @@ struct MixedDecorations {
         let font = config.font.font(size: config.fontSize * 0.92)
         let mono = NSFont.monospacedSystemFont(ofSize: config.fontSize * 0.85, weight: .regular)
         let pad = NSSize(width: 10, height: 5)
-        let rows = [table.header] + table.rows
+        let rows = table.headed ? [table.header] + table.rows : table.rows
         let columns = table.alignments.count
         let cells: [[NSAttributedString]] = rows.enumerated().map { index, row in
             (0..<columns).map { column in
-                cell(column < row.count ? row[column] : "", font: index == 0 ? font.adding(.bold) : font, mono: mono,
+                cell(column < row.count ? row[column] : "", font: index == 0 && table.headed ? font.adding(.bold) : font, mono: mono,
                      color: config.theme.label, alignment: table.alignments[column])
             }
         }
@@ -376,8 +377,7 @@ struct MixedDecorations {
         let separator = config.theme.separator
         let header = config.theme.label.withAlphaComponent(0.05)
         return NSImage(size: size, flipped: true) { _ in
-            header.setFill()
-            NSRect(x: 0.5, y: 0.5, width: size.width - 1, height: heights[0]).fill()
+            if table.headed { header.setFill(); NSRect(x: 0.5, y: 0.5, width: size.width - 1, height: heights[0]).fill() }
             var y: CGFloat = 0.5
             for (rowIndex, row) in cells.enumerated() {
                 var x: CGFloat = 0.5
@@ -426,11 +426,12 @@ struct MixedDecorations {
 }
 
 /// A GitHub-style pipe table: a header row, a delimiter row that sets each
-/// column's alignment, then body rows.
+/// column's alignment, then body rows. A LaTeX table may have no header.
 struct MarkdownTable: Equatable {
     var header: [String]
     var alignments: [NSTextAlignment]
     var rows: [[String]]
+    var headed = true
 
     init?(_ source: String) {
         let lines = source.split(whereSeparator: \.isNewline).map(String.init)

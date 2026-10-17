@@ -41,7 +41,7 @@ enum MixedElement: String, CaseIterable, Identifiable {
 
     /// Extension syntax (Pandoc, Obsidian) is offered only when the document uses it.
     @MainActor static func available(latex: Bool, text: String) -> [MixedElement] {
-        if latex { return [.math, .headings, .emphasis] }
+        if latex { return [.math, .headings, .emphasis] + LaTeXMixedPresentation.elements(in: text) }
         let all = NSRange(location: 0, length: (text as NSString).length)
         func uses(_ pattern: NSRegularExpression) -> Bool { pattern.firstMatch(in: text, range: all) != nil }
         return allCases.filter { element in
@@ -189,6 +189,10 @@ enum MathPresentation {
             if elements.contains(.emphasis) {
                 each(MarkdownStyler.texEmphasis) { wrap($0, content: $0.range(at: 2), closing: 1, protected: prose) }
                 each(MarkdownStyler.texBold) { wrap($0, content: $0.range(at: 1), closing: 1, protected: prose) }
+                each(MarkdownStyler.texFace) { wrap($0, content: $0.range(at: 2), closing: 1, protected: prose) }
+            }
+            if elements.contains(.citations) {
+                each(LaTeXMixedPresentation.label) { if !revealed($0.range), clear($0.range, of: prose) { hidden.append($0.range) } }
             }
             return hidden.filter { $0.length > 0 }
         }

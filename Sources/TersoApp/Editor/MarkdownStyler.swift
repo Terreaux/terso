@@ -428,9 +428,13 @@ enum MarkdownStyler {
     static let texComment = re(#"(?<!\\)%.*$"#)
     static let texBrace = re(#"(?<!\\)[{}]"#, [])
     static let texEnvironment = re(#"\\(?:begin|end)\{[^}\n]*\}"#, [])
-    static let texEmphasis = re(#"\\(emph|textit|textsl)\{([^{}\n]*)\}"#, [])
-    static let texBold = re(#"\\textbf\{([^{}\n]*)\}"#, [])
-    static let texCode = re(#"\\(?:texttt|url|path)\{([^{}\n]*)\}"#, [])
+    // Arguments allow one level of nested braces, as `\emph{a {b} c}`.
+    static let texEmphasis = re(#"\\(emph|textit|textsl)\{((?:[^{}\n]|\{[^{}\n]*\})*)\}"#, [])
+    static let texBold = re(#"\\textbf\{((?:[^{}\n]|\{[^{}\n]*\})*)\}"#, [])
+    static let texCode = re(#"\\(?:texttt|url|path)\{((?:[^{}\n]|\{[^{}\n]*\})*)\}"#, [])
+    /// The other text faces: small caps, typewriter, underline, sans, and the
+    /// upright and medium resets, which only undo a surrounding face.
+    static let texFace = re(#"\\(textsc|texttt|underline|textsf|textup|textmd)\{((?:[^{}\n]|\{[^{}\n]*\})*)\}"#, [])
     static let texReference = re(#"\\(?:cite[pt]?|citeauthor|citeyear|ref|eqref|autoref|cref|Cref|pageref|label)\*?(?:\[[^\]\n]*\])*\{[^{}\n]*\}"#, [])
 
     /// LaTeX source: sectioning set like headings, commands and braces receded
@@ -475,6 +479,16 @@ enum MarkdownStyler {
         each(texBold) { m in
             guard !inLiteral(m.range) else { return }
             storage.addAttribute(.font, value: base.adding(.bold), range: m.range(at: 1))
+        }
+        each(texFace) { m in
+            guard !inLiteral(m.range) else { return }
+            let body = m.range(at: 2)
+            switch (text as NSString).substring(with: m.range(at: 1)) {
+            case "textsc": storage.addAttribute(.font, value: base.smallCaps, range: body)
+            case "underline": storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: body)
+            case "textsf": storage.addAttribute(.font, value: NSFont.systemFont(ofSize: base.pointSize), range: body)
+            default: break
+            }
         }
         each(texCode) { m in
             guard !inLiteral(m.range) else { return }
