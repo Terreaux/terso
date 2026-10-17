@@ -73,13 +73,40 @@ struct MapMarker: Identifiable, Hashable {
 @Observable
 final class WorkspaceModel {
     let prefs = Preferences.shared
+    private let wordTargets: WritingStats
     weak var editor: (any EditorController)?
+
+    init(wordTargets: WritingStats = .shared) {
+        self.wordTargets = wordTargets
+    }
 
     var showSidebar = false
     var documentUndoManager: UndoManager?
     var renderMode: RenderMode = .mixed
     var scienceProfile: ScientificProfile = .general { didSet { scheduleAnalysis() } }
-    var fileURL: URL?
+    var fileURL: URL? {
+        didSet {
+            if let fileURL, let pendingWordTarget {
+                wordTargets.setTarget(pendingWordTarget, for: WritingStats.key(fileURL))
+                self.pendingWordTarget = nil
+            }
+        }
+    }
+    private var pendingWordTarget: Int?
+
+    /// The same target in the report and header; unsaved documents keep it
+    /// for this session, then carry it into Writing Stats on their first save.
+    var documentWordTarget: Int? {
+        get {
+            let target = fileURL.flatMap { wordTargets.target(for: WritingStats.key($0)) } ?? pendingWordTarget
+            return target ?? documentBook.map { max(1, $0.wordGoal) }
+        }
+        set {
+            let target = newValue.flatMap { $0 > 0 ? $0 : nil }
+            if let fileURL { wordTargets.setTarget(target, for: WritingStats.key(fileURL)) }
+            else { pendingWordTarget = target }
+        }
+    }
     private(set) var revision = DocumentRevision(0)
     private(set) var local: LocalAnalysisResult?
     private(set) var style: StyleReport?

@@ -28,7 +28,9 @@ struct DocumentReport: View {
         VStack(alignment: .leading, spacing: 20) {
             if let s = model.local?.statistics, s.words > 0 {
                 HStack(alignment: .top, spacing: 12) {
-                    FeaturedStat(value: s.words.formatted(), label: s.words == 1 ? "word" : "words")
+                    FeaturedStat(value: s.words.formatted(), label: s.words == 1 ? "word" : "words") {
+                        DocumentWordTarget(model: model)
+                    }
                     FeaturedStat(value: s.readingTimeLabel, label: "reading time")
                     FeaturedStat(value: Self.grade(s), label: "reading level", detail: ease(s))
                         .help("Flesch–Kincaid grade level and Flesch reading ease")
@@ -168,10 +170,11 @@ struct DocumentReportButton: View {
     }
 }
 
-struct FeaturedStat: View {
+struct FeaturedStat<Footer: View>: View {
     let value: String
     let label: String
     var detail: String?
+    @ViewBuilder var footer: Footer
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -179,11 +182,76 @@ struct FeaturedStat: View {
                 .lineLimit(1).minimumScaleFactor(0.6)
             Text(label).font(.callout).foregroundStyle(.secondary)
             if let detail { Text(detail).font(.caption).foregroundStyle(.tertiary) }
+            footer
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(12)
         .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+extension FeaturedStat where Footer == EmptyView {
+    init(value: String, label: String, detail: String? = nil) {
+        self.init(value: value, label: label, detail: detail) { EmptyView() }
+    }
+}
+
+private struct DocumentWordTarget: View {
+    let model: WorkspaceModel
+    @State private var editing = false
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    private var parsedTarget: Int? {
+        let compact = text.replacingOccurrences(of: ",", with: "").filter { !$0.isWhitespace }
+        guard !compact.isEmpty, compact.allSatisfy(\.isNumber), let value = Int(compact), value > 0 else { return nil }
+        return value
+    }
+
+    var body: some View {
+        Spacer(minLength: 4)
+        Button {
+            text = model.documentWordTarget.map { String($0) } ?? ""
+            editing = true
+        } label: {
+            HStack(spacing: 4) {
+                Text(model.documentWordTarget.map { "Target \($0.formatted())" } ?? "Set word target")
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Image(systemName: "pencil").font(.system(size: 9))
+            }
+            .font(.caption).foregroundStyle(.tertiary)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("Edit the document's word target")
+        .accessibilityLabel(model.documentWordTarget.map { "Word target, \($0) words. Edit target" } ?? "Set word target")
+        .popover(isPresented: $editing, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Word target").font(.headline)
+                TextField("Target words", text: $text, prompt: Text("e.g. 5,000"))
+                    .textFieldStyle(.roundedBorder)
+                    .focused($focused)
+                    .onSubmit { save() }
+                    .accessibilityLabel("Target words")
+                HStack {
+                    Button("Clear") { model.documentWordTarget = nil; editing = false }
+                    Spacer()
+                    Button("Cancel") { editing = false }.keyboardShortcut(.cancelAction)
+                    Button("Save") { save() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(parsedTarget == nil)
+                }
+            }
+            .padding(16).frame(width: 260)
+            .onAppear { focused = true }
+        }
+    }
+
+    private func save() {
+        guard let target = parsedTarget else { return }
+        model.documentWordTarget = target
+        editing = false
     }
 }
 
