@@ -12,7 +12,7 @@ struct MixedDecorations {
 /// rules, numbered cross-references and tables. Like math, each one is a
 /// display glyph over unchanged source, shown as source on the editing line.
 @MainActor enum MixedPresentation {
-    static let quoteIndent: CGFloat = 14
+    nonisolated static let quoteIndent: CGFloat = 14
     static let bulletOrTask = MarkdownStyler.re(#"^[ \t]*(?:([-*+])|\d{1,3}[.)])[ \t]+(\[[ xX]\](?=[ \t]|$))?"#)
     static let quoteMarker = MarkdownStyler.re(#"^[ \t]*((?:>[ \t]?)+)"#)
     private static var cache: [String: NSImage] = [:]
