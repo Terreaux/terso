@@ -29,7 +29,7 @@ struct DocumentReport: View {
                 HStack(alignment: .top, spacing: 12) {
                     FeaturedStat(value: s.words.formatted(), label: s.words == 1 ? "word" : "words")
                     FeaturedStat(value: s.readingTimeLabel, label: "reading time")
-                    FeaturedStat(value: grade(s), label: "reading level", detail: ease(s))
+                    FeaturedStat(value: Self.grade(s), label: "reading level", detail: ease(s))
                         .help("Flesch–Kincaid grade level and Flesch reading ease")
                 }
                 // Cards stretch to the tallest one, so a detail line on one
@@ -59,7 +59,7 @@ struct DocumentReport: View {
         }
     }
 
-    private func grade(_ s: DocumentStatistics) -> String {
+    static func grade(_ s: DocumentStatistics) -> String {
         guard let g = s.gradeLevel else { return "—" }
         let n = Int(g.rounded())
         return n >= 17 ? "Graduate" : n >= 13 ? "College" : "Grade \(max(1, n))"
@@ -86,6 +86,36 @@ struct DocumentReport: View {
     private func speakingTime(_ s: DocumentStatistics) -> String {
         let m = Double(s.words) / 150
         return m < 1 ? "< 1 min" : "\(Int(m.rounded())) min"
+    }
+}
+
+/// The document's reading level in the header, beside today's words: the
+/// document's own report next to the writer's.
+struct DocumentReportButton: View {
+    let model: WorkspaceModel
+    let density: HeaderDensity
+
+    var body: some View {
+        let s = model.local?.statistics
+        let measured = (s?.words ?? 0) > 0 && s?.gradeLevel != nil
+        let grade = measured ? DocumentReport.grade(s!) : "—"
+        Button { model.showDocumentReport = true } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "text.magnifyingglass").foregroundStyle(.secondary)
+                if density != .minimal { Text(grade).monospacedDigit() }
+                if density == .full, measured, let s { Text(s.readingTimeLabel).foregroundStyle(.secondary) }
+            }
+            .font(.system(size: 11, weight: .medium))
+            .padding(.horizontal, 9)
+            .frame(minHeight: 22)
+            .background(Color.secondary.opacity(0.08), in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(measured
+              ? "Reads at \(grade.lowercased()) level, \(s!.words.formatted()) words. Open the document report."
+              : "Document report: word count, reading time and reading level")
+        .accessibilityLabel(measured ? "Document report, reading level \(grade)" : "Document report")
     }
 }
 
