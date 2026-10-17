@@ -1,0 +1,597 @@
+[
+  {
+    "file" : "chekhov-garnett-01-the-lady-with-the-dog.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 6628
+  },
+  {
+    "file" : "chekhov-garnett-02-a-doctor-s-visit.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 4381
+  },
+  {
+    "file" : "chekhov-garnett-03-an-upheaval.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2697
+  },
+  {
+    "file" : "chekhov-garnett-04-ionitch.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 6990
+  },
+  {
+    "file" : "chekhov-garnett-05-the-head-of-the-family.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1449
+  },
+  {
+    "file" : "chekhov-garnett-06-the-black-monk.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 12564
+  },
+  {
+    "file" : "chekhov-garnett-07-volodya.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 4943
+  },
+  {
+    "file" : "chekhov-garnett-08-an-anonymous-story.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 30073
+  },
+  {
+    "file" : "chekhov-garnett-09-the-husband.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1839
+  },
+  {
+    "file" : "joyce-01-the-sisters.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 3090
+  },
+  {
+    "file" : "joyce-02-an-encounter.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 3246
+  },
+  {
+    "file" : "joyce-03-araby.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2328
+  },
+  {
+    "file" : "joyce-04-eveline.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1827
+  },
+  {
+    "file" : "joyce-05-after-the-race.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2237
+  },
+  {
+    "file" : "joyce-06-two-gallants.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 3903
+  },
+  {
+    "file" : "joyce-07-the-boarding-house.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2786
+  },
+  {
+    "file" : "joyce-08-a-little-cloud.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 4923
+  },
+  {
+    "file" : "joyce-09-counterparts.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 4092
+  },
+  {
+    "file" : "joyce-10-clay.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 4765
+  },
+  {
+    "file" : "joyce-11-a-painful-case.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1492
+  },
+  {
+    "file" : "joyce-12-ivy-day-in-the-committee-room.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 5224
+  },
+  {
+    "file" : "joyce-13-a-mother.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 4511
+  },
+  {
+    "file" : "joyce-14-grace.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 7509
+  },
+  {
+    "file" : "joyce-15-the-dead.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 15613
+  },
+  {
+    "file" : "ohenry-01-tobin-s-palm.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2880
+  },
+  {
+    "file" : "ohenry-02-the-gift-of-the-magi.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2077
+  },
+  {
+    "file" : "ohenry-03-a-cosmopolite-in-a-caf.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1982
+  },
+  {
+    "file" : "ohenry-04-between-rounds.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2032
+  },
+  {
+    "file" : "ohenry-05-the-skylight-room.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2271
+  },
+  {
+    "file" : "ohenry-06-a-service-of-love.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2115
+  },
+  {
+    "file" : "ohenry-07-the-coming-out-of-maggie.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2508
+  },
+  {
+    "file" : "ohenry-08-man-about-town.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1733
+  },
+  {
+    "file" : "ohenry-09-the-cop-and-the-anthem.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2273
+  },
+  {
+    "file" : "ohenry-10-an-adjustment-of-nature.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1879
+  },
+  {
+    "file" : "ohenry-11-memoirs-of-a-yellow-dog.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1787
+  },
+  {
+    "file" : "ohenry-12-the-love-philtre-of-ikey-schoenstein.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1747
+  },
+  {
+    "file" : "ohenry-13-mammon-and-the-archer.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2306
+  },
+  {
+    "file" : "ohenry-14-springtime-la-carte.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2195
+  },
+  {
+    "file" : "ohenry-15-the-green-door.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2747
+  },
+  {
+    "file" : "ohenry-16-from-the-cabby-s-seat.txt",
+    "ruleCounts" : {
+      "story.similes" : 1
+    },
+    "words" : 1716
+  },
+  {
+    "file" : "ohenry-17-an-unfinished-story.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2337
+  },
+  {
+    "file" : "ohenry-18-the-caliph-cupid-and-the-clock.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2249
+  },
+  {
+    "file" : "ohenry-19-sisters-of-the-golden-circle.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2174
+  },
+  {
+    "file" : "ohenry-20-the-romance-of-a-busy-broker.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1377
+  },
+  {
+    "file" : "ohenry-21-after-twenty-years.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1263
+  },
+  {
+    "file" : "ohenry-22-lost-on-dress-parade.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2348
+  },
+  {
+    "file" : "ohenry-23-by-courier.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1421
+  },
+  {
+    "file" : "ohenry-24-the-furnished-room.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2469
+  },
+  {
+    "file" : "ohenry-25-the-brief-d-but-of-tildy.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2178
+  },
+  {
+    "file" : "saki-01-the-she-wolf.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2249
+  },
+  {
+    "file" : "saki-02-laura.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1658
+  },
+  {
+    "file" : "saki-03-the-boar-pig.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1744
+  },
+  {
+    "file" : "saki-04-the-brogue.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1939
+  },
+  {
+    "file" : "saki-05-the-hen.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1835
+  },
+  {
+    "file" : "saki-06-the-open-window.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1209
+  },
+  {
+    "file" : "saki-07-the-treasure-ship.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1310
+  },
+  {
+    "file" : "saki-08-the-cobweb.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2108
+  },
+  {
+    "file" : "saki-09-the-lull.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1817
+  },
+  {
+    "file" : "saki-10-the-unkindest-blow.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1504
+  },
+  {
+    "file" : "saki-11-the-romancers.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1356
+  },
+  {
+    "file" : "saki-12-the-schartz-metterklume-method.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1782
+  },
+  {
+    "file" : "saki-13-the-seventh-pullet.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2242
+  },
+  {
+    "file" : "saki-14-the-blind-spot.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1632
+  },
+  {
+    "file" : "saki-15-dusk.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1704
+  },
+  {
+    "file" : "saki-16-a-touch-of-realism.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1927
+  },
+  {
+    "file" : "saki-17-cousin-teresa.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1538
+  },
+  {
+    "file" : "saki-18-the-yarkand-manner.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1711
+  },
+  {
+    "file" : "saki-19-the-byzantine-omelette.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1518
+  },
+  {
+    "file" : "saki-20-the-feast-of-nemesis.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1502
+  },
+  {
+    "file" : "saki-21-the-dreamer.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1468
+  },
+  {
+    "file" : "saki-22-the-quince-tree.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1342
+  },
+  {
+    "file" : "saki-23-the-forbidden-buzzards.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1594
+  },
+  {
+    "file" : "saki-24-the-stake.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1457
+  },
+  {
+    "file" : "saki-25-clovis-on-parental-responsibilities.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1026
+  },
+  {
+    "file" : "saki-26-a-holiday-task.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1972
+  },
+  {
+    "file" : "saki-27-the-stalled-ox.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1783
+  },
+  {
+    "file" : "saki-28-the-story-teller.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1961
+  },
+  {
+    "file" : "saki-29-a-defensive-diamond.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1683
+  },
+  {
+    "file" : "saki-30-the-elk.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1858
+  },
+  {
+    "file" : "saki-31-down-pens.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1409
+  },
+  {
+    "file" : "saki-32-the-name-day.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2032
+  },
+  {
+    "file" : "saki-33-the-lumber-room.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 2195
+  },
+  {
+    "file" : "saki-34-fur.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1757
+  },
+  {
+    "file" : "saki-35-the-philanthropist-and-the-happy-cat.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1807
+  },
+  {
+    "file" : "saki-36-on-approval.txt",
+    "ruleCounts" : {
+
+    },
+    "words" : 1995
+  }
+]

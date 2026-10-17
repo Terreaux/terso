@@ -3,6 +3,7 @@
 import Foundation
 import TersoCore
 import TersoStyle
+import TersoAnalysis
 
 let usage = """
 terso-eval — measure and evaluate style features
@@ -21,6 +22,8 @@ terso-eval — measure and evaluate style features
   terso-eval compare BEFORE.json AFTER.json
       Regression report between two evaluate runs: false-positive movement,
       AI-corpus movement, feature distribution movement, changed documents.
+  terso-eval story-shape DIR [--out REPORT.json] [--verbose]
+      Run fiction-only story-shape rules on individual stories in DIR.
 
 Texts shorter than \(StyleEngine.minimumWords) words or \(StyleEngine.minimumSentences) sentences are skipped.
 """
@@ -227,6 +230,35 @@ func compare(_ args: [String]) throws {
     changed.forEach { print($0) }
 }
 
+struct StoryShapeRow: Codable {
+    let file: String
+    let words: Int
+    let ruleCounts: [String: Int]
+}
+
+func storyShape(_ args: [String]) throws {
+    guard let dir = args.first else { print(usage); exit(2) }
+    let analyzer = WritingAnalyzer(rules: StoryShape.rules)
+    var rows: [StoryShapeRow] = []
+    for (file, text) in texts(in: dir) where !file.hasPrefix("pg") && file != "manifest.txt" {
+        let result = analyzer.analyze(DocumentSnapshot(revision: DocumentRevision(0), text: text))
+        var counts: [String: Int] = [:]
+        for issue in result.issues {
+            counts[issue.ruleID, default: 0] += 1
+            if args.contains("--verbose") {
+                print("  \(file): \(issue.ruleID) \(issue.metadata): \(issue.originalText.prefix(160).replacingOccurrences(of: "\n", with: " "))")
+            }
+        }
+        rows.append(StoryShapeRow(file: file, words: result.statistics.words, ruleCounts: counts))
+    }
+    for id in StoryShape.rules.map(\.id) {
+        let documents = rows.filter { ($0.ruleCounts[id] ?? 0) > 0 }.count
+        let findings = rows.reduce(0) { $0 + ($1.ruleCounts[id] ?? 0) }
+        print("\(id): \(documents)/\(rows.count) stories, \(findings) findings")
+    }
+    if let out = arg("--out", args) { try writeJSON(rows, to: out); print("→ \(out)") }
+}
+
 extension String {
     func leftPad(_ n: Int) -> String { count >= n ? self : String(repeating: " ", count: n - count) + self }
 }
@@ -244,6 +276,7 @@ do {
     case "calibrate": try calibrate(Array(args.dropFirst()))
     case "evaluate": try evaluate(Array(args.dropFirst()))
     case "compare": try compare(Array(args.dropFirst()))
+    case "story-shape": try storyShape(Array(args.dropFirst()))
     default: print(usage)
     }
 } catch {
