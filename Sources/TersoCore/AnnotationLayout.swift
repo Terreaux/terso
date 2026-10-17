@@ -21,7 +21,7 @@ public extension AnnotationCategory {
     var family: AnnotationFamily {
         switch self {
         case .notation, .quantities, .references, .claims, .evidence, .readability, .complexity, .passiveVoice, .style, .repetition, .specificity,
-             .filler, .adverbs, .loosePronouns, .misused, .lexicalIllusions, .rhythm: .writing
+             .filler, .adverbs, .loosePronouns, .misused, .lexicalIllusions, .rhythm, .storyShape: .writing
         case .spelling: .spelling
         case .aiSuggestion: .aiSuggestion
         case .aiStyle: .aiStyle

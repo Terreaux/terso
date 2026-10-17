@@ -8,7 +8,7 @@ struct ReviewFilter: View {
     let model: WorkspaceModel
     nonisolated static let writing: [AnnotationCategory] = [
         .filler, .adverbs, .passiveVoice, .loosePronouns, .misused, .repetition, .lexicalIllusions,
-        .readability, .complexity, .rhythm, .specificity,
+        .readability, .complexity, .rhythm, .specificity, .storyShape,
     ]
 
     var body: some View {
