@@ -75,7 +75,9 @@ enum MarkdownPreviewHTML {
         return ["marked.umd.js", "terso-markdown.js", "purify.min.js"].map { try! String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
     }()
 
-    static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0) -> String {
+    @MainActor static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0) -> String {
+        let mermaidBlocks = MermaidPresentation.blocks(in: source)
+        let mermaidScripts = mermaidBlocks.isEmpty ? "" : MermaidPresentation.scripts
         let ns = source as NSString
         let regions = MathPresentation.regions(in: source)
         let marker = "TERSOMATH" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -129,8 +131,12 @@ enum MarkdownPreviewHTML {
         .admonition:is(.example) {--tone:#7c4dff;} .admonition:is(.quote,.cite) {--tone:#8a8a8a;}
         .footnote-ref {line-height:0;} .footnote-ref a, .footnote-back {text-decoration:none;}
         .footnotes {font-size:.9em; color:\#(dark ? "#bbb" : "#555");} .footnotes li {scroll-margin-top:32px;}
+        .mermaid-diagram {overflow:auto; padding:12px; border-radius:6px; background:#8881; text-align:center;}
+        .mermaid-diagram svg {max-width:100%; height:auto; display:block; margin:auto;}
+        .mermaid-diagram pre {margin:0; text-align:left; background:transparent;}
         </style><script>\#(ScienceMathHTML.scripts)
-        \#(scripts)</script></head><body><main id="document"></main><script>
+        \#(scripts)
+        \#(mermaidScripts)</script></head><body><main id="document"></main><script>
         const source = \#(MathPresentation.json(prepared));
         const replacements = \#(MathPresentation.json(replacements));
         const macros = \#(MathPresentation.json(MathPresentation.macros(in: source)));
@@ -152,13 +158,39 @@ enum MarkdownPreviewHTML {
             const section=document.createElement('section'); section.dataset.source=sourceOffset(offset);
             if (token.type==='footnoteDefinition' && !notes.has(token.id)) notes.set(token.id, section.dataset.source);
             const group=[token]; group.links=tokens.links;
-            section.innerHTML=DOMPurify.sanitize(marked.parser(group), purify);
+            if (token.type==='code' && /^mermaid(?:\s|$)/i.test(token.lang?.trim() || '')) {
+                const diagram=document.createElement('div'); diagram.className='mermaid-diagram';
+                const fallback=document.createElement('pre'); const code=document.createElement('code');
+                code.textContent=token.text; fallback.append(code); diagram.append(fallback); section.append(diagram);
+            } else {
+                section.innerHTML=DOMPurify.sanitize(marked.parser(group), purify);
+            }
             if (section.innerHTML) root.append(section);
             offset+=token.raw.length;
         }
         const footnotes=document.createElement('section'); footnotes.className='footnotes';
         footnotes.innerHTML=DOMPurify.sanitize(TersoMarkdown.footnotes(marked, tokens.links, notes), purify);
         if (footnotes.innerHTML) root.append(footnotes);
+        window.tersoMermaidReady=Promise.resolve();
+        if (typeof TersoMermaid !== 'undefined') {
+        TersoMermaid.initialize({startOnLoad:false,securityLevel:'strict',htmlLabels:false,
+            flowchart:{htmlLabels:false},maxTextSize:10000,suppressErrorRendering:true,
+            theme:\#(dark ? "'dark'" : "'default'")});
+        window.tersoMermaidReady=(async () => {
+            for (const [index, diagram] of [...root.querySelectorAll('.mermaid-diagram')].entries()) {
+                const source=diagram.querySelector('code')?.textContent || '';
+                if (!source.trim() || source.length>10000) continue;
+                try {
+                    const {svg}=await Promise.race([
+                        TersoMermaid.render('terso-mermaid-'+index,source),
+                        new Promise((_,reject)=>setTimeout(()=>reject(Error('Diagram timed out')),8000))
+                    ]);
+                    const clean=DOMPurify.sanitize(svg,{USE_PROFILES:{svg:true,svgFilters:true}});
+                    if (clean.includes('<svg')) diagram.innerHTML=clean;
+                } catch { /* Keep the editable source visible for invalid diagrams. */ }
+            }
+        })();
+        }
         root.querySelectorAll('img').forEach(img => {
             const path=img.getAttribute('src') || '';
             if (!/^(?:[a-z]+:|\/\/|\/)/i.test(path)) img.src='terso-image://document/'+path;

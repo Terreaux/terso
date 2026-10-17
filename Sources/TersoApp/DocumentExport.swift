@@ -150,8 +150,9 @@ private final class RenderedExport: NSObject, WKNavigationDelegate {
             loaded = continuation
             webView.loadHTMLString(MarkdownPreviewHTML.document(source: source, dark: false, fontSize: 15), baseURL: nil)
         }
-        // Math fonts and local images finish after the navigation itself.
+        // Mermaid diagrams, math fonts and local images finish after navigation.
         _ = try await webView.callAsyncJavaScript("""
+            await window.tersoMermaidReady;
             await document.fonts.ready;
             await Promise.all([...document.images].map(img => img.complete ? null : new Promise(done => { img.onload = img.onerror = done; })));
             return true;

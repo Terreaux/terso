@@ -173,6 +173,37 @@ import TersoCore
         #expect(withoutDefinition == nil)
     }
 
+    @Test func mermaidFencesKeepUTF16RangesAndIncompleteSource() {
+        let text = "😀 before\n\n```mermaid\ngraph TD\nA-->B\n```\n\n~~~~MERMAID\nsequenceDiagram\nA->>B: Hi\n~~~~~\n\n```other\n```mermaid\nnot a diagram\n```\n```\n\n```mermaid\nunfinished"
+        let blocks = MermaidPresentation.blocks(in: text)
+        let ns = text as NSString
+        #expect(blocks.count == 2)
+        #expect(blocks[0].range == ns.range(of: "```mermaid\ngraph TD\nA-->B\n```"))
+        #expect(blocks[0].source == "graph TD\nA-->B")
+        #expect(blocks[1].source == "sequenceDiagram\nA->>B: Hi")
+        #expect(MermaidPresentation.blocks(in: "```mermaid\ngraph TD\nA-->B").isEmpty)
+    }
+
+    @Test func mermaidRendersOfflineInPreviewAndMixed() async throws {
+        let source = "# Diagram\n\n```mermaid\ngraph TD\nA[Start]-->B[End]\n```\n"
+        let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 700, height: 800))
+        web.loadHTMLString(MarkdownPreviewHTML.document(source: source, dark: false, fontSize: 18), baseURL: nil)
+        let deadline = ContinuousClock.now + .seconds(10)
+        var rendered = false
+        while ContinuousClock.now < deadline {
+            rendered = (try? await web.evaluateJavaScript("document.querySelector('.mermaid-diagram svg') !== null")) as? Bool ?? false
+            if rendered { break }
+            try await Task.sleep(for: .milliseconds(40))
+        }
+        #expect(rendered)
+        let offset = try await web.evaluateJavaScript("Number(document.querySelector('.mermaid-diagram').closest('section').dataset.source)") as? Int
+        #expect(offset == (source as NSString).range(of: "```mermaid").location)
+
+        let image = try await MermaidImageRenderer().image(source: "graph TD\nA-->B", width: 500, dark: false)
+        #expect((image?.size.width ?? 0) > 20)
+        #expect((image?.size.height ?? 0) > 20)
+    }
+
     @Test(arguments: ["\n", "\r\n"])
     func fullMarkdownPreviewPreservesMathCodeAndSourceLocations(newline: String) async throws {
         let source = "# Heading 😀\n\nA **bold** result $x_i^2$.\n\n| A | B |\n|---|---|\n| 1 | 2 |\n\n```latex\n$literal$\n```\n\n<script>window.injected=true</script>\n".replacingOccurrences(of: "\n", with: newline)

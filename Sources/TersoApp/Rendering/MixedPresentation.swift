@@ -6,6 +6,13 @@ import TersoCore
 struct MixedDecorations {
     var glyphs: [RenderedMath] = []
     var quoteBars: [QuoteBar] = []
+    /// The source line shown while editing a tall replacement keeps its height.
+    var reservedLineHeights: [LineHeightReservation] = []
+}
+
+struct LineHeightReservation {
+    let range: NSRange
+    let height: CGFloat
 }
 
 /// Obsidian-style drawing for Mixed: bullets, task checkboxes, quote bars,
