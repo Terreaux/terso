@@ -9,8 +9,22 @@ struct DocumentReport: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        VStack(spacing: 0) {
+            // The same header as Writing Stats: the two reports are siblings.
+            HStack {
+                Text("Document Report").font(.title2.weight(.semibold))
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, 24).padding(.vertical, 16)
+            Divider()
+            content.padding(24)
+        }
+        .frame(width: 520)
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("Document Report").font(.title2.weight(.semibold))
             if let s = model.local?.statistics, s.words > 0 {
                 HStack(alignment: .top, spacing: 12) {
                     FeaturedStat(value: s.words.formatted(), label: s.words == 1 ? "word" : "words")
@@ -43,8 +57,6 @@ struct DocumentReport: View {
             }
             .help("Show writing, specificity and AI-style statistics in the inspector")
         }
-        .padding(24)
-        .frame(width: 440)
     }
 
     private func grade(_ s: DocumentStatistics) -> String {

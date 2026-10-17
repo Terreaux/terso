@@ -171,8 +171,6 @@ private struct DocumentControls: View {
             ExportMenu(document: document)
             Button { model.showDocumentReport = true } label: { Image(systemName: "text.magnifyingglass") }
                 .help("Document report: word count, reading time and reading level").accessibilityLabel("Document Report")
-                // A popover, not a sheet: a click anywhere outside closes it.
-                .popover(isPresented: $model.showDocumentReport, arrowEdge: .bottom) { DocumentReport(model: model) }
             Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
                 .help("Show or hide the inspector").accessibilityLabel("Inspector")
         }
