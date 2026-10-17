@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import SwiftUI
 import TersoAI
+import TersoAnalysis
 import TersoCore
 import TersoStyle
 
@@ -72,6 +73,16 @@ struct AnalysisSettings: View {
                     .disabled(prefs.enabledLayers == Preferences.defaultLayers)
             }
             Toggle("Show document map", isOn: $prefs.showDocumentMap)
+            Section("Optional advice") {
+                ForEach(WritingAnalyzer.optionalRules, id: \.id) { rule in
+                    Toggle(isOn: Binding(
+                        get: { prefs.optionalRules.contains(rule.id) },
+                        set: { on in if on { prefs.optionalRules.insert(rule.id) } else { prefs.optionalRules.remove(rule.id) } })) {
+                        Text(rule.name)
+                        Text(rule.description).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
             Section("Style reference") {
                 Picker("Register", selection: $prefs.domain) {
                     ForEach(WritingDomain.allCases) { d in Text(d.title + (BaselineLibrary.profile(for: d) == nil ? " — no reference data yet" : "")).tag(d) }

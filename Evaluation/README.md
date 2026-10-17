@@ -29,7 +29,9 @@ Evaluation/
   free) and Codex CLI (12).
 - **Threshold:** ELEVATED at 5 or more features outside the human range on the AI side.
   Checked on development + calibration (174 texts): 4.0% of human posts reach it. It was
-  not tuned on held-out.
+  not tuned on held-out. A band file may lower it under `_thresholds.AI_SIDE_MAX`, as
+  Quirón's fiction file does (4: fewer fiction features have a direction); MODERATE
+  starts two below ELEVATED.
 
 ## Results (2026-09-26, held-out)
 
@@ -42,6 +44,39 @@ Evaluation/
 Strongest separators, on-device samples vs held-out humans (AUC): dashes 1.00, lists of
 three 0.96, MATTR 0.95, long words 0.94, mean word length 0.94, nominalizations 0.93,
 commas 0.89, participial clauses 0.85. First person runs strongly the other way (0.11).
+
+### Lexicon features (2026-10-17)
+
+`ai_lexicon_1k` (AI-lean words, higher in AI) and `plain_words_1k` (everyday words
+assistants under-use, lower in AI) were added from Quirón 1.2.0: its bands for general
+and fiction, and its published word lists (`Resources/Lexicons`, see `NOTICE`). Both are
+counted per 1,000 letter runs, as Quirón counts them. Same held-out corpus, shipped
+general bands without and with the two features (`Reports/heldout-lexicon-before.json`,
+`Reports/heldout-lexicon.json`):
+
+The before arm used the shipped general band file with only `ai_lexicon_1k`
+and `plain_words_1k` removed. To reproduce it with the locally fetched
+held-out corpus, make a temporary band file and pass it to `terso-eval`:
+
+```sh
+jq 'del(.ai_lexicon_1k, .plain_words_1k)' Sources/TersoStyle/Resources/bands-general.json > /tmp/terso-general-minus-lexicon.json
+swift run terso-eval evaluate --human Evaluation/Corpora/Human/heldout --ai Evaluation/Corpora/AI/heldout --bands /tmp/terso-general-minus-lexicon.json --label heldout-lexicon-before --out /tmp/heldout-lexicon-before.json
+```
+
+The checked-in report records the stable band recipe instead of its original
+temporary path. The source texts remain ignored and are needed to rerun it.
+
+| Set | n | ELEVATED before | ELEVATED after | Mean AI-side before → after |
+|---|---|---|---|---|
+| Human posts | 65 | 9.2% | **10.8%** | 1.63 → 1.80 |
+| Apple on-device model | 66 | 95.5% | **100%** | 7.86 → 9.30 |
+| Codex CLI | 12 | 100% | 100% | 6.50 → 6.92 |
+
+AUC on held-out: AI-lean words 0.90, plain words 0.14. One more human post reaches
+ELEVATED; the threshold was left at Quirón's 5 rather than retuned on held-out. Under
+the fiction bands both features have no direction (Quirón measured no separation), so
+they are shown but never counted. Academic and technical bands were not recalibrated, so
+the two features are shown raw there.
 
 ## Registers measured by Terso
 

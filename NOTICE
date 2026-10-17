@@ -12,6 +12,11 @@ carry this attribution:
     Based on Quirón by ilien
     https://github.com/ilien-dev/quiron
 
+Terso also bundles three of Quirón's published word lists, unchanged, in
+Sources/TersoStyle/Resources/Lexicons (ai-lean.txt, ai-lean-fiction.txt,
+human-lean.txt; each names its sources in its header). They are AGPL-3.0 and
+carry the same attribution.
+
 All code, including the feature implementations, is Terso's own.
 
 The offline thesaurus bundles a derived subset of WordNet 3.0.

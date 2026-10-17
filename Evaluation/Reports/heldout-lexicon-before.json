@@ -1,0 +1,2163 @@
+{
+  "bands" : "shipped:general-minus-lexicon",
+  "createdAt" : 813958585.182817,
+  "documents" : [
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "em_dashes_1k"
+      ],
+      "file" : "abdisalan_js-540975.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 733
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "abhidave001-434803.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 1349
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "amrutaranade-232228.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1075
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "ly_adverbs_1k",
+        "headings_1k"
+      ],
+      "file" : "ananyaneogi-86924.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 418
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "ananyaneogi-99022.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 539
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "andrewbrown-107301.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1179
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "passive_1k"
+      ],
+      "file" : "andrewbrown-115175.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1128
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "em_dashes_1k"
+      ],
+      "file" : "andrewbrown-187349.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 213
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "commas_1k"
+      ],
+      "file" : "aspittel-41920.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1389
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "aspittel-42664.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1958
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "aspittel-55086.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2453
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "mean_word_len"
+      ],
+      "file" : "bosepchuk-62434.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1485
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "passive_1k",
+        "first_person_1k"
+      ],
+      "file" : "chrisachard-166366.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 562
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "chrisachard-169456.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1794
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "em_dashes_1k"
+      ],
+      "file" : "coffeecraftcode-845848.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 694
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "dechamp-76033.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1425
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "headings_1k"
+      ],
+      "file" : "devmount-193963.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 676
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "headings_1k"
+      ],
+      "file" : "devmount-231421.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 489
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "commas_1k"
+      ],
+      "file" : "elliot-133323.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 560
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "mattr50",
+        "commas_1k",
+        "headings_1k"
+      ],
+      "file" : "fayaz-333059.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 552
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "commas_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "fayaz-339709.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 625
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "headings_1k"
+      ],
+      "file" : "garvitmotwani-656808.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 377
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "cv_sentence_len"
+      ],
+      "file" : "gregfletcher-283720.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 512
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "passive_1k"
+      ],
+      "file" : "haseebelaahi-142324.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 805
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k"
+      ],
+      "file" : "haycuoilennao19-588717.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 950
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "em_dashes_1k"
+      ],
+      "file" : "healeycodes-101363.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1330
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "passive_1k",
+        "mattr50",
+        "headings_1k"
+      ],
+      "file" : "healeycodes-95054.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 456
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "nominalizations_1k"
+      ],
+      "file" : "hexrcs-199811.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 735
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "first_person_1k",
+        "commas_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "hrishikesh1990-560040.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 1413
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k"
+      ],
+      "file" : "jess-297381.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 823
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "em_dashes_1k"
+      ],
+      "file" : "jess-426595.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 634
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "mean_word_len"
+      ],
+      "file" : "jess-469396.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 762
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "mean_word_len",
+        "headings_1k"
+      ],
+      "file" : "jessicagarson-24198.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 274
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "jmfayard-482941.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1286
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "jmfayard-739354.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1615
+    },
+    {
+      "aiSideCount" : 2,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "headings_1k"
+      ],
+      "file" : "joserfelix-351025.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1399
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "jsmanifest-152938.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2589
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "karthick30-402184.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 646
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "kelly-70834.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1624
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "mfarajewicz-212418.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 658
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "michelle-406256.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1395
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "commas_1k"
+      ],
+      "file" : "mortoray-25594.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1447
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "munamohamed94-71614.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1181
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "passive_1k",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "myogeshchavan97-444758.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 606
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "passive_1k",
+        "commas_1k",
+        "headings_1k"
+      ],
+      "file" : "nghiemthu-445071.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 683
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "nielsenjared-700905.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 927
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "nilanth-792425.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 334
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "headings_1k"
+      ],
+      "file" : "olanetsoft-824909.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 695
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "first_person_1k",
+        "commas_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "olanetsoft-833256.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 537
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "panxproject-557378.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 165
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "perigk-218405.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2483
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "triads_1k"
+      ],
+      "file" : "radiomorillo-421718.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 998
+    },
+    {
+      "aiSideCount" : 3,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "headings_1k"
+      ],
+      "file" : "rahxuls-544955.md",
+      "group" : "human",
+      "level" : "Moderate",
+      "words" : 1893
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "rinaarts-337277.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 2860
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "santypk4-101720.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1361
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "mattr50"
+      ],
+      "file" : "sarthology-45568.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 471
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "commas_1k"
+      ],
+      "file" : "supunio-249857.md",
+      "group" : "human",
+      "level" : "Elevated",
+      "words" : 1461
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "taeluralexis-221826.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 3055
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "thegeoffstevens-101479.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1137
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "torianne02-205676.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1287
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "tracycss-440833.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1680
+    },
+    {
+      "aiSideCount" : 1,
+      "aiSideFeatures" : [
+        "cv_sentence_len"
+      ],
+      "file" : "tracycss-454814.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1195
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "yelluw-7309.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 1799
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "yuridevat-874184.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 762
+    },
+    {
+      "aiSideCount" : 0,
+      "aiSideFeatures" : [
+
+      ],
+      "file" : "zellwk-44069.md",
+      "group" : "human",
+      "level" : "Low",
+      "words" : 978
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "em_dashes_1k"
+      ],
+      "file" : "apple-abdisalan_js-540975.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1015
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-abhidave001-434803.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1399
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-amrutaranade-232228.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1097
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-ananyaneogi-86924.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 629
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "mean_word_len",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-ananyaneogi-99022.md",
+      "group" : "ai",
+      "level" : "Moderate",
+      "words" : 464
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-andrewbrown-107301.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1373
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-andrewbrown-115175.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 921
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-andrewbrown-187349.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 959
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-aspittel-41920.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1174
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-aspittel-42664.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 924
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-aspittel-55086.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1151
+    },
+    {
+      "aiSideCount" : 11,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-bosepchuk-62434.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1015
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-chrisachard-166366.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 704
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-chrisachard-169456.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1136
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-coffeecraftcode-845848.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 747
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-dechamp-76033.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 966
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-devmount-193963.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 702
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-devmount-231421.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1155
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-devmount-260789.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1961
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-elliot-133323.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 595
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-fayaz-333059.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 685
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-fayaz-339709.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 831
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "ly_adverbs_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-garvitmotwani-656808.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 347
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-gregfletcher-283720.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 602
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-haseebelaahi-142324.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 744
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-haycuoilennao19-588717.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1446
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "passive_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-healeycodes-101363.md",
+      "group" : "ai",
+      "level" : "Moderate",
+      "words" : 1023
+    },
+    {
+      "aiSideCount" : 4,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-healeycodes-95054.md",
+      "group" : "ai",
+      "level" : "Moderate",
+      "words" : 517
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-hexrcs-199811.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 535
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-hrishikesh1990-560040.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1704
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-jess-297381.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 726
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-jess-426595.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 649
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-jess-469396.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 953
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-jessicagarson-24198.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 505
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-jmfayard-482941.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1005
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-jmfayard-739354.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1171
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-joserfelix-351025.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 828
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-jsmanifest-152938.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 854
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-karthick30-402184.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 770
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-kelly-70834.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1217
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-mfarajewicz-212418.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 819
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "ly_adverbs_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-michelle-406256.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 864
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "nominalizations_1k",
+        "passive_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-mortoray-25594.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 847
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-munamohamed94-71614.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1076
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-myogeshchavan97-444758.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 820
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-nghiemthu-445071.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 911
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k"
+      ],
+      "file" : "apple-nielsenjared-700905.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 918
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-nilanth-792425.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 407
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-olanetsoft-824909.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 937
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-olanetsoft-833256.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 594
+    },
+    {
+      "aiSideCount" : 10,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-panxproject-557378.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1268
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-perigk-218405.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1345
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-radiomorillo-421718.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1111
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-rahxuls-544955.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 850
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-rinaarts-337277.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 968
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-santypk4-101720.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1065
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-sarthology-45568.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 710
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-supunio-249857.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1245
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "mattr50",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-taeluralexis-221826.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1308
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-thegeoffstevens-101479.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1226
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-torianne02-205676.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1141
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "apple-tracycss-440833.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1156
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-tracycss-454814.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1182
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-yelluw-7309.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1197
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-yuridevat-874184.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 816
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "em_dashes_1k",
+        "triads_1k"
+      ],
+      "file" : "apple-zellwk-44069.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 964
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "triads_1k"
+      ],
+      "file" : "codex-andrewbrown-115175.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1414
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-aspittel-41920.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1390
+    },
+    {
+      "aiSideCount" : 8,
+      "aiSideFeatures" : [
+        "cv_sentence_len",
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-aspittel-42664.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1475
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "triads_1k"
+      ],
+      "file" : "codex-aspittel-55086.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1422
+    },
+    {
+      "aiSideCount" : 9,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "mattr50",
+        "first_person_1k",
+        "em_dashes_1k",
+        "triads_1k",
+        "headings_1k"
+      ],
+      "file" : "codex-bosepchuk-62434.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1459
+    },
+    {
+      "aiSideCount" : 5,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "triads_1k"
+      ],
+      "file" : "codex-elliot-133323.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 505
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-kelly-70834.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1398
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-mfarajewicz-212418.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1051
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "first_person_1k",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-panxproject-557378.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1465
+    },
+    {
+      "aiSideCount" : 7,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "ly_adverbs_1k",
+        "mattr50",
+        "first_person_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-rinaarts-337277.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1496
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "passive_1k",
+        "commas_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-taeluralexis-221826.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 1405
+    },
+    {
+      "aiSideCount" : 6,
+      "aiSideFeatures" : [
+        "long_words_1k",
+        "mean_word_len",
+        "nominalizations_1k",
+        "mattr50",
+        "first_person_1k",
+        "triads_1k"
+      ],
+      "file" : "codex-yuridevat-874184.md",
+      "group" : "ai",
+      "level" : "Elevated",
+      "words" : 756
+    }
+  ],
+  "features" : {
+    "ai_lexicon_1k" : {
+      "aiMedian" : 2.050468213013274,
+      "auc" : 0.8982248520710059,
+      "humanMedian" : 0,
+      "humanOutsideRate" : 0
+    },
+    "commas_1k" : {
+      "aiMedian" : 64.98009201313533,
+      "auc" : 0.8759368836291913,
+      "humanMedian" : 37.36654804270462,
+      "humanOutsideRate" : 0.3076923076923077
+    },
+    "connective_openers" : {
+      "aiMedian" : 0.8621330360460795,
+      "auc" : 0.5857988165680473,
+      "humanMedian" : 0,
+      "humanOutsideRate" : 0
+    },
+    "contractions_1k" : {
+      "aiMedian" : 16.875219860294486,
+      "auc" : 0.5029585798816568,
+      "humanMedian" : 16.71826625386997,
+      "humanOutsideRate" : 0.23076923076923078
+    },
+    "cv_sentence_len" : {
+      "aiMedian" : 0.4678239190146827,
+      "auc" : 0.3347140039447732,
+      "humanMedian" : 0.5317808371178505,
+      "humanOutsideRate" : 0.2153846153846154
+    },
+    "em_dashes_1k" : {
+      "aiMedian" : 21.849132622373283,
+      "auc" : 0.9399408284023668,
+      "humanMedian" : 0,
+      "humanOutsideRate" : 0.07692307692307693
+    },
+    "first_person_1k" : {
+      "aiMedian" : 3.2006636896226803,
+      "auc" : 0.12130177514792899,
+      "humanMedian" : 18.404907975460123,
+      "humanOutsideRate" : 0.13846153846153847
+    },
+    "headings_1k" : {
+      "aiMedian" : 12.156102481657486,
+      "auc" : 0.5406311637080868,
+      "humanMedian" : 11.756061719324025,
+      "humanOutsideRate" : 0.26153846153846155
+    },
+    "long_words_1k" : {
+      "aiMedian" : 325.9523005515497,
+      "auc" : 0.9471400394477317,
+      "humanMedian" : 206.6957787481805,
+      "humanOutsideRate" : 0.24615384615384617
+    },
+    "ly_adverbs_1k" : {
+      "aiMedian" : 9.974017896553107,
+      "auc" : 0.5050295857988165,
+      "humanMedian" : 10.498687664041995,
+      "humanOutsideRate" : 0.07692307692307693
+    },
+    "mattr50" : {
+      "aiMedian" : 0.873286470942764,
+      "auc" : 0.9538461538461539,
+      "humanMedian" : 0.8112,
+      "humanOutsideRate" : 0.1076923076923077
+    },
+    "mean_sentence_len" : {
+      "aiMedian" : 11.523809523809524,
+      "auc" : 0.2687376725838264,
+      "humanMedian" : 14.256410256410257,
+      "humanOutsideRate" : 0.4153846153846154
+    },
+    "mean_word_len" : {
+      "aiMedian" : 5.34194666001994,
+      "auc" : 0.9491124260355029,
+      "humanMedian" : 4.555216284987277,
+      "humanOutsideRate" : 0.2923076923076923
+    },
+    "nominalizations_1k" : {
+      "aiMedian" : 48.42305800090021,
+      "auc" : 0.9281065088757396,
+      "humanMedian" : 22.494887525562373,
+      "humanOutsideRate" : 0.18461538461538463
+    },
+    "para_words" : {
+      "aiMedian" : 18.89351510685335,
+      "auc" : 0.34013806706114397,
+      "humanMedian" : 24.473684210526315,
+      "humanOutsideRate" : 0.38461538461538464
+    },
+    "parens_1k" : {
+      "aiMedian" : 0.8673052982349246,
+      "auc" : 0.39447731755424065,
+      "humanMedian" : 2.2234574763757644,
+      "humanOutsideRate" : 0.03076923076923077
+    },
+    "participles_1k" : {
+      "aiMedian" : 3.829179409233248,
+      "auc" : 0.8386587771203156,
+      "humanMedian" : 1.002004008016032,
+      "humanOutsideRate" : 0.2
+    },
+    "passive_1k" : {
+      "aiMedian" : 2.6133375826627363,
+      "auc" : 0.3037475345167653,
+      "humanMedian" : 4.73186119873817,
+      "humanOutsideRate" : 0.18461538461538463
+    },
+    "plain_words_1k" : {
+      "aiMedian" : 33.948943933398425,
+      "auc" : 0.13865877712031557,
+      "humanMedian" : 75.53956834532374,
+      "humanOutsideRate" : 0
+    },
+    "questions_1k" : {
+      "aiMedian" : 1.5801866790387677,
+      "auc" : 0.5110453648915187,
+      "humanMedian" : 1.4792899408284024,
+      "humanOutsideRate" : 0.07692307692307693
+    },
+    "repeated_openers" : {
+      "aiMedian" : 2.3676099747828525,
+      "auc" : 0.2828402366863905,
+      "humanMedian" : 5.555555555555555,
+      "humanOutsideRate" : 0.09230769230769231
+    },
+    "semicolons_1k" : {
+      "aiMedian" : 0,
+      "auc" : 0.4729783037475345,
+      "humanMedian" : 0,
+      "humanOutsideRate" : 0.046153846153846156
+    },
+    "triads_1k" : {
+      "aiMedian" : 14.995432506499895,
+      "auc" : 0.9581854043392505,
+      "humanMedian" : 2.618657937806874,
+      "humanOutsideRate" : 0.12307692307692308
+    }
+  },
+  "label" : "without-lexicon"
+}

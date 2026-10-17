@@ -464,3 +464,67 @@ public struct ParagraphLengthRule: WritingRule {
         }
     }
 }
+
+// MARK: - Optional advice (off by default)
+//
+// Both follow Quirón by ilien (https://github.com/ilien-dev/quiron, AGPL-3.0):
+// references/word-choice.md for sincerity markers, the A1c review item of
+// scripts/audit.py for negated setups. The code is Terso's own.
+
+/// Words that announce sincerity instead of showing it. Assistant prose leans on
+/// them; a writer who means the opinion can simply state it.
+public struct SincerityMarkerRule: PhraseListRule {
+    public let id = "style.sincerity"
+    public let name = "Sincerity markers"
+    public let description = "Honestly, genuinely, frankly, to be honest, truly."
+    public let category = AnnotationCategory.style
+    let severity = Severity.info
+    let message = "Sincerity marker"
+    let removable = true
+    let entries: [PhraseEntry] = ["honestly", "genuinely", "frankly", "to be honest", "truly"]
+        .map { PhraseEntry(phrase: $0, consider: nil) }
+    public init() {}
+    func explanation(for e: PhraseEntry) -> String {
+        "“\(e.phrase)” vouches for the sentence instead of letting it stand. Assistant models use these words far more than people do (on Quirón’s run, “genuinely” was in 1% of human blog posts and half of Claude Sonnet’s). State the opinion and leave its sincerity alone, unless the word is doing real work."
+    }
+}
+
+/// A short "X isn't Y." sentence that opens a paragraph or sets up a reframe
+/// ("It's Z."). Only ever a question for the writer: no fix is offered, because
+/// rewriting these mechanically made prose read more machine-like to blind
+/// judges (Quirón, references/numbers.md).
+public struct NegatedSetupRule: WritingRule {
+    public let id = "style.negatedSetup"
+    public let name = "Negated setups"
+    public let description = "Short “X isn’t Y.” sentences before the real point. Review only; never fixed automatically."
+    public let category = AnnotationCategory.style
+    public init() {}
+
+    static let negation = Lexicon.regex(#"\b(?:isn['’]t|wasn['’]t|aren['’]t|weren['’]t|is not|was not|are not|were not)\b"#)
+    static let skip = Lexicon.regex(#"\b(?:but|because|if|when|unless|so)\b"#)
+    static let reframe = Lexicon.regex(#"^(?:it['’]s|it is|it was|that['’]s|that is|this is|what |the (?:real|actual|point|answer)|instead|rather)"#)
+    static let maxWords = 12
+
+    public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
+        let sentences = ctx.prose.sentences
+        var out: [WritingIssue] = []
+        for (i, s) in sentences.enumerated() {
+            let text = ctx.text(s.range).trimmingCharacters(in: .whitespacesAndNewlines)
+            let all = NSRange(location: 0, length: (text as NSString).length)
+            guard s.words.count <= Self.maxWords, text.hasSuffix("."),
+                  Self.negation.firstMatch(in: text, range: all) != nil,
+                  Self.skip.firstMatch(in: text, range: all) == nil else { continue }
+            let opens = i == 0 || sentences[i - 1].blockIndex != s.blockIndex
+            let next = i + 1 < sentences.count && sentences[i + 1].blockIndex == s.blockIndex
+                ? ctx.text(sentences[i + 1].range).trimmingCharacters(in: .whitespacesAndNewlines) : ""
+            let reframed = Self.reframe.firstMatch(in: next, range: NSRange(location: 0, length: (next as NSString).length)) != nil
+            guard opens || reframed else { continue }
+            let place = opens ? "It opens the paragraph, where the real point should be." : "It sits right before the sentence that makes the real point."
+            out.append(WritingIssue(
+                ruleID: id, severity: .info, category: category, message: "Negated setup",
+                explanation: "\(place) Denying something nobody said can make the next sentence sound bigger than it is. A short “X isn’t Y.” like this was in 31% of assistant blog posts and 7% of human ones on Quirón’s held-out run. Often it is the right sentence; you decide.",
+                ranges: [s.range], originalText: text))
+        }
+        return out
+    }
+}

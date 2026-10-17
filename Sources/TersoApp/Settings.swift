@@ -89,6 +89,8 @@ final class Preferences {
     var greetWithQuote: Bool { didSet { d.set(greetWithQuote, forKey: "greetWithQuote") } }
     var domain: WritingDomain { didSet { d.set(domain.rawValue, forKey: "domain") } }
     var enabledLayers: Set<AnnotationCategory> { didSet { d.set(enabledLayers.map(\.rawValue), forKey: "layers") } }
+    /// Opt-in writing advice (WritingAnalyzer.optionalRules), by rule ID. Empty by default.
+    var optionalRules: Set<String> { didSet { d.set(Array(optionalRules), forKey: "optionalRules") } }
 
     // AI — disabled until the writer turns it on.
     var aiEnabled: Bool { didSet { d.set(aiEnabled, forKey: "aiEnabled") } }
@@ -139,6 +141,7 @@ final class Preferences {
         let layers = (d.array(forKey: "layers") as? [String])?.compactMap(AnnotationCategory.init(rawValue:))
         enabledLayers = layers.map(Set.init) ?? Self.defaultLayers
         greetWithQuote = d.bool(forKey: "greetWithQuote")
+        optionalRules = Set(d.stringArray(forKey: "optionalRules") ?? [])
         aiEnabled = d.bool(forKey: "aiEnabled")
         defaultScope = ContextScope(rawValue: d.string(forKey: "defaultScope") ?? "") ?? .selection
         dataAccess = AIDataAccess(rawValue: d.string(forKey: "dataAccess") ?? "") ?? .upToSection

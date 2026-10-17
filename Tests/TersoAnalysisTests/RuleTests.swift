@@ -89,4 +89,29 @@ func issues(_ rule: some WritingRule, _ text: String) -> [WritingIssue] {
         let locs = r.issues.map { $0.ranges[0].location }
         #expect(locs == locs.sorted())
     }
+
+    @Test func sincerityMarkersAreOptionalAndRemovable() {
+        let text = "Honestly, the build is slow. To be honest, I genuinely like it."
+        let found = issues(SincerityMarkerRule(), text)
+        #expect(found.map(\.originalText) == ["Honestly", "To be honest", "genuinely"])
+        #expect(found.allSatisfy { $0.severity == .info && $0.metadata[QuickFixes.removableKey] == "true" })
+        let snap = DocumentSnapshot(revision: DocumentRevision(0), text: text)
+        #expect(!WritingAnalyzer().analyze(snap).issues.contains { $0.ruleID == "style.sincerity" })
+        #expect(WritingAnalyzer(enabling: ["style.sincerity"]).analyze(snap).issues.contains { $0.ruleID == "style.sincerity" })
+    }
+
+    @Test func negatedSetupIsReviewOnly() {
+        let text = """
+        Speed isn't the problem. The cache is cold on every deploy, so the first requests wait.
+
+        We measured twice. The fix was not a rewrite. It was a single flag in the config.
+
+        The tool is not slow because the disk is full. The queue wasn't empty when we started the long migration over the weekend.
+        """
+        let found = issues(NegatedSetupRule(), text)
+        // Opens a paragraph; before a reframe. Not: has "because", over twelve words, mid-paragraph without reframe.
+        #expect(found.map(\.originalText) == ["Speed isn't the problem.", "The fix was not a rewrite."])
+        #expect(found.allSatisfy { $0.severity == .info && $0.metadata.isEmpty })
+        #expect(!WritingAnalyzer().analyze(DocumentSnapshot(revision: DocumentRevision(0), text: text)).issues.contains { $0.ruleID == "style.negatedSetup" })
+    }
 }

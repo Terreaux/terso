@@ -34,6 +34,7 @@ struct DocumentWindow: View {
         .onAppear { model.fileURL = fileURL; RecentDocuments.shared.note(fileURL) }
         .onChange(of: fileURL) { _, new in model.fileURL = new; RecentDocuments.shared.note(new) }
         .onChange(of: prefs.domain) { _, _ in model.scheduleAnalysis() }
+        .onChange(of: prefs.optionalRules) { _, _ in model.scheduleAnalysis() }
         .background(Color(nsColor: prefs.theme.background))
 
     }
