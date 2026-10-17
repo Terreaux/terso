@@ -155,13 +155,15 @@ private struct DocumentControls: View {
                 .help("Show or hide the sidebar").accessibilityLabel("Sidebar")
             HighlightControls(model: model, density: density).padding(.leading, 6)
             Spacer(minLength: 8)
-            if Preferences.shared.showWritingProgress {
-                HStack(spacing: 6) {
+            // The document's report, then the writer's.
+            HStack(spacing: 6) {
+                DocumentReportButton(model: model, density: density)
+                if Preferences.shared.showWritingProgress {
                     TodayButton(density: density) { model.writingStats = .overview }
                     AwardStack(density: density) { model.writingStats = .awards }
                 }
-                Spacer(minLength: 8)
             }
+            Spacer(minLength: 8)
             // How the page looks and how you write on it sit together.
             ViewControls(model: model, latex: DocumentExport.isLaTeX(document), source: document.contents.text, density: density)
             Spacer(minLength: 8)
@@ -169,8 +171,6 @@ private struct DocumentControls: View {
             CopyDocumentButton(text: document.contents.text)
                 .id(document.id)
             ExportMenu(document: document)
-            Button { model.showDocumentReport = true } label: { Image(systemName: "text.magnifyingglass") }
-                .help("Document report: word count, reading time and reading level").accessibilityLabel("Document Report")
             Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
                 .help("Show or hide the inspector").accessibilityLabel("Inspector")
         }
