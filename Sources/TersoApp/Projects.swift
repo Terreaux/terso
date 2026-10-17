@@ -42,7 +42,7 @@ final class ProjectStore {
     private(set) var projects: [TersoProject] = []
     private let fileURL: URL
 
-    init(fileURL: URL = URL.applicationSupportDirectory.appendingPathComponent("Terso/Projects.json")) {
+    init(fileURL: URL = AppDataPaths.file("Projects.json")) {
         self.fileURL = fileURL
         if let data = try? Data(contentsOf: fileURL),
            let saved = try? JSONDecoder().decode([TersoProject].self, from: data) {
