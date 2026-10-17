@@ -10,7 +10,6 @@ struct WorkspaceStartView: View {
     @FocusState private var focused: Bool
 
     private var tabs: DocumentTabs { .shared }
-    private var recents: [URL] { RecentDocuments.shared.urls(limit: 5) }
 
     var body: some View {
         VStack(spacing: 22) {
@@ -35,19 +34,6 @@ struct WorkspaceStartView: View {
                 OpenRecentMenu { url in activate(); tabs.open(url) }
             }
             .controlSize(.large)
-            if !recents.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Recent").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                    ForEach(recents, id: \.self) { url in
-                        Button { activate(); tabs.open(url) } label: {
-                            Label(url.lastPathComponent, systemImage: "doc").lineLimit(1)
-                        }
-                        .buttonStyle(.link)
-                        .help(url.path)
-                    }
-                }
-                .frame(width: 280, alignment: .leading)
-            }
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
