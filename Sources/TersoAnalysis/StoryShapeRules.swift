@@ -2,11 +2,9 @@
 import Foundation
 import TersoCore
 
-/// Fiction only: patterns in a story's shape that readers take for generated
-/// prose — the opening brought back at the end, a stated moral, a steady
-/// supply of similes. After the story-shape findings published with Quirón
-/// (references/fiction.md); the detection here is Terso's own. They run when
-/// the register is Fiction, since the same moves are ordinary in an essay.
+/// Fiction only: review prompts for opening callbacks, explicit lessons, and
+/// frequent comparisons. These are ordinary literary choices as well as
+/// patterns worth revisiting. The rules run only in the Fiction register.
 public enum StoryShape {
     public static let rules: [any WritingRule] = [StoryBookendRule(), StatedMoralRule(), SimileDensityRule()]
 
@@ -26,15 +24,21 @@ public struct StoryBookendRule: WritingRule {
     public let category = AnnotationCategory.storyShape
     public init() {}
 
-    /// How much of each end counts as the opening and the close. Generated
-    /// stories often end on a one-line paragraph, so this goes by words.
+    /// How much of each end counts as the opening and the close. Word windows
+    /// include short final paragraphs without making them a special case.
     public var window = 60
 
     public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
         let spans = ctx.prose.words
         guard spans.count >= window * 5 else { return [] }
         let words = spans.map { ctx.text($0).lowercased() }
-        func content(_ w: String) -> Bool { w.count >= 4 && !Lexicon.stopwords.contains(w) }
+        let ordinaryTimeWords: Set<String> = ["days", "weeks", "months", "years", "hours", "minutes"]
+        func content(_ w: String) -> Bool {
+            w.count >= 4 && !Lexicon.stopwords.contains(w) && !ordinaryTimeWords.contains(w)
+        }
+        func capitalized(_ i: Int) -> Bool {
+            ctx.text(spans[i]).unicodeScalars.first.map { CharacterSet.uppercaseLetters.contains($0) } ?? false
+        }
         let opening = 0..<window, closing = (words.count - window)..<words.count
         let middle = " " + words[window..<(words.count - window)].joined(separator: " ") + " "
         // A two-word image ("black glass", "the first chime") that opens the
@@ -42,7 +46,9 @@ public struct StoryBookendRule: WritingRule {
         // shared words are mostly the subject and don't separate the two.
         func pairs(_ r: Range<Int>) -> [String: Int] {
             var out: [String: Int] = [:]
-            for i in r.dropLast() where content(words[i]) && content(words[i + 1]) { out[words[i] + " " + words[i + 1]] = out[words[i] + " " + words[i + 1]] ?? i }
+            for i in r.dropLast() where content(words[i]) && content(words[i + 1]) && !capitalized(i + 1) {
+                out[words[i] + " " + words[i + 1]] = out[words[i] + " " + words[i + 1]] ?? i
+            }
             return out
         }
         let openPairs = pairs(opening)
@@ -54,7 +60,7 @@ public struct StoryBookendRule: WritingRule {
         let tail = TextSpan(location: spans[closing.lowerBound].location, length: spans[closing.upperBound - 1].upperBound - spans[closing.lowerBound].location)
         return [WritingIssue(
             ruleID: id, severity: .suggestion, category: category, message: "Ending echoes the opening",
-            explanation: "The ending brings back \(list) from the opening, and the middle of the story barely uses them. A callback that closes the circle is one of the shapes readers most often name in generated stories. Consider stopping on an ordinary moment instead, and leaving some planted details unpaid.",
+            explanation: "The ending repeats \(list) from the opening, and the middle of the story barely uses it. This may be an intentional callback; consider whether the repetition gives the ending the degree of closure you want.",
             ranges: marked.sorted().map { spans[$0] }, originalText: ctx.text(tail), metadata: ["words": shown.joined(separator: ",")])]
     }
 }
@@ -70,12 +76,9 @@ public struct StatedMoralRule: WritingRule {
     public init() {}
 
     static let patterns = Lexicon.regex([
-        #"\b(?:understood|realized|realised|learned|learnt|knew now|came to see) (?:that|what|how|why)\b"#,
-        #"\b(?:finally|at last|for the first time\b[^.]{0,30}) (?:understood|realized|realised|learned|learnt|knew|saw)\b"#,
         #"\b(?:was|is|had been) never (?:really )?about\b"#,
         #"\bmaybe that was (?:the|all the) (?:point|lesson|answer)\b"#,
         #"\bthat was the (?:point|lesson|thing about)\b"#,
-        #"\bthe thing about \w+ (?:is|was)\b"#,
         #"\b(?:some|the) things (?:you|we) (?:can't|can’t|cannot|don't|don’t|never)\b"#,
         #"\b(?:sometimes|perhaps) (?:the|a) \w+ (?:is|was) (?:just|only|simply)\b"#,
         #"\b(?:small|light|quiet) enough to (?:carry|hold|keep)\b"#,
@@ -84,14 +87,14 @@ public struct StatedMoralRule: WritingRule {
     public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
         let paras = StoryShape.paragraphs(ctx.prose)
         guard paras.count >= 4 else { return [] }
-        // Generated stories often close on a one-line paragraph, so the last three.
+        // Include the last three paragraphs to catch a short closing line.
         let tail = Set(paras.suffix(3))
         return ctx.prose.sentences.filter { tail.contains($0.blockIndex) }.compactMap { s in
             let text = ctx.prose.maskedString(s.range)
             guard Self.patterns.firstMatch(in: text, range: NSRange(location: 0, length: (text as NSString).length)) != nil else { return nil }
             return WritingIssue(
                 ruleID: id, severity: .suggestion, category: category, message: "Stated moral",
-                explanation: "This sentence tells the reader what the story meant. An aphorism or a realisation at the emotional peak is a mark readers often catch in generated fiction; the scene before it usually says it already. Consider cutting it.",
+                explanation: "This sentence may spell out a lesson near the ending. If the preceding scene already conveys it, consider letting the scene carry the meaning on its own.",
                 ranges: [s.range], originalText: ctx.text(s.range))
         }
     }
@@ -99,15 +102,15 @@ public struct StatedMoralRule: WritingRule {
 
 // MARK: - Similes
 
-/// One or two similes carry a story; one a paragraph reads as a habit.
+/// A prompt to review a concentrated pattern of comparisons.
 public struct SimileDensityRule: WritingRule {
     public let id = "story.similes"
     public let name = "Frequent similes"
-    public let description = "More similes than a story usually carries."
+    public let description = "A concentrated pattern of comparison phrases."
     public let category = AnnotationCategory.storyShape
-    public var allowed = 2
+    public var allowed = 3
     /// Per 1,000 words; a long story may carry a few more.
-    public var perThousand = 2.5
+    public var perThousand = 4.0
     public init() {}
 
     // "like a", "as if", "as though", "as cold as a". The look-behind skips
@@ -115,7 +118,7 @@ public struct SimileDensityRule: WritingRule {
     static let simile = Lexicon.regex([
         #"(?<!\b(?:i|you|we|they|would|'d|’d|do|don't|don’t|didn't|didn’t|to|might|may) )\blike (?:a|an|the|some|someone|something)\b"#,
         #"\bas (?:if|though)\b"#,
-        #"\bas \w+ as (?:a|an|the|if)\b"#,
+        #"\bas (?!soon\b|far\b|long\b|well\b|much\b)\w+ as (?:a|an|the|if)\b"#,
     ].joined(separator: "|"))
 
     public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
@@ -126,8 +129,8 @@ public struct SimileDensityRule: WritingRule {
         guard matches.count > limit else { return [] }
         let ranges = matches.map { TextSpan($0.range) }
         return [WritingIssue(
-            ruleID: id, severity: .info, category: category, message: "\(matches.count) similes",
-            explanation: "This story has \(matches.count) similes in \(words.formatted()) words. A steady supply of them, one a paragraph, is one of the things readers name in generated fiction; human stories usually carry one or two. Keep the ones that matter to the narrator, and never follow an image with its explanation.",
+            ruleID: id, severity: .info, category: category, message: "\(matches.count) possible similes",
+            explanation: "This story has \(matches.count) comparison phrases in \(words.formatted()) words. Frequent comparisons can become a noticeable rhythm. Keep the images that suit the narrator and the scene.",
             ranges: ranges, originalText: ranges.map(ctx.text).joined(separator: " · "), metadata: ["count": "\(matches.count)"])]
     }
 }

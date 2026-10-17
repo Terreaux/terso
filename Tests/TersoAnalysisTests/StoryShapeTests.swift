@@ -26,11 +26,23 @@ import TersoCore
         #expect(!issues(text).contains { $0.ruleID == "story.bookend" })
     }
 
+    @Test func repeatedCharacterNameIsNotAnOpeningImage() {
+        let text = (["Leonard Bilsiter entered the drawing room."] + middle
+            + ["Leonard Bilsiter left before supper."]).joined(separator: "\n\n")
+        #expect(!issues(text).contains { $0.ruleID == "story.bookend" })
+    }
+
     @Test func statedMoralNearTheEndIsFlagged() {
         let text = (["The lantern hung in the window."] + middle
             + ["She finally understood that grief was never about the house."]).joined(separator: "\n\n")
         let moral = issues(text).filter { $0.ruleID == "story.moral" }
         #expect(moral.count == 1)
+    }
+
+    @Test func literalUnderstandingNearTheEndIsNotAMoral() {
+        let text = (["Jimmy sat at the card table."] + middle
+            + ["Jimmy understood that the game lay between Routh and Ségouin."]).joined(separator: "\n\n")
+        #expect(!issues(text).contains { $0.ruleID == "story.moral" })
     }
 
     @Test func similesBeyondTheAllowanceAreFlagged() {
@@ -40,5 +52,7 @@ import TersoCore
         #expect(found.first?.metadata["count"] == "4")
         // The verb is not a simile.
         #expect(issues(filler + "\n\nI would like a coffee. They like the sea. We like a quiet room.").allSatisfy { $0.ruleID != "story.similes" })
+        let idioms = String(repeating: "As soon as the rain stopped, she left. As far as the road went, he followed. ", count: 5)
+        #expect(!issues(filler + "\n\n" + idioms).contains { $0.ruleID == "story.similes" })
     }
 }

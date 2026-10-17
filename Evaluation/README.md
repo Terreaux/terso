@@ -80,6 +80,39 @@ the two features are shown raw there.
 
 ## Registers measured by Terso
 
+### Fiction story-shape review (2026-10-17)
+
+`scripts/fetch-fiction-corpus.py` extracted 85 complete, individual stories
+from four public-domain Project Gutenberg collections (Joyce 15, Saki 36,
+Chekhov in Garnett's translation 9, O. Henry 25; exact sources in
+`PROVENANCE.md`). `terso-eval story-shape Evaluation/Corpora/Human/fiction`
+ran Terso's Fiction-only deterministic rules on each story. The before/after
+reports are `Reports/fiction-story-shape-human-{before,after}.json`.
+
+| Human stories with finding | Before | After |
+|---|---:|---:|
+| Opening callback | 6 / 85 | 0 / 85 |
+| Stated moral | 2 / 85 | 0 / 85 |
+| Frequent comparisons | 15 / 85 | 1 / 85 |
+| Any story-shape finding | 22 / 85 | 1 / 85 |
+
+Both old moral matches described literal understanding, not a lesson. Five of
+the six old callback matches repeated a character name, place name, or time
+span; the rule now skips capitalized names and ordinary time units. The
+simile rule counted phrases such as “as soon as” and was too eager on several
+authors. It now excludes those phrases and needs at least four matches, with
+an allowance of four per 1,000 words. Explanations present these as review
+prompts, since a literary callback or frequent simile can be deliberate and
+effective. This same human set informed the adjustment, so
+the after column is not a held-out false-positive estimate. No matching AI
+fiction corpus was available for this run; effect on AI-story coverage is
+unverified.
+
+```sh
+python3 scripts/fetch-fiction-corpus.py
+swift run terso-eval story-shape Evaluation/Corpora/Human/fiction --out Evaluation/Reports/fiction-story-shape-human-after.json
+```
+
 General (blog) and Fiction use Quirón's published parameters. **Academic** and
 **Technical** are Terso's own measurements (`terso-eval calibrate` on the calibration
 split; parameters in `Sources/TersoStyle/Resources/bands-{academic,technical}.json`,
