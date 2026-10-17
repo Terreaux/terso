@@ -266,7 +266,7 @@ final class WritingStats {
     /// A pause longer than this ends a sitting.
     static let sittingGap: TimeInterval = 5 * 60
 
-    init(fileURL: URL? = URL.applicationSupportDirectory.appendingPathComponent("Terso/WritingStats.json")) {
+    init(fileURL: URL? = AppDataPaths.file("WritingStats.json")) {
         self.fileURL = fileURL
         if let fileURL, let data = try? Data(contentsOf: fileURL),
            let saved = try? JSONDecoder().decode(WritingLog.self, from: data) {

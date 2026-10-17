@@ -16,7 +16,7 @@ final class DocumentTabs {
     var launchQuote: WritingQuote?
     private let recoveryURL: URL
 
-    init(recoveryURL: URL = URL.applicationSupportDirectory.appendingPathComponent("Terso/DocumentTabs.json")) {
+    init(recoveryURL: URL = AppDataPaths.file("DocumentTabs.json")) {
         self.recoveryURL = recoveryURL
     }
 
