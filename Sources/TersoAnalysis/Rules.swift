@@ -9,7 +9,7 @@ public struct AnalysisContext: Sendable {
     public let prose: ProseText
     public let science: ScientificDocumentModel
 
-    public init(snapshot: DocumentSnapshot, profile: ScientificProfile = .hep) {
+    public init(snapshot: DocumentSnapshot, profile: ScientificProfile = .general) {
         self.snapshot = snapshot
         let prose = ProseText(snapshot)
         self.prose = prose

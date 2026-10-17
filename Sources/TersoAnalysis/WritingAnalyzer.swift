@@ -24,7 +24,7 @@ public struct WritingAnalyzer: Sendable {
         ScientificRule(.notation), ScientificRule(.quantities), ScientificRule(.references), ScientificRule(.claims), ScientificRule(.evidence),
     ]
 
-    public init(rules: [any WritingRule] = WritingAnalyzer.defaultRules, profile: ScientificProfile = .hep) {
+    public init(rules: [any WritingRule] = WritingAnalyzer.defaultRules, profile: ScientificProfile = .general) {
         self.rules = rules
         self.profile = profile
     }

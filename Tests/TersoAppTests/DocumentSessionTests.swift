@@ -126,8 +126,9 @@ import TersoCore
         let model = WorkspaceModel()
         let editor = SessionEditor(model, text: String(repeating: "The mass is $m_H = 125.25 \\pm 0.17$ GeV.\n\n", count: 20))
         model.editor = editor
+        model.scienceProfile = .hep
         model.scheduleAnalysis()
-        try await eventually { model.currentScience != nil }
+        try await eventually { model.currentScience?.profile.id == "particle-physics" }
         model.scienceProfile = .general
         #expect(model.currentScience == nil)
         #expect(!model.visibleAnnotations.contains { $0.metadata["scienceDiagnosticID"] != nil })
