@@ -78,7 +78,7 @@ final class WorkspaceModel {
     var showSidebar = false
     var documentUndoManager: UndoManager?
     var renderMode: RenderMode = .mixed
-    var scienceProfile: ScientificProfile = .hep { didSet { scheduleAnalysis() } }
+    var scienceProfile: ScientificProfile = .general { didSet { scheduleAnalysis() } }
     var fileURL: URL?
     private(set) var revision = DocumentRevision(0)
     private(set) var local: LocalAnalysisResult?

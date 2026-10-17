@@ -114,7 +114,7 @@ public struct ScientificDocumentModel: Sendable, Codable {
     public internal(set) var evidence: [ScientificEvidence] = []
     public internal(set) var nodes: [ScientificNode] = []
 
-    public init(snapshot: DocumentSnapshot, prose: ProseText, profile: ScientificProfile = .hep) {
+    public init(snapshot: DocumentSnapshot, prose: ProseText, profile: ScientificProfile = .general) {
         revision = snapshot.revision; self.profile = profile
         let syntax = ScientificSyntax(snapshot)
         regions = syntax.regions
