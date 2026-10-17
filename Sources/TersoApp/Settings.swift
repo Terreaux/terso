@@ -137,8 +137,7 @@ final class Preferences {
         smartQuotes = d.object(forKey: "smartQuotes") as? Bool ?? false
         domain = WritingDomain(rawValue: d.string(forKey: "domain") ?? "") ?? .general
         let layers = (d.array(forKey: "layers") as? [String])?.compactMap(AnnotationCategory.init(rawValue:))
-        enabledLayers = Set(layers ?? [.readability, .complexity, .passiveVoice, .style, .repetition, .specificity, .spelling,
-                                     .filler, .adverbs, .loosePronouns, .misused, .lexicalIllusions, .rhythm, .aiSuggestion, .notation, .quantities, .references, .claims, .evidence])
+        enabledLayers = layers.map(Set.init) ?? Self.defaultLayers
         greetWithQuote = d.bool(forKey: "greetWithQuote")
         aiEnabled = d.bool(forKey: "aiEnabled")
         defaultScope = ContextScope(rawValue: d.string(forKey: "defaultScope") ?? "") ?? .selection
@@ -152,6 +151,12 @@ final class Preferences {
         notifyAwards = d.bool(forKey: "notifyAwards")
         sampleWritingStats = d.bool(forKey: "sampleWritingStats")
         bookDesign = Self.load("bookDesign") ?? BookDesign()
+        // The migrations below carry an earlier saved selection forward; a
+        // first launch already has the current defaults.
+        if layers == nil {
+            d.set(true, forKey: "scienceLayersInitialized")
+            d.set(true, forKey: "writingLayersSplit")
+        }
         if !d.bool(forKey: "scienceLayersInitialized") {
             enabledLayers.formUnion([.notation, .quantities, .references, .claims, .evidence])
             d.set(enabledLayers.map(\.rawValue), forKey: "layers")
@@ -168,6 +173,12 @@ final class Preferences {
             d.set(true, forKey: "writingLayersSplit")
         }
     }
+
+    /// A calm first page: mistakes and the clearest style advice. Science,
+    /// repetition, rhythm, adverbs and the rest are a click away in the header.
+    static let defaultLayers: Set<AnnotationCategory> = [
+        .spelling, .misused, .lexicalIllusions, .filler, .passiveVoice, .complexity, .aiSuggestion,
+    ]
 
     private func save<T: Encodable>(_ v: T, _ key: String) {
         d.set(try? JSONEncoder().encode(v), forKey: key)

@@ -45,4 +45,34 @@ import Testing
     @Test func touchingRangesStaySeparate() {
         #expect(AnnotationLayout.clusters([ann(.style, 0, 5), ann(.style, 5, 5)]).count == 2)
     }
+
+    @Test func strongestFindingIsDrawnLast() {
+        let sentence = ann(.complexity, 0, 50, rule: "sentence.difficulty")
+        let signal = ann(.aiStyle, 0, 8)
+        let filler = ann(.filler, 0, 30)
+        let pronoun = ann(.loosePronouns, 0, 2)
+        let warning = TextAnnotation(source: .rule, category: .misused, ranges: [TextSpan(location: 0, length: 40)], severity: .warning,
+                                     message: "", explanation: nil, revision: DocumentRevision(0), metadata: [:])
+        let spell = ann(.spelling, 3, 4)
+        let order = AnnotationLayout.drawOrder([spell, warning, pronoun, filler, signal, sentence]).map(\.id)
+        // AI-style below writing; quiet sentence below word findings; then
+        // severity, then the narrower range; spelling outranks the family.
+        #expect(order == [signal.id, sentence.id, filler.id, pronoun.id, warning.id, spell.id])
+    }
+
+    @Test func sentencesAndSignalsAreQuiet() {
+        #expect(AnnotationLayout.isQuiet(ann(.complexity, 0, 50, rule: "sentence.difficulty")))
+        #expect(AnnotationLayout.isQuiet(ann(.aiStyle, 0, 8)))
+        #expect(!AnnotationLayout.isQuiet(ann(.complexity, 0, 8, rule: "complexity.word")))
+    }
+
+    @Test func headingsKeepOnlyMistakes() {
+        let heading = [TextSpan(location: 0, length: 20)]
+        #expect(AnnotationLayout.isInHeading(ann(.aiStyle, 2, 7), headings: heading))
+        #expect(AnnotationLayout.isInHeading(ann(.complexity, 2, 7), headings: heading))
+        #expect(!AnnotationLayout.isInHeading(ann(.spelling, 2, 7), headings: heading))
+        #expect(!AnnotationLayout.isInHeading(ann(.lexicalIllusions, 2, 7), headings: heading))
+        // A finding that runs past the heading is about the prose too.
+        #expect(!AnnotationLayout.isInHeading(ann(.complexity, 15, 10), headings: heading))
+    }
 }

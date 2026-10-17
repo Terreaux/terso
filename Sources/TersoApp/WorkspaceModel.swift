@@ -90,6 +90,8 @@ final class WorkspaceModel {
     private(set) var styleAnnotations: [TextAnnotation] = []
     /// Sentence ranges from the last analysis, for grouping findings into passages.
     private(set) var sentenceSpans: [TextSpan] = []
+    /// Heading lines, where only spelling and doubled words are drawn.
+    private(set) var headingSpans: [TextSpan] = []
     /// Dismissed findings, by stable key so they stay dismissed after re-analysis.
     var dismissed: Set<String> = []
 
@@ -267,17 +269,18 @@ final class WorkspaceModel {
                 try Task.checkCancellation()
                 let style = StyleEngine().analyze(snap, domain: domain)
                 try Task.checkCancellation()
-                return (local, style, prose.masked, prose.sentences.map(\.range))
+                return (local, style, prose.masked, prose.sentences.map(\.range), prose.headings.map(\.range))
             }
             let result = await withTaskCancellationHandler {
                 try? await work.value
             } onCancel: {
                 work.cancel()
             }
-            guard let (local, style, masked, sentences) = result else { return }
+            guard let (local, style, masked, sentences, headings) = result else { return }
             guard let self, !Task.isCancelled, self.revision == snap.revision, self.analysisGeneration == generation else { return }
             self.local = local
             self.sentenceSpans = sentences
+            self.headingSpans = headings
             self.style = style
             self.localAnnotations = local.annotations
             self.styleAnnotations = style.annotations
@@ -320,6 +323,7 @@ final class WorkspaceModel {
             ($0.revision == revision || $0.source == .aiSuggestion)
                 && ($0.metadata["scienceDiagnosticID"] == nil || scienceIsCurrent)
                 && prefs.enabledLayers.contains($0.category) && !dismissed.contains($0.dismissalKey)
+                && !AnnotationLayout.isInHeading($0, headings: headingSpans)
         }
     }
 
@@ -346,7 +350,9 @@ final class WorkspaceModel {
     }
 
     func count(_ c: AnnotationCategory) -> Int {
-        allAnnotations.filter { $0.category == c && !dismissed.contains($0.dismissalKey) }.count
+        allAnnotations.filter {
+            $0.category == c && !dismissed.contains($0.dismissalKey) && !AnnotationLayout.isInHeading($0, headings: headingSpans)
+        }.count
     }
 
     func annotation(id: UUID?) -> TextAnnotation? {
