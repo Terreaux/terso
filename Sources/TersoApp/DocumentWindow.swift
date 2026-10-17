@@ -27,6 +27,7 @@ struct DocumentWindow: View {
         .sheet(item: $model.thesaurusRequest) { ThesaurusView(model: model, request: $0) }
         .sheet(isPresented: $model.showAskPanel) { AskPanel(model: model) }
         .sheet(item: $model.writingStats) { WritingStatsView(tab: $0) }
+        .sheet(isPresented: $model.showDocumentReport) { DocumentReport(model: model) }
         .sheet(isPresented: $model.showBookOverview) { BookOverview(model: model) }
         .sheet(isPresented: $model.showBookDetails) { BookDetailsSheet(model: model) }
         .focusedSceneValue(\.workspace, model)
