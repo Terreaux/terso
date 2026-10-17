@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import SwiftUI
 import TersoCore
+import TersoStyle
 
 /// Review: the places in the document worth a second look. Passages, not
 /// warnings — each groups the findings on the same sentence.
 struct ReviewInspector: View {
     let model: WorkspaceModel
     @State private var showFilter = false
+    @State private var showStoryChecks = false
 
     var body: some View {
         let passages = model.reviewPassages
@@ -38,6 +40,14 @@ struct ReviewInspector: View {
                     .buttonStyle(.borderless).font(ReviewType.meta)
                     .help("Review passages one at a time (⌘⇧E)")
             }
+            if model.prefs.domain == .fiction {
+                Button("Story checks") { showStoryChecks.toggle() }
+                    .buttonStyle(.borderless).font(ReviewType.meta)
+                    .help("Questions for reviewing fiction by hand")
+                    .popover(isPresented: $showStoryChecks, arrowEdge: .bottom) {
+                        fictionChecks
+                    }
+            }
             Button { showFilter.toggle() } label: {
                 Image(systemName: allLayersOn ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
             }
@@ -48,6 +58,25 @@ struct ReviewInspector: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+
+    /// These need the writer's judgment. Terso does not infer a fault from a
+    /// name or a scene's pace, and a finding-free story can still benefit.
+    private var fictionChecks: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel("Story checks")
+            Text("Read the whole story with these questions in mind:")
+                .foregroundStyle(.secondary)
+            Text("Do scenes keep repeating the same setup, turn, and neat resolution?")
+            Text("Where should the pace linger, jump ahead, or leave a moment unresolved?")
+            Text("Do the characters' names and choices feel specific to this story?")
+            Text("These are prompts for your judgment, not automated findings.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .font(ReviewType.body)
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(16)
+        .frame(width: 300, alignment: .leading)
     }
 
     private var allLayersOn: Bool {
