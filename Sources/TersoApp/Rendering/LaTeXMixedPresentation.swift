@@ -15,12 +15,15 @@ import TersoCore
     /// Hidden with the other markers: a label prints nothing.
     static let label = MarkdownStyler.re(#"\\label[ \t]*\{[^{}\n]*\}"#, [])
     static let footnote = MarkdownStyler.re(#"\\footnote(?![A-Za-z])[ \t]*(?:\[[^\]\n]*\])?[ \t]*\{"#, [])
+    /// Standalone commands keep their newline when drawn as a glyph.
+    static let documentCommand = MarkdownStyler.re(#"^[ \t]*(\\(?:begin\{document\}|end\{document\}|maketitle\b|tableofcontents\b|listoffigures\b|listoftables\b|frontmatter\b|mainmatter\b|backmatter\b|appendix\b|clearpage\b|cleardoublepage\b))[ \t]*$"#)
+    static let metadataCommand = MarkdownStyler.re(#"\\(title|author|date)(?:\[[^\]\n]*\])?[ \t]*\{"#, [])
 
     /// The elements beyond math, headings and emphasis a TeX document uses.
     static func elements(in text: String) -> [MixedElement] {
         let all = NSRange(location: 0, length: (text as NSString).length)
         func uses(_ pattern: NSRegularExpression) -> Bool { pattern.firstMatch(in: text, range: all) != nil }
-        return [(MixedElement.blocks, uses(listToken)), (.tables, MixedPresentation.usesLaTeXTables(text)),
+        return [(MixedElement.blocks, uses(listToken) || uses(documentCommand)), (.tables, MixedPresentation.usesLaTeXTables(text)),
                 (.footnotes, uses(footnote)), (.citations, uses(reference) || uses(citation))]
             .filter(\.1).map(\.0)
     }
@@ -71,6 +74,47 @@ import TersoCore
         if elements.contains(.blocks) {
             var lists: [(kind: String, count: Int)] = []
             let hidden = image("hide") { NSImage(size: NSSize(width: 0, height: 1)) }
+            let preamble = LaTeXSyntax.preamble(in: text)
+            let title = metadata("title", in: text, preamble: preamble, quiet: quiet)
+            let author = metadata("author", in: text, preamble: preamble, quiet: quiet)
+            let date = metadata("date", in: text, preamble: preamble, quiet: quiet)
+            let headings = contents(in: text, protected: quiet + [preamble].compactMap { $0 })
+            each(documentCommand) { m in
+                let command = ns.substring(with: m.range(at: 1))
+                // ScientificSyntax treats the trailer as code, but its opening
+                // delimiter is still a document boundary to hide in Mixed.
+                if command == "\\end{document}" {
+                    guard !LaTeXSyntax.literalEnvironments(in: text).contains(where: {
+                        NSIntersectionRange($0.range, m.range).length > 0
+                    }) else { return }
+                } else if quiet.contains(where: { NSIntersectionRange($0, m.range).length > 0 }) { return }
+                if let trailer = LaTeXSyntax.trailer(in: text), m.range.location > trailer.location { return }
+                let glyph: NSImage
+                switch command {
+                case "\\maketitle":
+                    glyph = image("title|\(title ?? "")|\(author ?? "")|\(date ?? "")|\(style)|\(width)") {
+                        titleImage(title: title, author: author, date: date, font: font, color: config.theme.label, width: width)
+                    }
+                case "\\tableofcontents":
+                    glyph = image("contents|\(headings)|\(style)|\(width)") {
+                        contentsImage(heading: "Contents", entries: headings, font: font, color: config.theme.label, width: width)
+                    }
+                case "\\listoffigures", "\\listoftables":
+                    glyph = image("list|\(command)|\(style)") {
+                        MixedPresentation.textImage(command == "\\listoffigures" ? "List of Figures" : "List of Tables",
+                                                    font: font.adding(.bold), color: config.theme.label)
+                    }
+                default: glyph = hidden
+                }
+                if revealed(m.range) {
+                    if glyph.size.height > font.ascender + 4 {
+                        result.reservedLineHeights.append(LineHeightReservation(range: m.range, height: glyph.size.height))
+                    }
+                } else {
+                    result.glyphs.append(RenderedMath(range: m.range, image: glyph,
+                                                      reservesHeight: glyph !== hidden))
+                }
+            }
             each(listToken) { m in
                 guard drawable(m.range) else { return }
                 if m.range(at: 1).location != NSNotFound {
@@ -80,11 +124,13 @@ import TersoCore
                     } else if let index = lists.lastIndex(where: { $0.kind == kind }) {
                         lists.removeSubrange(index...)
                     }
-                    // A line holding only `\begin{…}` or `\end{…}` folds away, newline and all.
+                    // Keep the newline so caret movement cannot add a line.
                     let line = ns.lineRange(for: m.range)
                     let content = ns.substring(with: line).trimmingCharacters(in: .whitespacesAndNewlines)
                     guard content == ns.substring(with: m.range), !revealed(line) else { return }
-                    result.glyphs.append(RenderedMath(range: line, image: hidden, reservesHeight: false))
+                    var visible = line
+                    while visible.length > 0, [10, 13].contains(ns.character(at: visible.upperBound - 1)) { visible.length -= 1 }
+                    result.glyphs.append(RenderedMath(range: visible, image: hidden, reservesHeight: false))
                     return
                 }
                 guard let list = lists.last else { return }
@@ -136,6 +182,77 @@ import TersoCore
         }
         result.glyphs.sort { $0.range.location < $1.range.location }
         return result
+    }
+
+    /// Read only simple metadata groups in the preamble. The source remains the
+    /// authority; unsupported macro expansion is left to the PDF preview.
+    static func metadata(_ name: String, in text: String, preamble: NSRange?, quiet: [NSRange]) -> String? {
+        guard let preamble else { return nil }
+        let ns = text as NSString
+        for m in metadataCommand.matches(in: text, range: preamble)
+        where ns.substring(with: m.range(at: 1)) == name
+            && !quiet.contains(where: { NSIntersectionRange($0, m.range).length > 0 }) {
+            guard let end = groupEnd(m.range.upperBound - 1, in: ns), end <= preamble.upperBound else { continue }
+            let raw = ns.substring(with: NSRange(location: m.range.upperBound, length: end - m.range.upperBound - 1))
+            return LaTeXSyntax.plainTitle(raw)
+        }
+        return nil
+    }
+
+    static func contents(in text: String, protected: [NSRange]) -> [(depth: Int, title: String)] {
+        let ns = text as NSString
+        let all = NSRange(location: 0, length: ns.length)
+        let found = LaTeXSyntax.section.matches(in: text, range: all).filter { m in
+            !protected.contains { NSIntersectionRange($0, m.range).length > 0 }
+        }
+        let levels = LaTeXSyntax.levels(for: Set(found.map { ns.substring(with: $0.range(at: 1)) }))
+        return found.compactMap { m in
+            let name = ns.substring(with: m.range(at: 1))
+            // Starred headings do not enter LaTeX's contents by default.
+            guard !ns.substring(with: m.range).hasPrefix("\\\(name)*") else { return nil }
+            let title = LaTeXSyntax.plainTitle(ns.substring(with: m.range(at: 2)))
+            guard !title.isEmpty else { return nil }
+            return (max(0, (levels[name] ?? 1) - 1), title)
+        }
+    }
+
+    static func titleImage(title: String?, author: String?, date: String?, font: NSFont, color: NSColor, width: Double) -> NSImage {
+        let lines: [(String, NSFont, CGFloat)] = [
+            (title?.isEmpty == false ? title! : "Title", font.withSize(font.pointSize * 1.55).adding(.bold), 0),
+            (author ?? "", font, 0), (date ?? "", font.withSize(font.pointSize * 0.85), 0),
+        ].filter { !$0.0.isEmpty }
+        return textBlock(lines, color: color, width: width, centered: true)
+    }
+
+    static func contentsImage(heading: String, entries: [(depth: Int, title: String)], font: NSFont, color: NSColor, width: Double) -> NSImage {
+        var lines: [(String, NSFont, CGFloat)] = [(heading, font.withSize(font.pointSize * 1.3).adding(.bold), 0)]
+        lines += entries.prefix(60).map { ($0.title, font.withSize(font.pointSize * 0.9), CGFloat(min($0.depth, 4)) * 16) }
+        if entries.count > 60 { lines.append(("… \(entries.count - 60) more", font.withSize(font.pointSize * 0.85), 0)) }
+        return textBlock(lines, color: color, width: width, centered: false)
+    }
+
+    private static func textBlock(_ lines: [(String, NSFont, CGFloat)], color: NSColor, width: Double, centered: Bool) -> NSImage {
+        let contentWidth = CGFloat(max(120, width - 24))
+        let gap: CGFloat = centered ? 10 : 3
+        let prepared: [(NSAttributedString, CGFloat, CGFloat)] = lines.map { line in
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = centered ? .center : .left
+            let text = NSAttributedString(string: line.0, attributes: [.font: line.1, .foregroundColor: color, .paragraphStyle: paragraph])
+            let height = ceil(text.boundingRect(with: NSSize(width: contentWidth - line.2, height: .greatestFiniteMagnitude),
+                                                options: [.usesLineFragmentOrigin, .usesFontLeading]).height)
+            return (text, line.2, max(height, ceil(line.1.ascender - line.1.descender + line.1.leading)))
+        }
+        let total = prepared.map(\.2).reduce(0, +) + CGFloat(max(0, prepared.count - 1)) * gap + 12
+        let size = NSSize(width: contentWidth, height: total)
+        return NSImage(size: size, flipped: true) { _ in
+            var y: CGFloat = 6
+            for (text, indent, height) in prepared {
+                text.draw(with: NSRect(x: indent, y: y, width: contentWidth - indent, height: height),
+                          options: [.usesLineFragmentOrigin, .usesFontLeading])
+                y += height + gap
+            }
+            return true
+        }
     }
 
     /// LaTeX's default `enumerate` labels: 1. (a) i. A.

@@ -330,6 +330,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
     var config: EditorConfig?
     var popover: NSPopover?
     let mathRenderer = MathImageRenderer()
+    let mermaidRenderer = MermaidImageRenderer()
     let imageLoader = InlineImageLoader()
     var mathTask: Task<Void, Never>?
     var outlineTask: Task<Void, Never>?

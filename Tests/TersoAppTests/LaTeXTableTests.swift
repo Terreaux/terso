@@ -107,13 +107,12 @@ import TersoCore
         #expect(MixedPresentation.latexTableRanges(in: tex) == [whole])
         let away = MixedPresentation.layout(in: tex, selection: NSRange(location: ns.range(of: "End").location, length: 0),
                                             config: config, elements: Set(MixedElement.allCases), width: 600)
-        #expect(away.glyphs.map(\.range) == [whole])
-        #expect(away.glyphs.first?.reservesHeight == true)
+        #expect(away.glyphs.filter(\.reservesHeight).map(\.range) == [whole])
         // On any of its lines the whole environment is source again; the caption never is drawn.
         let onRow = MixedPresentation.layout(in: tex, selection: ns.range(of: "1 & 2"), config: config, elements: Set(MixedElement.allCases), width: 600)
-        #expect(onRow.glyphs.isEmpty)
+        #expect(!onRow.glyphs.contains { $0.range == whole })
         let onCaption = MixedPresentation.layout(in: tex, selection: ns.range(of: "Numbers"), config: config, elements: Set(MixedElement.allCases), width: 600)
-        #expect(onCaption.glyphs.map(\.range) == [whole])
+        #expect(onCaption.glyphs.filter(\.reservesHeight).map(\.range) == [whole])
         #expect(MixedPresentation.layout(in: tex, selection: NSRange(location: 0, length: 0), config: config, elements: [.math], width: 600).glyphs.isEmpty)
         #expect(MixedElement.available(latex: true, text: tex).contains(.tables))
         #expect(!MixedElement.available(latex: true, text: "\\documentclass{article}\nText").contains(.tables))

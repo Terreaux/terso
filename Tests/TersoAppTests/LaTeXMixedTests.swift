@@ -23,9 +23,9 @@ import TersoCore
         let tex = "\\documentclass{article}\n\\begin{document}\n\\begin{itemize}\n  \\item one\n  \\item two\n\\end{itemize}\n\\begin{enumerate}\n\\item first\n  \\begin{enumerate}\n  \\item inner\n  \\item[*] custom\n  \\item inner two\n  \\end{enumerate}\n\\item second\n\\end{enumerate}\n\\begin{description}\n\\item[Term] text\n\\item[$x$] math\n\\end{description}\nEnd"
         let ns = tex as NSString
         #expect(drawn(tex) == [
-            "\\begin{itemize}\n", "\\item ", "\\item ", "\\end{itemize}\n",
-            "\\begin{enumerate}\n", "\\item ", "  \\begin{enumerate}\n", "\\item ", "\\item[*] ", "\\item ", "  \\end{enumerate}\n", "\\item ", "\\end{enumerate}\n",
-            "\\begin{description}\n", "\\item[Term] ", "\\end{description}\n",
+            "\\begin{document}", "\\begin{itemize}", "\\item ", "\\item ", "\\end{itemize}",
+            "\\begin{enumerate}", "\\item ", "  \\begin{enumerate}", "\\item ", "\\item[*] ", "\\item ", "  \\end{enumerate}", "\\item ", "\\end{enumerate}",
+            "\\begin{description}", "\\item[Term] ", "\\end{description}",
         ])
         #expect(LaTeXMixedPresentation.enumerateLabel(2, depth: 1) == "2.")
         #expect(LaTeXMixedPresentation.enumerateLabel(2, depth: 2) == "(b)")
@@ -42,8 +42,55 @@ import TersoCore
         // On the editing line the item, and a begin line, are source again.
         let onTwo = drawn(tex, at: ns.range(of: "two"))
         #expect(onTwo.filter { $0 == "\\item " }.count == 5)
-        #expect(!drawn(tex, at: ns.range(of: "\\begin{itemize}")).contains("\\begin{itemize}\n"))
+        #expect(!drawn(tex, at: ns.range(of: "\\begin{itemize}")).contains("\\begin{itemize}"))
         #expect(MixedPresentation.layout(in: tex, selection: NSRange(location: 0, length: 0), config: config(), elements: [.math], width: 600).glyphs.isEmpty)
+    }
+
+    @Test func documentMatterRendersWithoutRemovingLines() {
+        let tex = """
+        \\documentclass{book}
+        \\title{The {Long} Road}
+        \\author{Ada Writer}
+        \\begin{document}
+        \\frontmatter
+        \\maketitle
+        \\tableofcontents
+        \\mainmatter
+        \\chapter{First}
+        \\section{Details}
+        \\backmatter
+        \\end{document}
+        """
+        let ns = tex as NSString
+        let away = MixedPresentation.layout(in: tex, selection: ns.range(of: "\\chapter{First}"),
+                                            config: config(), elements: [.blocks], width: 600)
+        let rendered = away.glyphs.map { ns.substring(with: $0.range) }
+        #expect(rendered == ["\\begin{document}", "\\frontmatter", "\\maketitle", "\\tableofcontents",
+                             "\\mainmatter", "\\backmatter", "\\end{document}"])
+        #expect(away.glyphs.allSatisfy { $0.range.length > 0 && !ns.substring(with: $0.range).contains("\n") })
+        let title = away.glyphs.first { ns.substring(with: $0.range) == "\\maketitle" }!
+        let contents = away.glyphs.first { ns.substring(with: $0.range) == "\\tableofcontents" }!
+        #expect(title.image.size.height > config().fontSize)
+        #expect(contents.image.size.height > title.image.size.height)
+        let editing = MixedPresentation.layout(in: tex, selection: ns.range(of: "\\tableofcontents"),
+                                               config: config(), elements: [.blocks], width: 600)
+        #expect(!editing.glyphs.contains { ns.substring(with: $0.range) == "\\tableofcontents" })
+        #expect(editing.reservedLineHeights.first?.height == contents.image.size.height)
+
+        let storage = NSTextStorage(string: tex, attributes: [.font: config().font.font(size: config().fontSize)])
+        let layout = MathLayoutManager()
+        storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 650, height: 10_000))
+        layout.addTextContainer(container)
+        let index = ns.range(of: "\\tableofcontents").location
+        layout.setRendered(away.glyphs)
+        layout.ensureLayout(for: container)
+        let renderedHeight = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: index), effectiveRange: nil).height
+        layout.setRendered(editing.glyphs)
+        layout.reservedLineHeights = editing.reservedLineHeights
+        layout.ensureLayout(for: container)
+        let editingHeight = layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: index), effectiveRange: nil).height
+        #expect(abs(renderedHeight - editingHeight) < 2)
     }
 
     @Test func referencesResolveToTheirNumbersAndCitationsToLabels() {
@@ -106,7 +153,9 @@ import TersoCore
         let ns = tex as NSString
         let decor = MixedPresentation.layout(in: tex, selection: NSRange(location: 0, length: 0), config: config(),
                                              elements: Set(MixedElement.allCases), width: 600)
-        #expect(decor.glyphs.map(\.range) == [ns.range(of: "\\ref{s}", options: .backwards, range: NSRange(location: 0, length: ns.length))])
+        #expect(decor.glyphs.map(\.range) == [ns.range(of: "\\begin{document}"),
+                                              ns.range(of: "\\ref{s}", options: .backwards, range: NSRange(location: 0, length: ns.length)),
+                                              ns.range(of: "\\end{document}")])
         #expect(MixedElement.available(latex: true, text: tex).contains(.citations))
         #expect(!MixedElement.available(latex: true, text: "\\documentclass{article}\nPlain.").contains(.blocks))
     }

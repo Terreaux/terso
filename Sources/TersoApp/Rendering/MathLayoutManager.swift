@@ -33,6 +33,18 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         }
     }
     private var bars: [QuoteBar] = []
+    private var lineHeights: [LineHeightReservation] = []
+    var reservedLineHeights: [LineHeightReservation] {
+        get { lineHeights }
+        set {
+            guard lineHeights.count != newValue.count || zip(lineHeights, newValue).contains(where: {
+                $0.range != $1.range || $0.height != $1.height
+            }) else { return }
+            lineHeights = newValue
+            guard let storage = textStorage else { return }
+            invalidateLayout(forCharacterRange: NSRange(location: 0, length: storage.length), actualCharacterRange: nil)
+        }
+    }
     var quoteBars: [QuoteBar] {
         get { bars }
         set {
@@ -90,6 +102,9 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
             }
         }
         bars = bars.compactMap { bar in translated(bar.range).map { QuoteBar(range: $0, depth: bar.depth) } }
+        lineHeights = lineHeights.compactMap { item in
+            translated(item.range).map { LineHeightReservation(range: $0, height: item.height) }
+        }
         syntaxRanges = syntaxRanges.compactMap(translated)
     }
 
@@ -128,8 +143,11 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
 
     func layoutManager(_ layoutManager: NSLayoutManager, shouldSetLineFragmentRect lineFragmentRect: UnsafeMutablePointer<NSRect>, lineFragmentUsedRect: UnsafeMutablePointer<NSRect>, baselineOffset: UnsafeMutablePointer<CGFloat>, in textContainer: NSTextContainer, forGlyphRange glyphRange: NSRange) -> Bool {
         let characters = characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-        let height = rendered.filter { $0.reservesHeight && NSLocationInRange($0.range.location, characters) }
+        let renderedHeight = rendered.filter { $0.reservesHeight && NSLocationInRange($0.range.location, characters) }
             .map { $0.image.size.height }.max() ?? 0
+        let reservedHeight = lineHeights.filter { NSIntersectionRange($0.range, characters).length > 0 }
+            .map(\.height).max() ?? 0
+        let height = max(renderedHeight, reservedHeight)
         guard height > 0 else { return false }
         // A control glyph reserves horizontal advance, but TextKit does not
         // raise the baseline to accommodate its ascent. Reserve that ascent
@@ -214,7 +232,7 @@ extension EditorCoordinator {
         mathTask?.cancel()
         guard let tv = textView, let layout = tv.layoutManager as? MathLayoutManager, let config else { return }
         guard config.renderMode == .mixed, !tv.hasMarkedText() else {
-            layout.setRendered([]); layout.hiddenSyntax = []; layout.quoteBars = []; return
+            layout.setRendered([]); layout.hiddenSyntax = []; layout.quoteBars = []; layout.reservedLineHeights = []; return
         }
         let source = tv.string
         let selection = tv.selectedRange()
@@ -225,6 +243,7 @@ extension EditorCoordinator {
         layout.hiddenSyntax = (shown.contains(.links) ? LinkPresentation.hiddenSyntax(in: source, selection: selection) : [])
             + MarkerPresentation.hiddenSyntax(in: source, selection: selection, latex: config.latex, elements: shown)
         layout.quoteBars = decor.quoteBars
+        layout.reservedLineHeights = decor.reservedLineHeights
         // Math or an image inside a rendered table is drawn by the table.
         func covered(_ range: NSRange) -> Bool { decor.glyphs.contains { NSIntersectionRange($0.range, range).length > 0 } }
         let allEmbeds = config.latex ? [] : ImagePresentation.embeds(in: source)
@@ -237,7 +256,10 @@ extension EditorCoordinator {
                 && !MathPresentation.showsSource(region.range.nsRange, selection: selection, text: source)
                 && !allEmbeds.contains { NSIntersectionRange($0.range, region.range.nsRange).length > 0 }
         }
-        let visible = regions.map(\.range.nsRange) + embeds.map(\.range)
+        let mermaid = config.latex || !shown.contains(.code) ? [] : MermaidPresentation.blocks(in: source).filter {
+            !MathPresentation.showsSource($0.range, selection: selection, text: source) && !covered($0.range)
+        }
+        let visible = regions.map(\.range.nsRange) + embeds.map(\.range) + mermaid.map(\.range)
         // Discard old offsets synchronously before any asynchronous rendering.
         layout.setRendered((layout.rendered.filter { item in
             mathSource == source && visible.contains(item.range)
@@ -270,9 +292,20 @@ extension EditorCoordinator {
             func publish(_ pictures: [RenderedMath]) {
                 layout?.setRendered((output + pictures + decor.glyphs).sorted { $0.range.location < $1.range.location })
             }
-            publish(images.compactMap { item in
+            let cachedPictures = images.compactMap { item in
                 imageLoader.cachedImage(for: item.url, width: width).map { RenderedMath(range: item.range, image: $0) }
-            })
+            }
+            publish(cachedPictures)
+            for block in mermaid {
+                do {
+                    if let image = try await mermaidRenderer.image(source: block.source, width: width, dark: dark) {
+                        try Task.checkCancellation()
+                        guard tv?.string == source, self.config?.renderMode == .mixed else { return }
+                        output.append(RenderedMath(range: block.range, image: image))
+                        publish(cachedPictures)
+                    }
+                } catch { return }
+            }
             guard images.contains(where: { imageLoader.cachedImage(for: $0.url, width: width) == nil }) else { return }
             var pictures: [RenderedMath] = []
             for item in images {
