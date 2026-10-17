@@ -148,6 +148,12 @@ private struct DocumentControls: View {
         .themedChrome(Preferences.shared.theme)
     }
 
+    /// The target set in Writing Stats for this file, else the book's goal.
+    private var wordTarget: Int? {
+        if let url = document.fileURL, let t = WritingStats.shared.target(for: WritingStats.key(url)) { return t }
+        return document.model.documentBook.map { max(1, $0.wordGoal) }
+    }
+
     private func row(_ density: HeaderDensity) -> some View {
         @Bindable var model = document.model
         return HStack {
@@ -157,7 +163,7 @@ private struct DocumentControls: View {
             Spacer(minLength: 8)
             // The document's report, then the writer's.
             HStack(spacing: 6) {
-                DocumentReportButton(model: model, density: density)
+                DocumentReportButton(model: model, density: density, target: wordTarget)
                 if Preferences.shared.showWritingProgress {
                     TodayButton(density: density) { model.writingStats = .overview }
                     AwardStack(density: density) { model.writingStats = .awards }

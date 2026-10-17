@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import SwiftUI
 import TersoCore
+import TersoStyle
 
 /// A quick look at the document: how long it is, how long it takes to read,
 /// and how hard it reads. The Statistics inspector holds the detail.
@@ -44,6 +45,10 @@ struct DocumentReport: View {
                     DetailRow(label: "Characters", value: s.characters.formatted())
                     DetailRow(label: "Speaking time", value: speakingTime(s))
                         .help("At 150 words per minute, a typical presentation pace")
+                    if let r = model.style, let level = r.summary.level {
+                        DetailRow(label: "AI-style signals", value: "\(r.summary.aiSideCount) of \(r.summary.bandedCount) · \(level.rawValue)")
+                            .help(StyleSignalSummary.disclaimer)
+                    }
                 }
             } else {
                 Text("Nothing to measure yet. Start writing and the report fills in.")
@@ -89,21 +94,43 @@ struct DocumentReport: View {
     }
 }
 
-/// The document's reading level in the header, beside today's words: the
-/// document's own report next to the writer's.
+/// The document in the header, beside today's words: its length as a dial
+/// against its word target (the Stats target, else the book's goal), its
+/// reading level, and how many AI-style signals sit outside the human range
+/// once there are enough to mean something.
 struct DocumentReportButton: View {
     let model: WorkspaceModel
     let density: HeaderDensity
+    /// The document's word target, when it has one; without one the dial is
+    /// hidden and the count stands alone.
+    var target: Int?
 
     var body: some View {
         let s = model.local?.statistics
-        let measured = (s?.words ?? 0) > 0 && s?.gradeLevel != nil
+        let words = s?.words ?? 0
+        let measured = words > 0 && s?.gradeLevel != nil
         let grade = measured ? DocumentReport.grade(s!) : "—"
+        let flags = Self.flags(model.style)
         Button { model.showDocumentReport = true } label: {
             HStack(spacing: 6) {
-                Image(systemName: "text.magnifyingglass").foregroundStyle(.secondary)
-                if density != .minimal { Text(grade).monospacedDigit() }
+                if let target {
+                    GoalRing(fraction: Double(words) / Double(target), lineWidth: 2.2)
+                        .frame(width: 13, height: 13)
+                } else {
+                    Image(systemName: "text.magnifyingglass").foregroundStyle(.secondary)
+                }
+                if density != .minimal {
+                    Text(words.formatted()).monospacedDigit()
+                    Text(grade).monospacedDigit().foregroundStyle(.secondary)
+                }
                 if density == .full, measured, let s { Text(s.readingTimeLabel).foregroundStyle(.secondary) }
+                if let flags {
+                    HStack(spacing: 2) {
+                        Image(systemName: "sparkles")
+                        Text(flags.count.formatted()).monospacedDigit()
+                    }
+                    .foregroundStyle(flags.level == .elevated ? Color.orange : Color.secondary)
+                }
             }
             .font(.system(size: 11, weight: .medium))
             .padding(.horizontal, 9)
@@ -112,10 +139,32 @@ struct DocumentReportButton: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help(measured
-              ? "Reads at \(grade.lowercased()) level, \(s!.words.formatted()) words. Open the document report."
-              : "Document report: word count, reading time and reading level")
-        .accessibilityLabel(measured ? "Document report, reading level \(grade)" : "Document report")
+        .help(help(words: words, grade: measured ? grade : nil, flags: flags))
+        .accessibilityLabel(accessibility(words: words, grade: measured ? grade : nil, flags: flags))
+    }
+
+    /// AI-style signals worth a glance: moderate or elevated only. Fewer
+    /// than three on the AI side is common in human writing, so the header
+    /// stays quiet about it.
+    static func flags(_ r: StyleReport?) -> (count: Int, level: SignalLevel)? {
+        guard let r, let level = r.summary.level, level != .low else { return nil }
+        return (r.summary.aiSideCount, level)
+    }
+
+    private func help(words: Int, grade: String?, flags: (count: Int, level: SignalLevel)?) -> String {
+        guard words > 0 else { return "Document report: word count, reading time and reading level" }
+        var parts = [target.map { "\(words.formatted()) of \($0.formatted()) words" } ?? "\(words.formatted()) words"]
+        if let grade { parts.append("reads at \(grade.lowercased()) level") }
+        if let flags { parts.append("\(flags.count) AI-style signals outside the human range") }
+        return parts.joined(separator: ", ") + ". Open the document report."
+    }
+
+    private func accessibility(words: Int, grade: String?, flags: (count: Int, level: SignalLevel)?) -> String {
+        var label = "Document report, \(words) words"
+        if let target { label += " of \(target)" }
+        if let grade { label += ", reading level \(grade)" }
+        if let flags { label += ", \(flags.count) AI-style signals" }
+        return label
     }
 }
 
