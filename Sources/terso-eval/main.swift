@@ -9,9 +9,11 @@ terso-eval — measure and evaluate style features
 
   terso-eval measure DIR [--out FILE.json]
       Per-text feature values for every .md/.txt in DIR.
-  terso-eval calibrate --human DIR [--ai DIR] --out BANDS.json [--source TEXT]
+  terso-eval calibrate --human DIR [--ai DIR] --out BANDS.json [--source TEXT] [--lexicon NAME]
       p10/p50/p90 of every feature over the human texts; with --ai, the AI median,
       AUC and direction per feature. Use the CALIBRATION split, never held-out.
+      --lexicon picks the bundled AI-lean list for ai_lexicon_1k (default ai-lean;
+      ai-lean-fiction for fiction) and is recorded in the band file.
   terso-eval evaluate --human DIR [--ai DIR] [--bands BANDS.json] [--label NAME] [--out REPORT.json]
       Level distributions, human false positives (ELEVATED on human text),
       AI detection rate where labels exist, per-feature AUC and how often
@@ -39,10 +41,14 @@ struct Row: Codable {
     let features: [String: Double]
 }
 
+/// The AI-lean list `measure` uses for ai_lexicon_1k.
+let lexiconName = arg("--lexicon", CommandLine.arguments)
+let measureLexicon = lexiconName.map(Lexicon.load) ?? Lexicon.aiLean
+
 func measure(_ dir: String) -> [Row] {
     let engine = StyleEngine()
     return texts(in: dir).compactMap { name, text in
-        let ctx = StyleContext(snapshot: DocumentSnapshot(revision: DocumentRevision(0), text: text))
+        let ctx = StyleContext(snapshot: DocumentSnapshot(revision: DocumentRevision(0), text: text), aiLexicon: measureLexicon)
         guard ctx.wordCount >= StyleEngine.minimumWords, ctx.sentences.count >= StyleEngine.minimumSentences else { return nil }
         return Row(file: name, words: ctx.wordCount, features: engine.measureRaw(ctx))
     }
@@ -80,6 +86,7 @@ func calibrate(_ args: [String]) throws {
     var obj: [String: Any] = ["_texts": human.count, "_measured_by": "terso-eval calibrate",
                               "_date": ISO8601DateFormatter().string(from: Date()).prefix(10).description]
     if let src = arg("--source", args) { obj["_source"] = src }
+    if let lexiconName { obj["_lexicon"] = lexiconName }
     if let ai { obj["_ai_texts"] = ai.count }
     print("calibrated on \(human.count) human texts" + (ai.map { " and \($0.count) AI texts" } ?? ""))
     for id in featureIDs {
@@ -139,7 +146,8 @@ func evaluate(_ args: [String]) throws {
         let decoded = try BaselineProfile.decodeBands(Data(contentsOf: URL(fileURLWithPath: path)))
         profile = BaselineProfile(id: "eval", domain: .general, title: "eval", corpusDescription: "", provenance: "",
                                   humanTexts: decoded.humanTexts, aiTexts: decoded.aiTexts, bands: decoded.bands,
-                                  measuredByTerso: decoded.measuredByTerso)
+                                  measuredByTerso: decoded.measuredByTerso, aiLexicon: decoded.aiLexicon,
+                                  elevatedAt: decoded.elevatedAt)
     } else {
         guard let shipped = BaselineLibrary.profile(for: .general) else { throw CocoaError(.fileNoSuchFile) }
         profile = shipped

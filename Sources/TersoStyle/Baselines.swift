@@ -72,12 +72,18 @@ public struct BaselineProfile: Sendable {
     /// Measured by Terso's own feature code, so every feature's definition
     /// matches its band (none need to be shown unbanded).
     public let measuredByTerso: Bool
+    /// The AI-lean word list this register's `ai_lexicon_1k` band was measured with.
+    public let aiLexicon: Set<String>
+    /// AI-side count at which the level becomes Elevated (`_thresholds.AI_SIDE_MAX`).
+    public let elevatedAt: Int
 
     public init(id: String, domain: WritingDomain, title: String, corpusDescription: String, provenance: String,
-                humanTexts: Int, aiTexts: Int, bands: [String: ReferenceBand], measuredByTerso: Bool = false) {
+                humanTexts: Int, aiTexts: Int, bands: [String: ReferenceBand], measuredByTerso: Bool = false,
+                aiLexicon: Set<String> = Lexicon.aiLean, elevatedAt: Int = StyleSignalSummary.defaultElevatedAt) {
         self.id = id; self.domain = domain; self.title = title; self.corpusDescription = corpusDescription
         self.provenance = provenance; self.humanTexts = humanTexts; self.aiTexts = aiTexts
         self.bands = bands; self.measuredByTerso = measuredByTerso
+        self.aiLexicon = aiLexicon; self.elevatedAt = elevatedAt
     }
 
     /// Features compared with a band under this profile.
@@ -86,7 +92,9 @@ public struct BaselineProfile: Sendable {
     }
 
     /// Parse a band file (`{"_texts": n, "feature": {p10, p50, p90, min, max, ai, auc, push}}`).
-    public static func decodeBands(_ data: Data) throws -> (bands: [String: ReferenceBand], humanTexts: Int, aiTexts: Int, measuredByTerso: Bool, source: String?) {
+    /// `_lexicon` names the register's AI-lean list and `_thresholds.AI_SIDE_MAX`
+    /// its Elevated threshold, as in Quirón's band files.
+    public static func decodeBands(_ data: Data) throws -> (bands: [String: ReferenceBand], humanTexts: Int, aiTexts: Int, measuredByTerso: Bool, source: String?, aiLexicon: Set<String>, elevatedAt: Int) {
         guard let obj = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw CocoaError(.fileReadCorruptFile)
         }
@@ -100,8 +108,11 @@ public struct BaselineProfile: Sendable {
                 ai: num("ai"), auc: num("auc"),
                 direction: (d["push"] as? String).flatMap(FeatureDirection.init(rawValue:)) ?? .undetermined)
         }
+        let elevatedAt = ((obj["_thresholds"] as? [String: Any])?["AI_SIDE_MAX"] as? NSNumber)?.intValue
         return (bands, (obj["_texts"] as? NSNumber)?.intValue ?? 0, (obj["_ai_texts"] as? NSNumber)?.intValue ?? 0,
-                obj["_measured_by"] != nil, obj["_source"] as? String)
+                obj["_measured_by"] != nil, obj["_source"] as? String,
+                (obj["_lexicon"] as? String).map(Lexicon.load) ?? Lexicon.aiLean,
+                elevatedAt ?? StyleSignalSummary.defaultElevatedAt)
     }
 }
 
@@ -110,7 +121,7 @@ public struct BaselineProfile: Sendable {
 public enum BaselineLibrary {
     /// The band parameters (percentiles, AI medians, AUCs, directions) are the
     /// published ones from Quirón; the measuring code is Terso's own.
-    public static let attribution = "Reference-range parameters: Based on Quirón by ilien — https://github.com/ilien-dev/quiron (AGPL-3.0)."
+    public static let attribution = "Reference-range parameters and word lists: Based on Quirón by ilien — https://github.com/ilien-dev/quiron (AGPL-3.0)."
 
     public static func profile(for domain: WritingDomain) -> BaselineProfile? {
         switch domain {
@@ -139,6 +150,7 @@ public enum BaselineLibrary {
             id: id, domain: domain, title: title,
             corpusDescription: corpus ?? decoded.source ?? "Measured by Terso.",
             provenance: own ? "Reference ranges measured by Terso (terso-eval calibrate). See Evaluation/README.md." : attribution,
-            humanTexts: decoded.humanTexts, aiTexts: decoded.aiTexts, bands: decoded.bands, measuredByTerso: own)
+            humanTexts: decoded.humanTexts, aiTexts: decoded.aiTexts, bands: decoded.bands, measuredByTerso: own,
+            aiLexicon: decoded.aiLexicon, elevatedAt: decoded.elevatedAt)
     }
 }

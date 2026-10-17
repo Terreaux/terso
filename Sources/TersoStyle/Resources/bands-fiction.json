@@ -2,6 +2,10 @@
  "_texts": 157,
  "_ai_texts": 32,
  "_source": "Reference-range parameters from Quir\u00f3n by ilien (https://github.com/ilien-dev/quiron), AGPL-3.0",
+ "_lexicon": "ai-lean-fiction.txt",
+ "_thresholds": {
+  "AI_SIDE_MAX": 4
+ },
  "cv_sentence_len": {
   "p10": 0.451,
   "p50": 0.586,
@@ -162,6 +166,16 @@
   "auc": 0.878,
   "push": "hi"
  },
+ "ai_lexicon_1k": {
+  "p10": 0.0,
+  "p50": 0.0,
+  "p90": 1.52,
+  "min": 0.0,
+  "max": 3.41,
+  "ai": 0.0,
+  "auc": 0.527,
+  "push": null
+ },
  "triads_1k": {
   "p10": 0.0,
   "p50": 1.78,
@@ -180,6 +194,16 @@
   "max": 21.22,
   "ai": 2.665,
   "auc": 0.585,
+  "push": null
+ },
+ "plain_words_1k": {
+  "p10": 56.36,
+  "p50": 87.79,
+  "p90": 116.07,
+  "min": 33.37,
+  "max": 173.52,
+  "ai": 87.88,
+  "auc": 0.478,
   "push": null
  },
  "parens_1k": {

@@ -19,13 +19,16 @@ public struct StyleContext: Sendable {
     public let sentences: [ProseText.Sentence] // sentences of three or more words
     /// Letters-only tokens, hyphenated compounds split: the unit for word-length measures.
     public let letterWords: [String]
+    /// The register's AI-lean word list (`ai_lexicon_1k`).
+    public let aiLexicon: Set<String>
 
-    public init(snapshot: DocumentSnapshot) {
+    public init(snapshot: DocumentSnapshot, aiLexicon: Set<String> = Lexicon.aiLean) {
         let prose = ProseText(snapshot)
         self.prose = prose
         self.words = prose.words.map { prose.string($0).lowercased() }
         self.sentences = prose.sentences.filter { $0.words.count > 2 }
         self.letterWords = words.flatMap { $0.split(separator: "-").map { $0.filter(\.isLetter) } }.filter { !$0.isEmpty }
+        self.aiLexicon = aiLexicon
     }
 
     public var wordCount: Int { words.count }
@@ -98,6 +101,29 @@ enum Lexical {
     static let trailingIng = re(#"[,;:\x{2014}\x{2013}]\s+(\p{L}+ing)\b"#, [])
 }
 
+/// Published word lists, bundled from Quirón (see NOTICE). One or more words
+/// per line; `#` starts a comment.
+public enum Lexicon {
+    public static func load(_ name: String) -> Set<String> {
+        let base = name.hasSuffix(".txt") ? String(name.dropLast(4)) : name
+        guard let url = Bundle.module.url(forResource: base, withExtension: "txt"),
+              let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+        return Set(text.split(separator: "\n").flatMap { line in
+            line.split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false).first.map {
+                $0.split(whereSeparator: \.isWhitespace).map { $0.lowercased() }
+            } ?? []
+        })
+    }
+    /// AI-lean words for general (blog) prose.
+    public static let aiLean = load("ai-lean")
+    /// Words people use and assistant models under-use.
+    public static let humanLean = load("human-lean")
+
+    /// Letter runs of a word ("you're" → you, re), each counted as one token,
+    /// so contractions and compounds are matched by their parts.
+    static func pieces(_ word: String) -> [Substring] { word.split { !$0.isLetter } }
+}
+
 public enum FeatureCatalog {
     /// Features whose Terso definition differs from the procedure that produced
     /// the shipped reference parameters (sentence splitting, participle detection,
@@ -118,6 +144,20 @@ public enum FeatureCatalog {
         Feature(id, name, unit: "per 1k words", interp) { ctx in
             .rate(ctx.words.indices.filter { test(ctx.words[$0]) }.map { ctx.prose.words[$0] }, ctx)
         }
+    }
+
+    /// Rate of letter runs found in a word list, per 1,000 letter runs.
+    static func lexiconRate(_ ctx: StyleContext, _ list: Set<String>, ranges keepRanges: Bool) -> RawMeasurement {
+        var total = 0, hits = 0
+        var ranges: [TextSpan] = []
+        for (i, w) in ctx.words.enumerated() {
+            let p = Lexicon.pieces(w)
+            total += p.count
+            let n = p.filter { list.contains(String($0)) }.count
+            hits += n
+            if n > 0 && keepRanges { ranges.append(ctx.prose.words[i]) }
+        }
+        return RawMeasurement(value: total == 0 ? 0 : Double(hits) / Double(total) * 1000, count: hits, ranges: ranges)
     }
 
     static func stats(_ v: [Double]) -> (mean: Double, sd: Double) {
@@ -196,6 +236,10 @@ public enum FeatureCatalog {
         punctuation("commas_1k", "Commas", "Commas per 1,000 words.", [0x2C]),
         punctuation("semicolons_1k", "Semicolons", "Semicolons per 1,000 words.", [0x3B]),
         punctuation("em_dashes_1k", "Dashes", "Em and en dashes per 1,000 words.", [0x2014, 0x2013]),
+        Feature("ai_lexicon_1k", "AI-lean words", unit: "per 1k words",
+                "Words that assistant models over-use relative to human writers of this register (delve, pivotal, meticulous; murmured, blinked in fiction), from published word-frequency studies (Kobak et al. 2025; Juzek 2026). Replace one only where a plainer word says the same thing.") { ctx in
+            lexiconRate(ctx, ctx.aiLexicon, ranges: true)
+        },
         Feature("triads_1k", "Lists of three", unit: "per 1k words",
                 "Coordinated series of three short items (“A, B and C”), a rhetorical habit of assistant prose.") { ctx in
             let ns = ctx.prose.maskedNS
@@ -216,6 +260,10 @@ public enum FeatureCatalog {
                 return tag == .verb ? TextSpan(r) : nil
             }
             return .rate(hits, ctx)
+        },
+        Feature("plain_words_1k", "Plain words", unit: "per 1k words",
+                "Everyday words people use and assistant models under-use (about, get, really, said, lot; Juzek 2026). A low rate reads as polished and impersonal. This is a rate, not a list to sprinkle in.") { ctx in
+            lexiconRate(ctx, Lexicon.humanLean, ranges: false)
         },
         punctuation("parens_1k", "Parentheses", "Opening parentheses per 1,000 words.", [0x28]),
         Feature("para_words", "Words per paragraph", unit: "words", "Average paragraph length.") { ctx in

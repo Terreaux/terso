@@ -60,12 +60,14 @@ public struct StyleSignalSummary: Sendable {
     /// Evaluation/README.md for the measured false-positive rate). Recent
     /// frontier models often read as human on these features, so a low level
     /// says little about origin.
-    public static func level(forAISideCount n: Int) -> SignalLevel {
-        switch n {
-        case ..<3: .low
-        case 3..<5: .moderate
-        default: .elevated
-        }
+    public static let defaultElevatedAt = 5
+
+    /// A register may lower the Elevated threshold (fiction: four, as in
+    /// Quirón's fiction band file, where fewer features have a direction).
+    /// Moderate starts two below it.
+    public static func level(forAISideCount n: Int, elevatedAt: Int = defaultElevatedAt) -> SignalLevel {
+        if n >= elevatedAt { return .elevated }
+        return n >= elevatedAt - 2 ? .moderate : .low
     }
 }
 
@@ -112,7 +114,7 @@ public struct StyleEngine: Sendable {
     }
 
     public func analyze(_ snapshot: DocumentSnapshot, domain: WritingDomain, profile: BaselineProfile?) -> StyleReport {
-        let ctx = StyleContext(snapshot: snapshot)
+        let ctx = StyleContext(snapshot: snapshot, aiLexicon: profile?.aiLexicon ?? Lexicon.aiLean)
         let measurements = features.map { f -> FeatureMeasurement in
             let raw = f.measure(ctx)
             let band = profile?.isBanded(f.id) == true ? profile?.bands[f.id] : nil
@@ -135,7 +137,7 @@ public struct StyleEngine: Sendable {
         let aiSide = banded.filter(\.onAISide).count
         let level: SignalLevel? = {
             if case .insufficient = reliability { return nil }
-            return StyleSignalSummary.level(forAISideCount: aiSide)
+            return StyleSignalSummary.level(forAISideCount: aiSide, elevatedAt: profile?.elevatedAt ?? StyleSignalSummary.defaultElevatedAt)
         }()
         return StyleReport(
             revision: snapshot.revision, profile: profile, domain: domain, measurements: measurements,

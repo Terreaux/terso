@@ -24,9 +24,17 @@ public struct WritingAnalyzer: Sendable {
         ScientificRule(.notation), ScientificRule(.quantities), ScientificRule(.references), ScientificRule(.claims), ScientificRule(.evidence),
     ]
 
+    /// Advice the writer turns on in Settings; none of it runs by default.
+    public static let optionalRules: [any WritingRule] = [SincerityMarkerRule(), NegatedSetupRule()]
+
     public init(rules: [any WritingRule] = WritingAnalyzer.defaultRules, profile: ScientificProfile = .general) {
         self.rules = rules
         self.profile = profile
+    }
+
+    /// The default rules plus the optional ones whose IDs are in `enabled`.
+    public init(enabling enabled: Set<String>, profile: ScientificProfile = .general) {
+        self.init(rules: Self.defaultRules + Self.optionalRules.filter { enabled.contains($0.id) }, profile: profile)
     }
 
     public func analyze(_ snapshot: DocumentSnapshot) -> LocalAnalysisResult {

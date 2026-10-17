@@ -17,7 +17,11 @@ import TersoCore
             let p = try #require(BaselineLibrary.profile(for: domain), "missing \(domain)")
             #expect(p.measuredByTerso)
             #expect(p.humanTexts >= 80)
-            for f in FeatureCatalog.all { #expect(p.isBanded(f.id), "\(domain): \(f.id) unbanded") }
+            // The lexicon features were added after these registers were calibrated;
+            // they stay unbanded here until Terso measures them on its own corpora.
+            for f in FeatureCatalog.all where !["ai_lexicon_1k", "plain_words_1k"].contains(f.id) {
+                #expect(p.isBanded(f.id), "\(domain): \(f.id) unbanded")
+            }
         }
         // The Quirón-derived profile keeps the three mismatched definitions unbanded.
         let general = try #require(BaselineLibrary.profile(for: .general))
@@ -53,6 +57,38 @@ import TersoCore
         #expect(StyleSignalSummary.level(forAISideCount: 1) == .low)
         #expect(StyleSignalSummary.level(forAISideCount: 3) == .moderate)
         #expect(StyleSignalSummary.level(forAISideCount: 5) == .elevated)
+        // Fiction elevates at four (Quirón's fiction _thresholds).
+        #expect(StyleSignalSummary.level(forAISideCount: 1, elevatedAt: 4) == .low)
+        #expect(StyleSignalSummary.level(forAISideCount: 2, elevatedAt: 4) == .moderate)
+        #expect(StyleSignalSummary.level(forAISideCount: 4, elevatedAt: 4) == .elevated)
+    }
+
+    @Test func registersCarryLexiconAndThreshold() throws {
+        let general = try #require(BaselineLibrary.profile(for: .general))
+        let fiction = try #require(BaselineLibrary.profile(for: .fiction))
+        #expect(general.elevatedAt == 5)
+        #expect(fiction.elevatedAt == 4)
+        #expect(general.aiLexicon.contains("delve") && !general.aiLexicon.contains("murmured"))
+        #expect(fiction.aiLexicon.contains("murmured") && !fiction.aiLexicon.contains("delve"))
+        #expect(general.bands["ai_lexicon_1k"]?.direction == .higherInAI)
+        #expect(general.bands["plain_words_1k"]?.direction == .lowerInAI)
+        #expect(fiction.bands["ai_lexicon_1k"]?.direction == .undetermined)
+        #expect(Lexicon.humanLean.contains("really") && !Lexicon.humanLean.contains("#"))
+    }
+
+    @Test func lexiconRatesCountLetterRuns() {
+        let text = "We delve into a pivotal and meticulous plan. You're really going to get it, said Marcus."
+        let ctx = StyleContext(snapshot: DocumentSnapshot(revision: DocumentRevision(0), text: text))
+        let measure = { (id: String) in FeatureCatalog.all.first { $0.id == id }!.measure(ctx) }
+        let ai = measure("ai_lexicon_1k"), plain = measure("plain_words_1k")
+        // 17 letter runs ("You're" is two); delve, pivotal, meticulous are AI-lean.
+        #expect(ai.count == 3 && ai.ranges.count == 3)
+        #expect(abs(ai.value - 3.0 / 17 * 1000) < 0.01)
+        // you, really, get, said; plain words are a rate only, never highlighted.
+        #expect(plain.count == 4 && plain.ranges.isEmpty)
+        let fiction = StyleContext(snapshot: DocumentSnapshot(revision: DocumentRevision(0), text: text),
+                                   aiLexicon: BaselineLibrary.profile(for: .fiction)!.aiLexicon)
+        #expect(FeatureCatalog.all.first { $0.id == "ai_lexicon_1k" }!.measure(fiction).count == 1) // marcus
     }
 
     @Test func mattrOnRepetitiveText() {

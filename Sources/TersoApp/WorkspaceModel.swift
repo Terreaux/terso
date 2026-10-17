@@ -65,6 +65,14 @@ struct MapMarker: Identifiable, Hashable {
     var explanation: String? = nil
 }
 
+/// Compose the document's analysis rules from its register and the writer's
+/// opt-in advice. Kept in one place so a register change cannot drop either.
+func analysisRules(domain: WritingDomain, optionalRuleIDs: Set<String>) -> [any WritingRule] {
+    WritingAnalyzer.defaultRules
+        + (domain == .fiction ? StoryShape.rules : [])
+        + WritingAnalyzer.optionalRules.filter { optionalRuleIDs.contains($0.id) }
+}
+
 /// One document session, retained by its TabDocument. Moving tabs between windows
 /// preserves this identity. Analysis, suggestions and revision belong to this
 /// document; selection, inspector and focus state follow its tab. Only user
@@ -284,6 +292,7 @@ final class WorkspaceModel {
         guard let snap = editor?.currentSnapshot else { return }
         let domain = prefs.domain
         let scienceProfile = scienceProfile
+        let optionalRules = prefs.optionalRules
         analysisTask = Task { [weak self] in
             if delay > .zero { try? await Task.sleep(for: delay) }
             guard !Task.isCancelled else { return }
@@ -292,8 +301,7 @@ final class WorkspaceModel {
                 try Task.checkCancellation()
                 let prose = ProseText(snap)
                 try Task.checkCancellation()
-                // Story-shape advice is about fiction; essays use the same moves freely.
-                let rules = WritingAnalyzer.defaultRules + (domain == .fiction ? StoryShape.rules : [])
+                let rules = analysisRules(domain: domain, optionalRuleIDs: optionalRules)
                 let local = WritingAnalyzer(rules: rules, profile: scienceProfile).analyze(snap)
                 try Task.checkCancellation()
                 let style = StyleEngine().analyze(snap, domain: domain)

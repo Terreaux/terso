@@ -145,9 +145,8 @@ struct DocumentReportButton: View {
         .accessibilityLabel(accessibility(words: words, grade: measured ? grade : nil, flags: flags))
     }
 
-    /// AI-style signals worth a glance: moderate or elevated only. Fewer
-    /// than three on the AI side is common in human writing, so the header
-    /// stays quiet about it.
+    /// AI-style signals worth a glance: moderate or elevated under the
+    /// selected register's threshold. Fiction starts at two; general at three.
     static func flags(_ r: StyleReport?) -> (count: Int, level: SignalLevel)? {
         guard let r, let level = r.summary.level, level != .low else { return nil }
         return (r.summary.aiSideCount, level)
