@@ -155,7 +155,7 @@ enum MathPresentation {
 /// and cross-reference labels. Footnotes are drawn by MixedPresentation.
 @MainActor enum MarkerPresentation {
     static func hiddenSyntax(in text: String, selection: NSRange, latex: Bool, elements: Set<MixedElement>) -> [NSRange] {
-        let hiding: Set<MixedElement> = [.headings, .emphasis, .code, .comments, .citations, .critic]
+        let hiding: Set<MixedElement> = [.headings, .emphasis, .code, .comments, .citations, .critic, .blocks]
         guard !elements.isDisjoint(with: hiding) else { return [] }
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
@@ -183,6 +183,10 @@ enum MathPresentation {
             pattern.enumerateMatches(in: text, range: all) { m, _, _ in if let m { body(m) } }
         }
         if latex {
+            if elements.contains(.blocks) {
+                hidden += LaTeXMixedPresentation.hiddenPreamble(in: text, selection: selection,
+                                                               quiet: kinds([.code, .comment]) + fences)
+            }
             if elements.contains(.headings) {
                 each(LaTeXSyntax.section) { wrap($0, content: $0.range(at: 2), closing: 1, protected: prose) }
             }
