@@ -280,7 +280,7 @@ struct LaTeXBookPages: View {
             }
         }
         .onAppear {
-            book.onTypeset = { [weak model] in (model?.editor as? EditorCoordinator)?.refreshBookOutline() }
+            book.onTypeset = { [weak model = model] in (model?.editor as? EditorCoordinator)?.refreshBookOutline() }
             book.schedule(source, fileURL: fileURL)
         }
         .onChange(of: source) { _, new in book.schedule(new, fileURL: fileURL) }

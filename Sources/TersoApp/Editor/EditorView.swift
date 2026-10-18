@@ -525,7 +525,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
         if var page = tv.bookLayout, page.front != decoration.front.count || page.back != decoration.back.count {
             page.front = decoration.front.count
             page.back = decoration.back.count
-            if let location { DispatchQueue.main.async { [weak tv] in tv?.bookLayout = page } } else { tv.bookLayout = page }
+            if location != nil { DispatchQueue.main.async { [weak tv] in tv?.bookLayout = page } } else { tv.bookLayout = page }
             return
         }
         guard changed, !restyledAll else { return }
