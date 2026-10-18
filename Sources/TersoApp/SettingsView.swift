@@ -54,7 +54,12 @@ struct EditorSettings: View {
                 Picker("Placement", selection: $prefs.contextualToolbarPlacement) {
                     ForEach(ContextualToolbarPlacement.allCases) { Text($0.title).tag($0) }
                 }
-                Text("Show editing, typography, and view controls below the header or in a floating bar at the bottom center.")
+                if prefs.contextualToolbarPlacement == .floating {
+                    Picker("Floating position", selection: $prefs.contextualToolbarEdge) {
+                        ForEach(ContextualToolbarEdge.allCases) { Text($0.title).tag($0) }
+                    }
+                }
+                Text("Float the toolbar along any editor edge, show it below the header, or hide it. Left and right positions use a vertical toolbar.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Letterbox and Zen modes") {

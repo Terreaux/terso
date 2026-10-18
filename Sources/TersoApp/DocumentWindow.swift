@@ -61,13 +61,16 @@ struct DocumentWindow: View {
             }
         }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if !model.focusMode && prefs.contextualToolbarPlacement == .floating {
-                    ContextualToolbar(model: model, source: document.text,
-                                      undoManager: model.documentUndoManager, floating: true)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 8)
-                        .padding(.bottom, model.manutius ? 32 : 12)
-                }
+                floatingToolbar(at: .bottom)
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                floatingToolbar(at: .top)
+            }
+            .safeAreaInset(edge: .leading, spacing: 0) {
+                floatingToolbar(at: .left)
+            }
+            .safeAreaInset(edge: .trailing, spacing: 0) {
+                floatingToolbar(at: .right)
             }
             .overlay(alignment: .bottom) {
                 if model.zenMode { ZenExit(model: model) } else if model.focusMode { FocusFooter(model: model) }
@@ -75,6 +78,16 @@ struct DocumentWindow: View {
             }
             .onChange(of: latex, initial: true) { _, new in model.latexBook.isLaTeX = new }
             .ignoresSafeArea(edges: model.focusMode ? .top : [])
+    }
+
+    @ViewBuilder private func floatingToolbar(at edge: ContextualToolbarEdge) -> some View {
+        if !model.focusMode && prefs.contextualToolbarPlacement == .floating && prefs.contextualToolbarEdge == edge {
+            ContextualToolbar(model: model, source: document.text,
+                              undoManager: model.documentUndoManager, floating: true, vertical: edge.isVertical)
+                .padding(.horizontal, edge.isVertical ? 8 : 12)
+                .padding(.top, edge == .bottom ? 8 : 12)
+                .padding(.bottom, model.manutius && edge != .top ? 32 : 12)
+        }
     }
 
     private func source(pages: Bool) -> some View {
