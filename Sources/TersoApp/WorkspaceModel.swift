@@ -83,6 +83,8 @@ final class WorkspaceModel {
     let prefs = Preferences.shared
     private let wordTargets: WritingStats
     weak var editor: (any EditorController)?
+    /// Consumed when a new document's text view is first created.
+    var initialSelection: NSRange?
 
     init(wordTargets: WritingStats = .shared) {
         self.wordTargets = wordTargets

@@ -12,38 +12,41 @@ struct WorkspaceStartView: View {
     private var tabs: DocumentTabs { .shared }
 
     var body: some View {
-        VStack(spacing: 22) {
-            Image(systemName: targeted ? "arrow.down.doc" : "doc.text")
-                .font(.system(size: 44, weight: .light))
-                .foregroundStyle(targeted ? Color.accentColor : .secondary)
-            VStack(spacing: 6) {
-                Text(workspace.documents.isEmpty ? "No Open Documents" : "New Tab").font(.title2.weight(.semibold))
-                Text("Create a document, open one, or drop Markdown and text files here.")
-                    .foregroundStyle(.secondary)
-                Text("Paste a copied file or path with ⌘V to open it.")
-                    .font(.callout).foregroundStyle(.tertiary)
-                if let problem {
-                    Text(problem).font(.callout).foregroundStyle(.red)
-                        .accessibilityLabel("Paste failed: \(problem)")
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(spacing: 22) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 36, weight: .light))
+                        .foregroundStyle(.secondary)
+                    VStack(spacing: 6) {
+                        Text(workspace.documents.isEmpty ? "No Open Documents" : "New Tab").font(.title2.weight(.semibold))
+                        Text("Choose a format and start writing.").foregroundStyle(.secondary)
+                    }
+                    dropZone
+                        .frame(maxWidth: 460)
+                    NewDocumentChoices { kind in
+                        activate()
+                        tabs.createDocument(kind, in: workspace)
+                    }
+                    .frame(maxWidth: 460)
+                    .multilineTextAlignment(.leading)
+                    HStack(spacing: 12) {
+                        Button { activate(); TabDocumentController.sharedController.openDocument(nil) } label: { Label("Open…", systemImage: "folder") }
+                        OpenRecentMenu { url in activate(); tabs.open(url) }
+                    }
+                    .controlSize(.large)
+                    if let problem {
+                        Text(problem).font(.callout).foregroundStyle(.red)
+                            .accessibilityLabel("Paste failed: \(problem)")
+                    }
                 }
+                .multilineTextAlignment(.center)
+                .padding(32)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: geometry.size.height)
             }
-            HStack(spacing: 12) {
-                Button { activate(); tabs.newDocument() } label: { Label("New Document", systemImage: "square.and.pencil") }
-                    .keyboardShortcut(.defaultAction)
-                Button { activate(); TabDocumentController.sharedController.openDocument(nil) } label: { Label("Open…", systemImage: "folder") }
-                OpenRecentMenu { url in activate(); tabs.open(url) }
-            }
-            .controlSize(.large)
         }
-        .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [8, 6]))
-                .foregroundStyle(targeted ? Color.accentColor : .clear)
-                .padding(16)
-        }
-        // Outermost, so the drop outline above draws on top of it.
         .background(Color(nsColor: Preferences.shared.theme.background))
         .contentShape(Rectangle())
         .focusable()
@@ -55,6 +58,27 @@ struct WorkspaceStartView: View {
         .dropDestination(for: URL.self) { urls, _ in
             open(urls.compactMap { ExternalFileLinks.fileURL(for: $0) }, emptyProblem: "Terso can't open what was dropped.")
         } isTargeted: { targeted = $0 }
+    }
+
+    private var dropZone: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "arrow.down.doc")
+                .font(.system(size: 24, weight: .light))
+                .foregroundStyle(targeted ? Color.accentColor : .secondary)
+            Text(targeted ? "Drop to open" : "Drag documents here")
+                .font(.callout.weight(.medium))
+            Text("Or paste a copied file or path with ⌘V")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(targeted ? Color.accentColor.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
+                .foregroundStyle(targeted ? Color.accentColor : Color.secondary.opacity(0.4))
+        }
+        .accessibilityElement(children: .combine)
     }
 
     /// Finder copies arrive as file URLs; terminal and editor copies as text.

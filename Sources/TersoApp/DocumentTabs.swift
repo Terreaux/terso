@@ -43,8 +43,18 @@ final class DocumentTabs {
     }
 
     func newDocument() {
-        do { _ = try TabDocumentController.sharedController.openUntitledDocumentAndDisplay(true) }
-        catch { NSApp.presentError(error) }
+        let workspace = activeWorkspace ?? newWorkspace()
+        workspace.showStart()
+        workspace.showWindow(nil)
+    }
+
+    func createDocument(_ kind: NewDocumentKind, in workspace: TabWorkspace) {
+        let document = kind.makeDocument()
+        TabDocumentController.sharedController.addDocument(document)
+        workspace.insert(document)
+        workspace.showWindow(nil)
+        activeWorkspace = workspace
+        scheduleRecovery()
     }
 
     func open(_ url: URL) {
@@ -104,6 +114,7 @@ final class DocumentTabs {
         var data: Data
         var edited: Bool
         var typeName: String?
+        var bookMode: Bool?
     }
     struct SavedWorkspace: Codable {
         var documents: [SavedDocument]
@@ -115,7 +126,7 @@ final class DocumentTabs {
         do {
             let saved = try workspaces.map { workspace in
                 SavedWorkspace(documents: try workspace.documents.map {
-                    SavedDocument(url: $0.fileURL, data: try $0.data(ofType: $0.fileType ?? "public.plain-text"), edited: $0.isDocumentEdited, typeName: $0.fileType)
+                    SavedDocument(url: $0.fileURL, data: try $0.data(ofType: $0.fileType ?? "public.plain-text"), edited: $0.isDocumentEdited, typeName: $0.fileType, bookMode: $0.model.manutius)
                 }, selected: workspace.documents.firstIndex { $0 === workspace.selected } ?? 0)
             }
             try FileManager.default.createDirectory(at: recoveryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -140,9 +151,11 @@ final class DocumentTabs {
                         if item.edited { try document.read(from: item.data, ofType: typeName) }
                     } else {
                         document = TabDocument()
-                        document.fileType = "net.daringfireball.markdown"
+                        document.fileType = typeName
                         try document.read(from: item.data, ofType: document.fileType!)
                     }
+                    if item.bookMode == true { document.model.setWritingMode(.manutius) }
+                    if typeName == "public.plain-text" { document.model.renderMode = .source }
                     TabDocumentController.sharedController.addDocument(document)
                     NSFileCoordinator.addFilePresenter(document)
                     if item.edited || item.url != nil && document.fileURL == nil { document.updateChangeCount(.changeDone) }

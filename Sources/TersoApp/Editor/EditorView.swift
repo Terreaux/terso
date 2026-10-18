@@ -298,7 +298,13 @@ struct EditorView: NSViewRepresentable {
         model.editor = c
         model.refreshDocumentBook()
         model.scheduleAnalysis()
-        DispatchQueue.main.async { tv.window?.makeFirstResponder(tv) }
+        let initialSelection = model.initialSelection
+        model.initialSelection = nil
+        if let initialSelection { tv.setSelectedRange(initialSelection) }
+        DispatchQueue.main.async {
+            if let initialSelection { tv.scrollRangeToVisible(initialSelection) }
+            tv.window?.makeFirstResponder(tv)
+        }
         return scroll
     }
 
