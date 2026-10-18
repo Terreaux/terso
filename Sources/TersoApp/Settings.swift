@@ -11,6 +11,18 @@ enum SyntaxVisibility: String, CaseIterable, Identifiable {
     var title: String { rawValue.capitalized }
 }
 
+enum ContextualToolbarPlacement: String, CaseIterable, Identifiable {
+    case hidden, secondRow, floating
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .hidden: "Hidden"
+        case .secondRow: "Second Row"
+        case .floating: "Floating"
+        }
+    }
+}
+
 enum EditorFont: String, Codable, CaseIterable, Identifiable {
     case newYork, iowan, charter, georgia, baskerville, palatino, hoefler, system, mono
     var id: String { rawValue }
@@ -78,6 +90,9 @@ final class Preferences {
     var lineSpacing: Double { didSet { d.set(lineSpacing, forKey: "lineSpacing") } }
     var columnWidth: Double { didSet { d.set(columnWidth, forKey: "columnWidth") } }
     var syntax: SyntaxVisibility { didSet { d.set(syntax.rawValue, forKey: "syntax") } }
+    var contextualToolbarPlacement: ContextualToolbarPlacement {
+        didSet { d.set(contextualToolbarPlacement.rawValue, forKey: "contextualToolbarPlacement") }
+    }
     /// What Mixed draws in place of its source, away from the editing line.
     var mixedRendered: Set<MixedElement> { didSet { d.set(mixedRendered.map(\.rawValue), forKey: "mixedRendered") } }
     var theme: EditorTheme { didSet { d.set(theme.rawValue, forKey: "theme"); NSApp.appearance = theme.nsAppearance } }
@@ -117,6 +132,7 @@ final class Preferences {
         lineSpacing = d.object(forKey: "lineSpacing") as? Double ?? 1.6
         columnWidth = d.object(forKey: "columnWidth") as? Double ?? 720
         syntax = SyntaxVisibility(rawValue: d.string(forKey: "syntax") ?? "") ?? .subdued
+        contextualToolbarPlacement = ContextualToolbarPlacement(rawValue: d.string(forKey: "contextualToolbarPlacement") ?? "") ?? .secondRow
         // Groups added after the first release of these choices are turned on
         // once for people who had already saved a selection. Builds before
         // "mixedGroupsOffered" recorded only that the first six had been.

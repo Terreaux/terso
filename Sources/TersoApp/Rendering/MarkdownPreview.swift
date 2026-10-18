@@ -3,6 +3,22 @@ import SwiftUI
 import WebKit
 import TersoCore
 
+extension EditorFont {
+    var previewCSSFamily: String {
+        switch self {
+        case .newYork: "ui-serif, 'New York', serif"
+        case .iowan: "'Iowan Old Style', serif"
+        case .charter: "Charter, serif"
+        case .georgia: "Georgia, serif"
+        case .baskerville: "Baskerville, serif"
+        case .palatino: "Palatino, serif"
+        case .hoefler: "'Hoefler Text', serif"
+        case .system: "-apple-system, sans-serif"
+        case .mono: "ui-monospace, monospace"
+        }
+    }
+}
+
 struct MarkdownPreview: NSViewRepresentable {
     let source: String
     let model: WorkspaceModel
@@ -21,12 +37,17 @@ struct MarkdownPreview: NSViewRepresentable {
         return view
     }
     func updateNSView(_ view: WKWebView, context: Context) {
-        let key = "\(scheme):\(model.prefs.theme.rawValue):\(model.prefs.fontSize):\(source)"
+        let prefs = model.prefs
+        let config = EditorConfig(prefs: prefs, model: model)
+        let width = config.book.map { Double(BookPage(trim: $0.trim, fontSize: config.pageScale).column) } ?? config.columnWidth
+        let key = "\(scheme):\(prefs.theme.rawValue):\(config.font.rawValue):\(config.fontSize):\(config.lineSpacing):\(width):\(source)"
         guard key != context.coordinator.key else { return }
         context.coordinator.key = key
         view.loadHTMLString(MarkdownPreviewHTML.document(source: source, dark: scheme == .dark,
-                                                         fontSize: model.prefs.fontSize, ink: model.prefs.theme.cssInk,
-                                                         selection: model.editor?.selection.location ?? 0), baseURL: nil)
+                                                         fontSize: config.fontSize, ink: prefs.theme.cssInk,
+                                                         selection: model.editor?.selection.location ?? 0,
+                                                         fontFamily: config.font.previewCSSFamily,
+                                                         lineSpacing: config.lineSpacing, columnWidth: width), baseURL: nil)
         DispatchQueue.main.async { view.window?.makeFirstResponder(view) }
     }
     static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
@@ -75,7 +96,9 @@ enum MarkdownPreviewHTML {
         return ["marked.umd.js", "terso-markdown.js", "purify.min.js"].map { try! String(contentsOf: root.appendingPathComponent($0), encoding: .utf8) }.joined(separator: "\n")
     }()
 
-    @MainActor static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0) -> String {
+    @MainActor static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0,
+                                   fontFamily: String = "-apple-system", lineSpacing: Double = 1.65,
+                                   columnWidth: Double = 760) -> String {
         let mermaidBlocks = MermaidPresentation.blocks(in: source)
         let mermaidScripts = mermaidBlocks.isEmpty ? "" : MermaidPresentation.scripts
         let ns = source as NSString
@@ -104,8 +127,8 @@ enum MarkdownPreviewHTML {
         <style>\#(ScienceMathHTML.stylesheet)</style>
         <style>
         :root { color-scheme:\#(dark ? "dark" : "light"); }
-        body { color:\#(ink ?? (dark ? "#dedede" : "#292929")); background:transparent; font:\#(fontSize)px/1.65 -apple-system; margin:0; }
-        main { max-width:760px; padding:48px 36px 100px; margin:auto; overflow-wrap:anywhere; }
+        body { color:\#(ink ?? (dark ? "#dedede" : "#292929")); background:transparent; font:\#(fontSize)px/\#(lineSpacing) \#(fontFamily); margin:0; }
+        main { max-width:\#(columnWidth)px; padding:48px 36px 100px; margin:auto; overflow-wrap:anywhere; }
         h1,h2,h3 { line-height:1.25; margin:1.5em 0 .6em; } h1 {font-size:1.65em;} h2 {font-size:1.35em;}
         p {margin:.8em 0;} pre {overflow:auto; padding:16px; background:#8881; border-radius:6px;}
         code {font: .88em ui-monospace,monospace; background:#8881;} pre code {background:none;}

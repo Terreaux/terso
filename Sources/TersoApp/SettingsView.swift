@@ -50,6 +50,13 @@ struct EditorSettings: View {
             Picker("Markdown syntax", selection: $prefs.syntax) { ForEach(SyntaxVisibility.allCases) { Text($0.title).tag($0) } }
             Picker("Theme", selection: $prefs.theme) { ForEach(EditorTheme.allCases) { Text($0.title).tag($0) } }
             Toggle("Smart quotes", isOn: $prefs.smartQuotes)
+            Section("Contextual toolbar") {
+                Picker("Placement", selection: $prefs.contextualToolbarPlacement) {
+                    ForEach(ContextualToolbarPlacement.allCases) { Text($0.title).tag($0) }
+                }
+                Text("Show editing, typography, and view controls below the header or in a floating bar at the bottom center.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Letterbox and Zen modes") {
                 Toggle("Dim inactive paragraphs", isOn: $prefs.dimInactiveParagraphs)
                 Toggle("Typewriter scrolling", isOn: $prefs.typewriterInFocusMode)

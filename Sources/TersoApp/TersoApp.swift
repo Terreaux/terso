@@ -28,20 +28,26 @@ struct TersoCommands: Commands {
 
     var body: some Commands {
         CommandMenu("Format") {
-            Button("Bold") { model?.editor?.wrapSelection(prefix: "**", suffix: "**", placeholder: "bold") }.keyboardShortcut("b")
-            Button("Italic") { model?.editor?.wrapSelection(prefix: "*", suffix: "*", placeholder: "italic") }.keyboardShortcut("i")
-            Button("Inline Code") { model?.editor?.wrapSelection(prefix: "`", suffix: "`", placeholder: "code") }.keyboardShortcut("e")
-            Button("Link") { model?.editor?.wrapSelection(prefix: "[", suffix: "](https://)", placeholder: "text") }.keyboardShortcut("k")
-            Divider()
-            Button("Heading 1") { model?.editor?.prefixLines("# ") }.keyboardShortcut("1", modifiers: [.command, .option])
-            Button("Heading 2") { model?.editor?.prefixLines("## ") }.keyboardShortcut("2", modifiers: [.command, .option])
-            Button("Heading 3") { model?.editor?.prefixLines("### ") }.keyboardShortcut("3", modifiers: [.command, .option])
-            Divider()
-            Button("Blockquote") { model?.editor?.prefixLines("> ") }.keyboardShortcut("'", modifiers: [.command, .option])
-            Button("Bulleted List") { model?.editor?.prefixLines("- ") }.keyboardShortcut("l", modifiers: [.command, .option])
-            Button("Numbered List") { model?.editor?.prefixLines("1. ") }.keyboardShortcut("n", modifiers: [.command, .option])
-            Button("Code Block") { model?.editor?.wrapSelection(prefix: "```\n", suffix: "\n```", placeholder: "code") }
-            Button("Horizontal Rule") { model?.editor?.wrapSelection(prefix: "\n---\n", suffix: "", placeholder: "") }
+            Group {
+                Button("Bold") { model?.editor?.performFormatting(.bold) }.keyboardShortcut("b")
+                Button("Italic") { model?.editor?.performFormatting(.italic) }.keyboardShortcut("i")
+                Button("Underline") { model?.editor?.performFormatting(.underline) }.keyboardShortcut("u")
+                Button("Inline Code") { model?.editor?.performFormatting(.code) }.keyboardShortcut("e")
+                Button("Link") { model?.editor?.performFormatting(.link) }.keyboardShortcut("k")
+                Button("Image") { model?.editor?.performFormatting(.image) }
+                Divider()
+                Button("Body") { model?.editor?.performFormatting(.blockStyle(.body)) }
+                Button("Heading 1") { model?.editor?.performFormatting(.blockStyle(.heading1)) }.keyboardShortcut("1", modifiers: [.command, .option])
+                Button("Heading 2") { model?.editor?.performFormatting(.blockStyle(.heading2)) }.keyboardShortcut("2", modifiers: [.command, .option])
+                Button("Heading 3") { model?.editor?.performFormatting(.blockStyle(.heading3)) }.keyboardShortcut("3", modifiers: [.command, .option])
+                Divider()
+                Button("Blockquote") { model?.editor?.performFormatting(.blockquote) }.keyboardShortcut("'", modifiers: [.command, .option])
+                Button("Bulleted List") { model?.editor?.performFormatting(.bulletedList) }.keyboardShortcut("l", modifiers: [.command, .option])
+                Button("Numbered List") { model?.editor?.performFormatting(.numberedList) }.keyboardShortcut("n", modifiers: [.command, .option])
+                Button("Code Block") { model?.editor?.performFormatting(.codeBlock) }
+                Button("Horizontal Rule") { model?.editor?.performFormatting(.horizontalRule) }
+            }
+            .disabled(model == nil || model?.renderMode == .preview)
         }
         CommandGroup(after: .sidebar) {
             ForEach(RenderMode.allCases) { mode in

@@ -12,13 +12,14 @@ enum MarkdownStyler {
     static let heading = re(#"^(#{1,6})([ \t]+)(.*)$"#)
     static let bold = re(#"(\*\*|__)(?=\S)(.+?)(?<=\S)\1"#)
     static let italic = re(#"(?<![*_\p{L}\p{N}])([*_])(?=[^\s*_])(.+?)(?<=[^\s*_])\1(?![*_\p{L}\p{N}])"#)
-    static let code = re(#"`[^`\n]+`"#)
+    static let underline = re(#"(<u>)([^\n]+?)(</u>)"#)
+    static let code = re(#"(?<!`)(`+)(?!`)([^\n]*?)(?<!`)\1(?!`)"#)
     static let link = re(#"(\[)([^\]\n]+)(\]\([^)\n]*\))"#)
     static let wikiLink = re(#"\[\[([^\[\]|\n]+)(?:\|([^\[\]|\n]+))?\]\]"#)
     static let quote = re(#"^[ \t]*>.*$"#)
     static let list = re(#"^[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+"#)
     static let rule = re(#"^[ \t]*(?:[-*_][ \t]*){3,}$"#)
-    static let fence = re(#"^[ \t]*(```|~~~)[^\n]*\n[\s\S]*?(?:^[ \t]*\1[ \t]*$|\z)"#)
+    static let fence = re(#"^[ \t]*(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:^[ \t]*\1[ \t]*$|\z)"#)
     static let strike = re(#"(~~)(?=\S)(.+?)(?<=\S)~~"#)
     static let footnote = re(#"\[\^[^\]\s]+\](:?)"#)
     static let task = re(#"^[ \t]*(?:[-*+]|\d{1,3}[.)])[ \t]+(\[[ xX]\])"#)
@@ -305,6 +306,12 @@ enum MarkdownStyler {
             color(c.theme.secondary, m.range(at: 2))
             color(syntax, m.range(at: 1))
             color(syntax, NSRange(location: m.range.upperBound - 2, length: 2))
+        }
+        each(underline) { m in
+            guard !inCode(m.range) else { return }
+            storage.addAttribute(.underlineStyle, value: NSUnderlineStyle.single.rawValue, range: m.range(at: 2))
+            color(syntax, m.range(at: 1))
+            color(syntax, m.range(at: 3))
         }
         each(highlight) { m in
             guard !inCode(m.range), !inCritic(m.range) else { return }

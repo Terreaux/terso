@@ -15,8 +15,14 @@ protocol EditorController: TextMutationTarget {
     func reveal(_ range: TextSpan, select: Bool)
     func wrapSelection(prefix: String, suffix: String, placeholder: String)
     func prefixLines(_ marker: String)
+    func performFormatting(_ command: FormattingCommand)
     func refreshDecorations()
     func explainAtCaret()
+}
+
+extension EditorController {
+    // Lightweight analysis/test controllers do not implement editing UI.
+    func performFormatting(_ command: FormattingCommand) {}
 }
 
 enum InspectorTab: String, CaseIterable, Identifiable {
