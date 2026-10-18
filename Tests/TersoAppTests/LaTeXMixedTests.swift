@@ -93,6 +93,66 @@ import TersoCore
         #expect(abs(renderedHeight - editingHeight) < 2)
     }
 
+    @Test(arguments: ["\n", "\r\n"]) func titleSelectionRevealsOnlyMetadataAndKeepsItEditable(newline: String) {
+        let tex = """
+        \\documentclass{book}
+        \\usepackage[trim=6x9, matter={title-page, contents}]{terso-book}
+        \\usepackage[paperwidth=6in,paperheight=9in,margin=0.8in]{geometry}
+        % \\title{Ignored}
+        \\title[Short]{The {Long} Way 😀
+        Round}
+        \\author{A. Writer}
+        \\date{October 2026}
+        \\begin{document}
+        \\maketitle
+        Body.
+        \\end{document}
+        """.replacingOccurrences(of: "\n", with: newline)
+        let ns = tex as NSString
+        func visible(_ selection: NSRange, elements: Set<MixedElement> = [.blocks]) -> String {
+            let hidden = MarkerPresentation.hiddenSyntax(in: tex, selection: selection, latex: true, elements: elements)
+            let result = NSMutableString(string: tex)
+            for range in hidden.sorted(by: { $0.location > $1.location }) { result.deleteCharacters(in: range) }
+            return result as String
+        }
+        let body = ns.range(of: "Body.")
+        #expect(visible(body).hasPrefix("\\begin{document}"))
+        for selection in [ns.range(of: "\\maketitle"), ns.range(of: "Round}"), ns.range(of: "A. Writer"), ns.range(of: "October 2026")] {
+            let shown = visible(selection)
+            #expect(shown.hasPrefix("\\title[Short]{The {Long} Way 😀\nRound}\n\\author{A. Writer}\n\\date{October 2026}\n".replacingOccurrences(of: "\n", with: newline)))
+            #expect(!shown.contains("\\documentclass") && !shown.contains("\\usepackage") && !shown.contains("Ignored"))
+        }
+        #expect(visible(NSRange(location: 0, length: 0)).hasPrefix("\\begin{document}"))
+        #expect(visible(body, elements: [.math]) == tex)
+        #expect(visible(ns.range(of: "\\maketitle"), elements: []) == tex)
+        let fragment = "\\title{Fragment}\nBody."
+        #expect(MarkerPresentation.hiddenSyntax(in: fragment, selection: body, latex: true, elements: [.blocks]).isEmpty)
+    }
+
+    @Test func foldedPreambleOccupiesNoLinesAndPreservesSource() {
+        let tex = "\\documentclass{book}\n\\usepackage{geometry}\n\\title{Title}\n\\author{Writer}\n\\begin{document}\n\\maketitle\nBody."
+        let ns = tex as NSString
+        let storage = NSTextStorage(string: tex, attributes: [.font: config().font.font(size: config().fontSize)])
+        let layout = MathLayoutManager()
+        storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 650, height: 10_000))
+        layout.addTextContainer(container)
+        func top(_ needle: String) -> CGFloat {
+            layout.ensureLayout(for: container)
+            return layout.lineFragmentRect(forGlyphAt: layout.glyphIndexForCharacter(at: ns.range(of: needle).location), effectiveRange: nil).minY
+        }
+        let originalTop = top("\\begin{document}")
+        layout.hiddenSyntax = MarkerPresentation.hiddenSyntax(in: tex, selection: ns.range(of: "Body."), latex: true, elements: [.blocks])
+        #expect(top("\\begin{document}") < originalTop)
+        #expect(top("\\begin{document}") == 0)
+        layout.hiddenSyntax = MarkerPresentation.hiddenSyntax(in: tex, selection: ns.range(of: "\\maketitle"), latex: true, elements: [.blocks])
+        #expect(top("\\title") == 0)
+        #expect(top("\\begin{document}") > 0)
+        #expect(storage.string == tex)
+        layout.hiddenSyntax = []
+        #expect(top("\\begin{document}") == originalTop)
+    }
+
     @Test func referencesResolveToTheirNumbersAndCitationsToLabels() {
         let tex = """
         \\documentclass{article}
