@@ -118,6 +118,7 @@ final class WorkspaceModel {
         }
     }
     private(set) var revision = DocumentRevision(0)
+    @ObservationIgnored var sidebarOutlineCache: DocumentOutlineCache?
     private(set) var local: LocalAnalysisResult?
     private(set) var style: StyleReport?
     private(set) var spelling: [TextAnnotation] = []
