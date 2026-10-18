@@ -183,7 +183,7 @@ final class TabWorkspace: NSWindowController, NSWindowDelegate {
     private var closing = false
 
     init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
+        let window = TabWorkspaceWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         super.init(window: window)
         window.tabbingMode = .disallowed
@@ -271,9 +271,9 @@ final class TabWorkspace: NSWindowController, NSWindowDelegate {
 
     func windowDidBecomeKey(_ notification: Notification) { DocumentTabs.shared.activeWorkspace = self }
 
-    /// Edit › Undo/Redo (⌘Z, ⇧⌘Z) validate and act through the window's undo
+    /// Edit › Undo/Redo validate and act through the window's undo
     /// manager. The editor registers on its document's, so hand that one out.
-    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? { selected?.undoManager }
+    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? { showingStart ? nil : selected?.undoManager }
 
     func windowWillClose(_ notification: Notification) {
         // The hosting view retains this workspace through its root view.
