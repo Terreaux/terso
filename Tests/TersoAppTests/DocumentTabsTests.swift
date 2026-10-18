@@ -5,6 +5,94 @@ import TersoDocument
 @testable import TersoApp
 
 @Suite(.serialized) @MainActor struct DocumentTabsTests {
+    @Test(arguments: NewDocumentKind.allCases)
+    func newDocumentsUseTheirSelectedFormat(kind: NewDocumentKind) throws {
+        let document = kind.makeDocument()
+        defer { document.close() }
+        #expect(document.fileType == kind.contentType.identifier)
+        #expect(document.fileURL == nil)
+        #expect(try document.data(ofType: kind.contentType.identifier) == Data(document.contents.text.utf8))
+        switch kind {
+        case .markdown, .text:
+            #expect(document.contents.text.isEmpty)
+            #expect(!document.isDocumentEdited)
+            #expect(document.model.renderMode == (kind == .text ? .source : .mixed))
+        case .latex:
+            #expect(RenderMode.isLaTeX(source: document.contents.text, fileURL: nil))
+            let caret = try #require(document.model.initialSelection)
+            let source = document.contents.text as NSString
+            #expect(caret.location > source.range(of: "\\begin{document}").upperBound)
+            #expect(caret.location < source.range(of: "\\end{document}").location)
+            #expect(document.isDocumentEdited)
+        case .book:
+            let design = try #require(BookDesign.read(from: document.contents.text, defaults: BookDesign()))
+            #expect(design == document.model.prefs.bookDesign)
+            #expect(BookMetadata.read(document.contents.text).title == "Untitled Book")
+            #expect(BookChapter.scan(document.contents.text).count == 1)
+            #expect(document.model.initialSelection?.location == (document.contents.text as NSString).length)
+            #expect(document.model.writingMode == .manutius)
+            #expect(document.model.renderMode == .mixed)
+            #expect(document.isDocumentEdited)
+        }
+    }
+
+    @Test(arguments: [NewDocumentKind.latex, .book])
+    func newScaffoldsPlaceTheEditorCaretInTheBody(kind: NewDocumentKind) async throws {
+        _ = NSApplication.shared
+        let document = kind.makeDocument(), workspace = TabWorkspace()
+        defer { document.close(); workspace.close() }
+        let expected = try #require(document.model.initialSelection)
+        workspace.insert(document)
+        let host = document.hostedEditor()
+        host.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
+        host.layoutSubtreeIfNeeded()
+        let deadline = ContinuousClock.now + .seconds(3)
+        while document.model.editor == nil && ContinuousClock.now < deadline { await Task.yield() }
+        let editor = try #require(document.model.editor)
+        #expect(editor.selection.nsRange == expected)
+        #expect(document.model.initialSelection == nil)
+        editor.replace(editor.selection, with: "First words.", actionName: "Test typing")
+        if kind == .latex {
+            #expect(document.contents.text.contains("\\begin{document}\n\nFirst words.\n\\end{document}"))
+        } else {
+            #expect(document.contents.text.hasSuffix("# Chapter 1\n\nFirst words."))
+            #expect(document.model.documentBook != nil)
+        }
+    }
+
+    @Test(arguments: NewDocumentKind.allCases)
+    func recoveryKeepsNewDocumentFormatsAndBookMode(kind: NewDocumentKind) throws {
+        _ = NSApplication.shared
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("tabs.json")
+        let original = DocumentTabs(recoveryURL: url)
+        original.isRunning = true
+        let workspace = original.newWorkspace()
+        let document = kind.makeDocument()
+        workspace.insert(document)
+        original.saveRecovery()
+        let expectedText = document.contents.text
+        document.close(); workspace.close()
+
+        let restored = DocumentTabs(recoveryURL: url)
+        restored.restore()
+        defer {
+            for group in restored.workspaces {
+                for document in group.documents {
+                    TabDocumentController.sharedController.removeDocument(document)
+                    document.close()
+                }
+                group.close()
+            }
+        }
+        let recovered = try #require(restored.workspaces.first?.documents.first)
+        #expect(recovered.fileType == kind.contentType.identifier)
+        #expect(recovered.contents.text == expectedText)
+        #expect(recovered.model.writingMode == (kind == .book ? .manutius : .hemingway))
+        #expect(recovered.model.renderMode == (kind == .text ? .source : .mixed))
+    }
+
     @Test func tabsUseOneWindowAndKeepEditorIdentityWhenMoved() throws {
         _ = NSApplication.shared
         let workspace = TabWorkspace()

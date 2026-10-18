@@ -71,7 +71,10 @@ struct DocumentTabsView: View {
                         .onChange(of: workspace.selected?.id) { _, id in if let id { proxy.scrollTo(id) } }
                         .onChange(of: workspace.showingStart) { _, showing in if showing { proxy.scrollTo("start") } }
                     }
-                    Button { workspace.showStart() } label: { Image(systemName: "plus") }
+                    Button {
+                        DocumentTabs.shared.activeWorkspace = workspace
+                        DocumentTabs.shared.newDocument()
+                    } label: { Image(systemName: "plus") }
                         .buttonStyle(.borderless).help("New Tab").accessibilityLabel("New Tab").padding(.horizontal, 12)
                 }
                 .frame(height: 36)
