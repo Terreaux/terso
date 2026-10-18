@@ -5,6 +5,30 @@ import Testing
 @testable import TersoApp
 
 @Suite @MainActor struct MixedPresentationSchedulingTests {
+    @Test func latexTitleMetadataFollowsEditorSelectionAndSourceMode() {
+        let source = "\\documentclass{book}\n\\usepackage{geometry}\n\\title{Title}\n\\author{Writer}\n\\begin{document}\n\\maketitle\nBody."
+        let fixture = Fixture(source, elements: [.blocks], latex: true)
+        defer { fixture.coordinator.mathTask?.cancel() }
+        let ns = source as NSString
+        func hidden(_ needle: String) -> Bool {
+            fixture.layout.hiddenSyntax.contains { NSIntersectionRange($0, ns.range(of: needle)).length > 0 }
+        }
+        fixture.select(ns.range(of: "Body."))
+        #expect(hidden("\\documentclass") && hidden("\\title") && hidden("\\author"))
+        fixture.select(ns.range(of: "\\maketitle"))
+        #expect(hidden("\\documentclass") && hidden("\\usepackage"))
+        #expect(!hidden("\\title") && !hidden("\\author"))
+        fixture.select(ns.range(of: "Writer"))
+        #expect(!hidden("\\title") && !hidden("\\author"))
+        fixture.select(ns.range(of: "Body."))
+        #expect(hidden("\\title") && hidden("\\author"))
+        var config = fixture.coordinator.config!
+        config.renderMode = .source
+        fixture.coordinator.applyConfig(config, force: false)
+        #expect(fixture.layout.hiddenSyntax.isEmpty)
+        #expect(fixture.storage.string == source)
+    }
+
     @Test func externallyCancelledRenderingRestartsOnTheSameLine() {
         let fixture = Fixture("**bold**\nAfter", elements: [.emphasis])
         let pending = Task<Void, Never> {}
@@ -119,7 +143,7 @@ import Testing
         let storage: NSTextStorage
         let layout: MathLayoutManager
 
-        init(_ source: String, elements: Set<MixedElement>) {
+        init(_ source: String, elements: Set<MixedElement>, latex: Bool = false) {
             let model = WorkspaceModel()
             model.renderMode = .mixed
             coordinator = EditorCoordinator(model: model, text: .constant(source))
@@ -133,7 +157,7 @@ import Testing
             model.editor = coordinator
             view.delegate = coordinator
             storage.delegate = coordinator
-            var config = EditorConfig(prefs: model.prefs, model: model)
+            var config = EditorConfig(prefs: model.prefs, model: model, latex: latex)
             config.columnWidth = 700
             config.mixedRendered = elements
             coordinator.applyConfig(config, force: true)

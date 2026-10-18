@@ -199,6 +199,49 @@ import TersoCore
         return nil
     }
 
+    /// Fold setup in Mixed without changing source offsets. Selecting the title
+    /// block opens its metadata; editing any of those fields keeps them open.
+    /// Only the fields themselves are exposed, even beside setup on one line.
+    static func hiddenPreamble(in text: String, selection: NSRange, quiet: [NSRange]) -> [NSRange] {
+        guard let preamble = LaTeXSyntax.preamble(in: text) else { return [] }
+        let ns = text as NSString
+        let begin = ns.range(of: "\\begin{document}", range: preamble)
+        let setup = NSRange(location: 0, length: begin.location)
+        guard setup.length > 0 else { return [] }
+        let fields = metadataCommand.matches(in: text, range: setup).compactMap { m -> NSRange? in
+            guard !quiet.contains(where: { NSIntersectionRange($0, m.range).length > 0 }),
+                  let end = groupEnd(m.range.upperBound - 1, in: ns), end <= setup.upperBound else { return nil }
+            var field = NSRange(location: m.range.location, length: end - m.range.location)
+            let line = ns.lineRange(for: field)
+            let before = NSRange(location: line.location, length: field.location - line.location)
+            let after = NSRange(location: field.upperBound, length: line.upperBound - field.upperBound)
+            if ns.substring(with: before).trimmingCharacters(in: .whitespaces).isEmpty {
+                field = NSUnionRange(field, before)
+            }
+            if ns.substring(with: after).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                field = NSUnionRange(field, after)
+            }
+            return field
+        }
+        let titleSelected = documentCommand.matches(in: text, range: NSRange(location: 0, length: ns.length)).contains { m in
+            ns.substring(with: m.range(at: 1)) == "\\maketitle"
+                && m.range.location >= preamble.upperBound
+                && (LaTeXSyntax.trailer(in: text).map { m.range.location < $0.location } ?? true)
+                && !quiet.contains(where: { NSIntersectionRange($0, m.range).length > 0 })
+                && MathPresentation.showsSource(m.range, selection: selection, text: text)
+        }
+        guard titleSelected || fields.contains(where: {
+            MathPresentation.showsSource($0, selection: selection, text: text)
+        }) else { return [setup] }
+        var hidden: [NSRange] = [], start = setup.location
+        for field in fields.sorted(by: { $0.location < $1.location }) {
+            if field.location > start { hidden.append(NSRange(location: start, length: field.location - start)) }
+            start = max(start, field.upperBound)
+        }
+        if start < setup.upperBound { hidden.append(NSRange(location: start, length: setup.upperBound - start)) }
+        return hidden
+    }
+
     static func contents(in text: String, protected: [NSRange]) -> [(depth: Int, title: String)] {
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
