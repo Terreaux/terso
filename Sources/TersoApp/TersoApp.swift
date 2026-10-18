@@ -16,6 +16,7 @@ struct TersoApp: App {
     var body: some Scene {
         Settings { SettingsView() }
             .commands {
+                EditorUndoCommands()
                 TextEditingCommands()
                 DocumentTabCommands()
                 TersoCommands()
