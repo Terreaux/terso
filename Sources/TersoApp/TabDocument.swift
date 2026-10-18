@@ -2,6 +2,7 @@
 import AppKit
 import SwiftUI
 import TersoDocument
+import UniformTypeIdentifiers
 
 /// A document owns data, undo and a retained editor, but no NSWindow.
 @objc(TersoTabDocument)
@@ -12,6 +13,10 @@ final class TabDocument: NSDocument, ObservableObject, Identifiable {
     @Published private(set) var tabTitle = "Untitled"
     @Published private(set) var edited = false
     @Published private(set) var url: URL?
+    /// A companion-package failure never puts the saved manuscript at risk.
+    /// Kept visible until a later save or an explicit retry succeeds.
+    @Published private(set) var bookPackageError: String?
+    private var bookPackageDirectory: URL?
     weak var workspace: TabWorkspace?
     private var closeCompletion: ((Bool) -> Void)?
     private(set) var editorHost: NSHostingView<DocumentWindow>?
@@ -30,11 +35,71 @@ final class TabDocument: NSDocument, ObservableObject, Identifiable {
         MainActor.assumeIsolated {
             contents = MarkdownDocument(text: text)
             contents.codec = codec
+            bookPackageError = nil
+            bookPackageDirectory = nil
+            let book = RenderMode.isLaTeX(source: text, fileURL: fileURL)
+                ? BookDesign.read(latex: text, defaults: model.prefs.bookDesign)
+                : BookDesign.read(from: text, defaults: model.prefs.bookDesign)
+            if book != nil {
+                model.setWritingMode(.manutius)
+                model.showSidebar = true
+            }
             refreshEditor()
         }
     }
 
     override func data(ofType typeName: String) throws -> Data { try contents.codec.encode(contents.text) }
+
+    override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
+                       completionHandler: @escaping (Error?) -> Void) {
+        // A Markdown tutorial or plain-text note can quote this command.
+        // Its explicitly selected format and destination take precedence over
+        // source heuristics, so saving examples never creates a sidecar file.
+        let nonLaTeXType = typeName == UTType.markdownText.identifier || typeName == UTType.plainText.identifier
+        let nonLaTeXExtension = ["md", "markdown", "txt"].contains(url.pathExtension.lowercased())
+        let latex = !nonLaTeXType && !nonLaTeXExtension
+            && (typeName == UTType.latexSource.identifier || RenderMode.isLaTeX(source: contents.text, fileURL: url))
+        let needsPackage = latex && LaTeXBookDesign.line(in: contents.text) != nil
+        // This callback runs on the main thread, after AppKit has safely moved
+        // the source into its final destination. Never write beside AppKit's
+        // temporary safe-save URL, or fail the source save for a missing style.
+        super.save(to: url, ofType: typeName, for: saveOperation) { error in
+            if error == nil {
+                if needsPackage {
+                    self.installBookPackage(in: url.deletingLastPathComponent())
+                } else {
+                    self.bookPackageError = nil
+                    self.bookPackageDirectory = nil
+                }
+            }
+            completionHandler(error)
+        }
+    }
+
+    func retryBookPackageInstallation() {
+        guard let directory = bookPackageDirectory else { return }
+        installBookPackage(in: directory)
+    }
+
+    private func installBookPackage(in directory: URL) {
+        do {
+            let target = directory.appendingPathComponent("terso-book.sty")
+            if (try? FileManager.default.attributesOfItem(atPath: target.path)) != nil {
+                // Reading an existing package verifies that LaTeX can access
+                // it. Never replace an unreadable file or a writer's symlink
+                // just because the installer's comparison could not read it.
+                _ = try Data(contentsOf: target)
+            } else {
+                try LaTeXBookDesign.install(in: directory)
+            }
+            bookPackageError = nil
+            bookPackageDirectory = nil
+        } catch {
+            bookPackageDirectory = directory
+            bookPackageError = "Your manuscript is saved, but terso-book.sty could not be added to \"\(directory.path)\". "
+                + "LaTeX needs this file to typeset the book. \(error.localizedDescription) Fix the folder or file access, then retry."
+        }
+    }
 
     override var fileURL: URL? {
         didSet { Task { @MainActor [weak self] in self?.refreshMetadata() } }

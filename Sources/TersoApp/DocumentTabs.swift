@@ -48,8 +48,8 @@ final class DocumentTabs {
         workspace.showWindow(nil)
     }
 
-    func createDocument(_ kind: NewDocumentKind, in workspace: TabWorkspace) {
-        let document = kind.makeDocument()
+    func createDocument(_ request: DocumentCreationRequest, in workspace: TabWorkspace) {
+        let document = request.makeDocument()
         TabDocumentController.sharedController.addDocument(document)
         workspace.insert(document)
         workspace.showWindow(nil)
@@ -154,7 +154,7 @@ final class DocumentTabs {
                         document.fileType = typeName
                         try document.read(from: item.data, ofType: document.fileType!)
                     }
-                    if item.bookMode == true { document.model.setWritingMode(.manutius) }
+                    if let bookMode = item.bookMode { document.model.setWritingMode(bookMode ? .manutius : .hemingway) }
                     if typeName == "public.plain-text" { document.model.renderMode = .source }
                     TabDocumentController.sharedController.addDocument(document)
                     NSFileCoordinator.addFilePresenter(document)
