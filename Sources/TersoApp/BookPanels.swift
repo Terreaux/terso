@@ -91,35 +91,6 @@ extension EditorCoordinator {
         }
     }
 
-    /// A new chapter at the end of the book, with the caret in its title.
-    func appendChapter() {
-        guard let tv = textView else { return }
-        if config?.latex == true { appendLaTeXChapter(); return }
-        let ns = tv.string as NSString
-        let number = BookChapter.scan(tv.string).count + 1
-        let lead = ns.length == 0 ? "" : tv.string.hasSuffix("\n\n") ? "" : tv.string.hasSuffix("\n") ? "\n" : "\n\n"
-        let title = "Chapter \(number)"
-        replace(TextSpan(location: ns.length, length: 0), with: lead + "# " + title + "\n\n", actionName: "Add Chapter")
-        let start = ns.length + (lead as NSString).length + 2
-        tv.setSelectedRange(NSRange(location: start, length: (title as NSString).length))
-        tv.scrollRangeToVisible(tv.selectedRange())
-        tv.window?.makeFirstResponder(tv)
-    }
-
-    /// `\chapter{…}` before `\end{document}`, or at the end.
-    private func appendLaTeXChapter() {
-        guard let tv = textView else { return }
-        let ns = tv.string as NSString
-        let number = LaTeXHeading.scan(tv.string).filter { !$0.part }.count + 1
-        let at = LaTeXSyntax.trailer(in: tv.string)?.location ?? ns.length
-        let before = ns.substring(to: at)
-        let lead = before.isEmpty || before.hasSuffix("\n\n") ? "" : before.hasSuffix("\n") ? "\n" : "\n\n"
-        let title = "Chapter \(number)"
-        replace(TextSpan(location: at, length: 0), with: lead + "\\chapter{" + title + "}\n\n", actionName: "Add Chapter")
-        tv.setSelectedRange(NSRange(location: at + (lead as NSString).length + 9, length: (title as NSString).length))
-        tv.scrollRangeToVisible(tv.selectedRange())
-        tv.window?.makeFirstResponder(tv)
-    }
 }
 
 // MARK: - Sidebar: the chapters
@@ -130,14 +101,20 @@ struct BookChapters: View {
     let model: WorkspaceModel
 
     var body: some View {
-        if model.bookOutline.chapters.isEmpty {
-            Text(model.latexBook.isLaTeX ? "Each \\chapter starts a chapter" : "Each # heading starts a chapter").foregroundStyle(.tertiary)
+        let outline = model.documentOutline
+        if outline.headings.isEmpty {
+            Text("Add a \(outline.name(at: outline.rootLevel).lowercased()) to get started").foregroundStyle(.tertiary)
         }
-        ForEach(model.bookOutline.chapters) { chapter in
-            ChapterRow(chapter: chapter, number: model.bookOutline.number(chapter.id), current: chapter.id == model.bookOutline.current) {
-                model.editor?.reveal(TextSpan(location: chapter.heading.location, length: 0), select: true)
-                // A LaTeX book's pages turn to the chapter too.
-                if let page = chapter.page { model.latexBook.reveal(page: page) }
+        ForEach(outline.headings) { heading in
+            if let chapter = model.bookOutline.chapters.first(where: { $0.heading.location == heading.range.location }) {
+                HeadingActionRow(model: model, outline: outline, heading: heading) {
+                    ChapterRow(chapter: chapter, number: model.bookOutline.number(chapter.id), current: chapter.id == model.bookOutline.current) {
+                        model.editor?.reveal(heading.range, select: true)
+                        if let page = chapter.page { model.latexBook.reveal(page: page) }
+                    }
+                }
+            } else {
+                OutlineHeadingRow(model: model, outline: outline, heading: heading)
             }
         }
     }
@@ -150,8 +127,7 @@ struct BookChaptersHeader: View {
         HStack {
             Text("Chapters")
             Spacer()
-            Button { (model.editor as? EditorCoordinator)?.appendChapter() } label: { Image(systemName: "plus") }
-                .buttonStyle(.borderless).help("Add a chapter at the end").accessibilityLabel("Add Chapter")
+            AddHeadingButton(model: model, outline: model.documentOutline)
         }
     }
 }

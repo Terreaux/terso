@@ -9,8 +9,11 @@ struct SidebarView: View {
     let fileURL: URL?
     @State private var files: [URL] = []
     @State private var showProjects = true
+    @State private var hoveringProjectsHeader = false
+    @FocusState private var focusedNewProject: Bool
     @State private var showRecent = true
     @State private var expanded: Set<TersoProject.ID> = []
+    @State private var creatingIn: TersoProject?
     @State private var naming: Naming?
     @State private var draftName = ""
     private var store: ProjectStore { .shared }
@@ -63,6 +66,19 @@ struct SidebarView: View {
         }
         .themedPanel(Preferences.shared.theme)
         .task(id: fileURL) { loadFiles() }
+        .sheet(item: $creatingIn) { project in
+            VStack(alignment: .leading, spacing: 18) {
+                Text("New Document in \(project.name)").font(.headline)
+                NewDocumentChoices { request in
+                    creatingIn = nil
+                    // Dismiss the chooser before presenting AppKit's save panel.
+                    DispatchQueue.main.async { createDocument(request, in: project) }
+                }
+                Button("Cancel", role: .cancel) { creatingIn = nil }
+                    .keyboardShortcut(.cancelAction)
+            }
+            .padding(24).frame(width: 420)
+        }
         .alert(naming.map { if case .rename = $0 { "Rename Project" } else { "New Project" } } ?? "",
                isPresented: Binding(get: { naming != nil }, set: { if !$0 { naming = nil } })) {
             TextField("Name", text: $draftName)
@@ -80,22 +96,21 @@ struct SidebarView: View {
 
     /// The document's headings; in Manutius, its chapters take their place.
     private var outline: some View {
-            Section("Outline") {
-                if let hs = model.local?.headings, !hs.isEmpty {
-                    ForEach(hs, id: \.range) { h in
-                        Button { model.editor?.reveal(h.range, select: false) } label: {
-                            Text(h.title)
-                                .font(h.level == 1 ? .body.weight(.medium) : .body)
-                                .foregroundStyle(h.level <= 2 ? .primary : .secondary)
-                                .lineLimit(1)
-                                .padding(.leading, CGFloat(h.level - 1) * 10)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                } else {
-                    Text("Headings appear here").foregroundStyle(.tertiary)
-                }
+        let outline = model.documentOutline
+        return Section {
+            if outline.headings.isEmpty {
+                Text("Headings appear here").foregroundStyle(.tertiary)
             }
+            ForEach(outline.headings) { heading in
+                OutlineHeadingRow(model: model, outline: outline, heading: heading)
+            }
+        } header: {
+            HStack {
+                Text("Outline")
+                Spacer()
+                AddHeadingButton(model: model, outline: outline)
+            }
+        }
     }
 
     // MARK: Projects
@@ -110,10 +125,14 @@ struct SidebarView: View {
                     .disabled(fileURL == nil)
                 Button("New Project from Open Tabs…") { prompt(.new(with: openTabURLs)) }
                     .disabled(openTabURLs.isEmpty)
-            } label: { Image(systemName: "plus") }
+            } label: { Image(systemName: "plus").opacity(hoveringProjectsHeader || focusedNewProject ? 1 : 0) }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                .focused($focusedNewProject)
+                .allowsHitTesting(hoveringProjectsHeader || focusedNewProject)
                 .help("New project").accessibilityLabel("New Project")
         }
+        .contentShape(Rectangle())
+        .onHover { inside in withAnimation(.easeOut(duration: 0.12)) { hoveringProjectsHeader = inside } }
     }
 
     @ViewBuilder private var projects: some View {
@@ -133,14 +152,8 @@ struct SidebarView: View {
                     Text("Drop documents here").font(.callout).foregroundStyle(.tertiary)
                 }
             } label: {
-                Label {
-                    HStack {
-                        Text(project.name).lineLimit(1)
-                        Spacer()
-                        Text("\(project.documents.count)").monospacedDigit().foregroundStyle(.tertiary)
-                    }
-                } icon: {
-                    Image(systemName: project.documents.contains { $0.url == fileURL?.standardizedFileURL } ? "folder.fill" : "folder")
+                ProjectSidebarLabel(project: project, active: project.documents.contains { $0.url == fileURL?.standardizedFileURL }) {
+                    creatingIn = project
                 }
                 .contextMenu { projectMenu(project) }
             }
@@ -153,6 +166,7 @@ struct SidebarView: View {
     }
 
     @ViewBuilder private func projectMenu(_ project: TersoProject) -> some View {
+        Button("New Document…") { creatingIn = project }
         Button("Add This Document") { store.add([fileURL!], to: project.id); expanded.insert(project.id) }
             .disabled(fileURL == nil || store.contains(fileURL!, in: project.id))
         Button("Add Documents…") { chooseDocuments(for: project) }
@@ -241,10 +255,67 @@ struct SidebarView: View {
         expanded.insert(project.id)
     }
 
+    private func createDocument(_ request: DocumentCreationRequest, in project: TersoProject) {
+        let document = request.makeDocument()
+        document.model.showSidebar = true
+        let panel = NSSavePanel()
+        panel.title = "New Document in \(project.name)"
+        panel.allowedContentTypes = document.fileType.flatMap { UTType($0) }.map { [$0] } ?? [.plainText]
+        panel.nameFieldStringValue = "Untitled"
+        panel.directoryURL = ProjectDocumentCreation.suggestedDirectory(for: project)
+        guard panel.runModal() == .OK, let url = panel.url else { document.close(); return }
+        Task { @MainActor in
+            do {
+                try await ProjectDocumentCreation.save(document, to: url, in: project.id, store: store)
+                expanded.insert(project.id)
+                showProjects = true
+                TabDocumentController.sharedController.addDocument(document)
+                DocumentTabs.shared.present(document)
+            } catch {
+                document.close()
+                NSApp.presentError(error)
+            }
+        }
+    }
+
     private func loadFiles() {
+        for project in store.projects where project.documents.contains(where: { $0.url == fileURL?.standardizedFileURL }) {
+            expanded.insert(project.id)
+        }
         guard let dir = fileURL?.deletingLastPathComponent() else { files = []; return }
         let items = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
         files = items.filter { ["md", "markdown", "txt", "tex", "latex"].contains($0.pathExtension.lowercased()) }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+}
+
+private struct ProjectSidebarLabel: View {
+    let project: TersoProject
+    let active: Bool
+    let create: () -> Void
+    @State private var hovered = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        Label {
+            HStack {
+                Text(project.name).lineLimit(1)
+                Spacer()
+                Text("\(project.documents.count)").monospacedDigit().foregroundStyle(.tertiary)
+                Button(action: create) {
+                    Image(systemName: "plus").opacity(hovered || focused ? 1 : 0)
+                }
+                .buttonStyle(.borderless)
+                .focused($focused)
+                .allowsHitTesting(hovered || focused)
+                .help("Create a document in \(project.name)")
+                .accessibilityLabel("New Document in \(project.name)")
+            }
+        } icon: {
+            Image(systemName: active ? "folder.fill" : "folder")
+        }
+        .contentShape(Rectangle())
+        .onHover { inside in withAnimation(.easeOut(duration: 0.12)) { hovered = inside } }
+        .accessibilityElement(children: .contain)
     }
 }
