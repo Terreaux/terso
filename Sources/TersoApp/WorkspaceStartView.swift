@@ -20,7 +20,7 @@ struct WorkspaceStartView: View {
                         .foregroundStyle(.secondary)
                     VStack(spacing: 6) {
                         Text(workspace.documents.isEmpty ? "No Open Documents" : "New Tab").font(.title2.weight(.semibold))
-                        Text("Choose a format and start writing.").foregroundStyle(.secondary)
+                        Text("Start a document or choose a template.").foregroundStyle(.secondary)
                     }
                     dropZone
                         .frame(maxWidth: 460)

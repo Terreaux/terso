@@ -24,19 +24,10 @@ import TersoDocument
             #expect(caret.location > source.range(of: "\\begin{document}").upperBound)
             #expect(caret.location < source.range(of: "\\end{document}").location)
             #expect(document.isDocumentEdited)
-        case .book:
-            let design = try #require(BookDesign.read(from: document.contents.text, defaults: BookDesign()))
-            #expect(design == document.model.prefs.bookDesign)
-            #expect(BookMetadata.read(document.contents.text).title == "Untitled Book")
-            #expect(BookChapter.scan(document.contents.text).count == 1)
-            #expect(document.model.initialSelection?.location == (document.contents.text as NSString).length)
-            #expect(document.model.writingMode == .manutius)
-            #expect(document.model.renderMode == .mixed)
-            #expect(document.isDocumentEdited)
         }
     }
 
-    @Test(arguments: [NewDocumentKind.latex, .book])
+    @Test(arguments: [NewDocumentKind.latex])
     func newScaffoldsPlaceTheEditorCaretInTheBody(kind: NewDocumentKind) async throws {
         _ = NSApplication.shared
         let document = kind.makeDocument(), workspace = TabWorkspace()
@@ -54,9 +45,6 @@ import TersoDocument
         editor.replace(editor.selection, with: "First words.", actionName: "Test typing")
         if kind == .latex {
             #expect(document.contents.text.contains("\\begin{document}\n\nFirst words.\n\\end{document}"))
-        } else {
-            #expect(document.contents.text.hasSuffix("# Chapter 1\n\nFirst words."))
-            #expect(document.model.documentBook != nil)
         }
     }
 
@@ -89,8 +77,41 @@ import TersoDocument
         let recovered = try #require(restored.workspaces.first?.documents.first)
         #expect(recovered.fileType == kind.contentType.identifier)
         #expect(recovered.contents.text == expectedText)
-        #expect(recovered.model.writingMode == (kind == .book ? .manutius : .hemingway))
+        #expect(recovered.model.writingMode == .hemingway)
         #expect(recovered.model.renderMode == (kind == .text ? .source : .mixed))
+    }
+
+    @Test(arguments: TemplateSourceFormat.allCases)
+    func recoveryHonorsLeavingBookMode(format: TemplateSourceFormat) throws {
+        _ = NSApplication.shared
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let recoveryURL = directory.appendingPathComponent("tabs.json")
+        let original = DocumentTabs(recoveryURL: recoveryURL)
+        original.isRunning = true
+        let workspace = original.newWorkspace()
+        let document = DocumentCreationRequest.template(.book, format).makeDocument()
+        document.model.setWritingMode(.hemingway)
+        workspace.insert(document)
+        let source = document.contents.text
+        original.saveRecovery()
+        document.close(); workspace.close()
+
+        let restored = DocumentTabs(recoveryURL: recoveryURL)
+        restored.restore()
+        defer {
+            for group in restored.workspaces {
+                for document in group.documents {
+                    TabDocumentController.sharedController.removeDocument(document)
+                    document.close()
+                }
+                group.close()
+            }
+        }
+        let recovered = try #require(restored.workspaces.first?.documents.first)
+        #expect(recovered.model.writingMode == .hemingway)
+        #expect(recovered.contents.text == source)
+        #expect(recovered.fileType == format.contentType.identifier)
     }
 
     @Test func tabsUseOneWindowAndKeepEditorIdentityWhenMoved() throws {

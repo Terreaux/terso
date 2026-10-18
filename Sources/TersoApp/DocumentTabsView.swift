@@ -84,11 +84,29 @@ struct DocumentTabsView: View {
             if workspace.showingStart {
                 WorkspaceStartView(workspace: workspace)
             } else if let document = workspace.selected {
+                BookPackageNotice(document: document)
                 RetainedDocumentEditor(document: document)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .themedTint(Preferences.shared.theme)
+    }
+}
+
+private struct BookPackageNotice: View {
+    @ObservedObject var document: TabDocument
+
+    var body: some View {
+        if let error = document.bookPackageError {
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
+                Text(error).font(.callout).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button("Retry") { document.retryBookPackageInstallation() }
+            }
+            .padding(12)
+            .background(.orange.opacity(0.08))
+        }
     }
 }
 
