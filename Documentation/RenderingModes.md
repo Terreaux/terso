@@ -14,6 +14,8 @@ KaTeX, its fonts, Marked, DOMPurify, and Mermaid are bundled and run locally. Me
 
 Mixed rendering caches vector PDF snippets per editor and invalidates pending work when source, selection, presentation, or geometry changes. Render results are checked against the originating source before use. Inline/display math and code boundaries come from the existing scientific scanner.
 
+Moving the caret within the same revealed source lines reuses the current presentation and lets pending rendering finish. Uncached equations render in groups of up to sixteen in one local KaTeX document, sharing script and font loading. Duplicate equations reuse the same snapshot; the bounded equation cache evicts individual entries rather than flushing every snapshot when full.
+
 Full Markdown preview sanitizes HTML and disables document scripts and network requests. Relative images beneath the document directory are supported; remote images display their alternative text. External links open only after clicking them. Front matter is omitted from the reading preview.
 
 ## Compiled LaTeX preview

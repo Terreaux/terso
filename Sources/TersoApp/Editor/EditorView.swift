@@ -48,6 +48,33 @@ struct EditorConfig: Equatable {
     }
 }
 
+/// Mixed source visibility changes with the selected source lines, rather
+/// than every insertion point. Keep the remaining rendering inputs in the
+/// request so a resize, appearance change or edit still replaces pending work.
+struct MixedPresentationRequest: Equatable {
+    let source: String
+    let revealedLines: NSRange?
+    let config: EditorConfig
+    let width: Double
+    let dark: Bool
+    let directory: URL?
+
+    init(source: String, selection: NSRange, config: EditorConfig, width: Double, dark: Bool, directory: URL?) {
+        self.source = source
+        self.config = config
+        self.width = width
+        self.dark = dark
+        self.directory = directory
+        let ns = source as NSString
+        if selection.location != NSNotFound, selection.location <= ns.length {
+            let selected = NSRange(location: selection.location, length: min(selection.length, ns.length - selection.location))
+            revealedLines = ns.lineRange(for: selected)
+        } else {
+            revealedLines = nil
+        }
+    }
+}
+
 final class TersoTextView: NSTextView {
     var documentUndoManager: UndoManager?
     override var undoManager: UndoManager? { documentUndoManager ?? super.undoManager }
@@ -339,6 +366,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
     let mermaidRenderer = MermaidImageRenderer()
     let imageLoader = InlineImageLoader()
     var mathTask: Task<Void, Never>?
+    var mathPresentationRequest: MixedPresentationRequest?
     var outlineTask: Task<Void, Never>?
     var mathSource = ""
     /// Clusters currently drawn, for hit-testing clicks and hovers.

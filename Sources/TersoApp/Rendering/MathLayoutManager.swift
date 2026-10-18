@@ -195,49 +195,108 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
 }
 
 @MainActor final class MathImageRenderer {
-    private var cache: [String: NSImage] = [:]
+    private struct Key: Hashable {
+        let request: MathRenderRequest
+        let macros: String
+        let fontSize: Double
+        let width: Double
+        let dark: Bool
+    }
+    private var cache: [Key: NSImage] = [:]
+    private var insertionOrder: [Key] = []
 
     func image(formula: String, display: Bool, macros: [String: String], fontSize: Double, width: Double, dark: Bool) async throws -> NSImage? {
-        let key = "\(formula)|\(display)|\(fontSize)|\(width)|\(dark)|\(MathPresentation.json(macros))"
-        if let cached = cache[key] { return cached }
+        try await images(requests: [MathRenderRequest(formula: formula, display: display)], macros: macros,
+                         fontSize: fontSize, width: width, dark: dark).first ?? nil
+    }
+
+    /// Resolve cache hits first and load KaTeX once per sixteen distinct misses.
+    /// The result retains request order, including duplicates and invalid math.
+    func images(requests: [MathRenderRequest], macros: [String: String], fontSize: Double, width: Double, dark: Bool) async throws -> [NSImage?] {
+        try Task.checkCancellation()
+        let encodedMacros = MathPresentation.json(macros)
+        let keys = requests.map { Key(request: $0, macros: encodedMacros, fontSize: fontSize, width: width, dark: dark) }
+        var resolved: [Key: NSImage] = [:]
+        var seen: Set<Key> = []
+        let missing = keys.filter { key in
+            if let image = cache[key] { resolved[key] = image; return false }
+            return seen.insert(key).inserted
+        }
+        for start in stride(from: 0, to: missing.count, by: 16) {
+            try Task.checkCancellation()
+            let batch = Array(missing[start..<min(start + 16, missing.count)])
+            let images = try await snapshots(requests: batch.map(\.request), macros: macros,
+                                            fontSize: fontSize, width: width, dark: dark)
+            for (key, image) in zip(batch, images) {
+                guard let image else { continue }
+                resolved[key] = image
+                // Evict incrementally; crossing the limit must not flush every
+                // equation in a long manuscript on the next presentation pass.
+                if cache[key] == nil {
+                    if insertionOrder.count >= 256 { cache.removeValue(forKey: insertionOrder.removeFirst()) }
+                    insertionOrder.append(key)
+                }
+                cache[key] = image
+            }
+        }
+        try Task.checkCancellation()
+        return keys.map { resolved[$0] }
+    }
+
+    private func snapshots(requests: [MathRenderRequest], macros: [String: String], fontSize: Double, width: Double, dark: Bool) async throws -> [NSImage?] {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: max(80, width), height: 2000), configuration: config)
         web.setValue(false, forKey: "drawsBackground")
         defer { web.stopLoading() }
-        web.loadHTMLString(ScienceMathHTML.document(source: formula, math: true, dark: dark, macros: macros, fontSize: fontSize, display: display, strictRender: true), baseURL: nil)
+        web.loadHTMLString(MathBatchHTML.document(requests: requests, macros: macros, fontSize: fontSize, dark: dark), baseURL: nil)
         let deadline = ContinuousClock.now + .seconds(5)
+        var rectangles: [Any]?
         while ContinuousClock.now < deadline {
             try Task.checkCancellation()
-            if let ready = try? await web.evaluateJavaScript("document.querySelector('.katex') !== null && document.fonts.status === 'loaded'"), ready as? Bool == true { break }
-            if let failed = try? await web.evaluateJavaScript("document.querySelector('.katex-error, [data-render-error]') !== null"), failed as? Bool == true { return nil }
+            if let result = try? await web.evaluateJavaScript("window.__tersoMathRects"), let rects = result as? [Any] {
+                rectangles = rects; break
+            }
             try await Task.sleep(for: .milliseconds(25))
         }
         try Task.checkCancellation()
-        guard let rect = try await web.evaluateJavaScript("(() => { const e = document.querySelector('.katex'); if (!e) return null; const r=e.getBoundingClientRect(); return [r.x,r.y,r.width,r.height]; })()") as? [Double], rect.count == 4, rect[2] > 0, rect[3] > 0 else { return nil }
-        let capture = WKPDFConfiguration()
-        capture.rect = CGRect(x: max(0, rect[0] - 2), y: max(0, rect[1] - 2), width: min(width, rect[2] + 4), height: rect[3] + 4)
-        let data = try await web.pdf(configuration: capture)
-        try Task.checkCancellation()
-        guard let image = NSImage(data: data) else { return nil }
-        image.size = capture.rect!.size
-        if cache.count >= 256 { cache.removeAll(keepingCapacity: true) }
-        cache[key] = image
-        return image
+        guard let rectangles, rectangles.count == requests.count else { throw URLError(.timedOut) }
+        var output: [NSImage?] = []
+        for value in rectangles {
+            try Task.checkCancellation()
+            guard let rect = value as? [Double], rect.count == 4, rect.allSatisfy(\.isFinite), rect[2] > 0, rect[3] > 0 else {
+                output.append(nil); continue
+            }
+            let capture = WKPDFConfiguration()
+            capture.rect = CGRect(x: max(0, rect[0] - 2), y: max(0, rect[1] - 2), width: min(width, rect[2] + 4), height: rect[3] + 4)
+            let data = try await web.pdf(configuration: capture)
+            try Task.checkCancellation()
+            let image = NSImage(data: data)
+            image?.size = capture.rect!.size
+            output.append(image)
+        }
+        return output
     }
 }
 
 extension EditorCoordinator {
     func updateMathPresentation() {
-        mathTask?.cancel()
         guard let tv = textView, let layout = tv.layoutManager as? MathLayoutManager, let config else { return }
         guard config.renderMode == .mixed, !tv.hasMarkedText() else {
+            mathTask?.cancel()
+            mathPresentationRequest = nil
             layout.setRendered([]); layout.hiddenSyntax = []; layout.quoteBars = []; layout.reservedLineHeights = []; return
         }
         let source = tv.string
         let selection = tv.selectedRange()
         // A book's text block, which a spread's container is two of.
         let width = max(80, tv.book.map { Double($0.column) } ?? min(config.columnWidth, Double(tv.textContainer?.size.width ?? CGFloat(config.columnWidth))))
+        let dark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        let directory = model.fileURL?.deletingLastPathComponent()
+        let request = MixedPresentationRequest(source: source, selection: selection, config: config, width: width, dark: dark, directory: directory)
+        guard mathPresentationRequest != request || mathTask?.isCancelled == true else { return }
+        mathPresentationRequest = request
+        mathTask?.cancel()
         let shown = config.mixedRendered.intersection(MixedElement.available(latex: config.latex, text: source))
         let decor = MixedPresentation.layout(in: source, selection: selection, config: config, elements: shown, width: width)
         layout.hiddenSyntax = (shown.contains(.links) ? LinkPresentation.hiddenSyntax(in: source, selection: selection) : [])
@@ -265,25 +324,22 @@ extension EditorCoordinator {
             mathSource == source && visible.contains(item.range)
         } + decor.glyphs).sorted { $0.range.location < $1.range.location })
         mathSource = source
-        let macros = MathPresentation.macros(in: source)
-        let dark = tv.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        let directory = model.fileURL?.deletingLastPathComponent()
+        let macros = regions.isEmpty ? [:] : MathPresentation.macros(in: source)
         let images = embeds.compactMap { embed in
             ImagePresentation.url(for: embed.source, directory: directory).map { (range: embed.range, url: $0) }
         }
         mathTask = Task { [weak self, weak tv, weak layout] in
             guard let self else { return }
             var output: [RenderedMath] = []
-            for region in regions {
-                do {
-                    let formula = region.normalizedContent
-                    if let image = try await mathRenderer.image(formula: formula, display: region.kind == .displayMath,
-                                                               macros: macros, fontSize: config.fontSize, width: width, dark: dark) {
-                        try Task.checkCancellation()
-                        guard tv?.string == source, self.config?.renderMode == .mixed else { return }
-                        output.append(RenderedMath(range: region.range.nsRange, image: image))
-                    }
-                } catch { return }
+            do {
+                let requests = regions.map { MathRenderRequest(formula: $0.normalizedContent, display: $0.kind == .displayMath) }
+                let rendered = try await mathRenderer.images(requests: requests, macros: macros, fontSize: config.fontSize, width: width, dark: dark)
+                for (region, image) in zip(regions, rendered) {
+                    if let image { output.append(RenderedMath(range: region.range.nsRange, image: image)) }
+                }
+            } catch {
+                if !Task.isCancelled, self.mathPresentationRequest == request { self.mathPresentationRequest = nil }
+                return
             }
             guard !Task.isCancelled, tv?.string == source, self.config?.renderMode == .mixed else { return }
             // Publish the complete batch: a partial prefix would temporarily
@@ -304,7 +360,10 @@ extension EditorCoordinator {
                         output.append(RenderedMath(range: block.range, image: image))
                         publish(cachedPictures)
                     }
-                } catch { return }
+                } catch {
+                    if !Task.isCancelled, self.mathPresentationRequest == request { self.mathPresentationRequest = nil }
+                    return
+                }
             }
             guard images.contains(where: { imageLoader.cachedImage(for: $0.url, width: width) == nil }) else { return }
             var pictures: [RenderedMath] = []
