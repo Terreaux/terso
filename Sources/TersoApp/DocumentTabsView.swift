@@ -39,6 +39,15 @@ struct DocumentTabsView: View {
                 if !document.model.focusMode {
                     DocumentControls(document: document)
                     Divider()
+                    if Preferences.shared.contextualToolbarPlacement == .secondRow {
+                        ContextualToolbar(document: document, floating: false)
+                            .id(document.id)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity)
+                            .themedChrome(Preferences.shared.theme)
+                        Divider()
+                    }
                 }
             }
             if workspace.selected?.model.zenMode != true || workspace.showingStart {

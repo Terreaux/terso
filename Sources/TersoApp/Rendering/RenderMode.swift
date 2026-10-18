@@ -202,6 +202,7 @@ enum MathPresentation {
         // CriticMarkup braces are their own syntax, never strikethrough or highlight.
         let critics = MarkdownStyler.critic.flatMap { $0.matches(in: text, range: all).map(\.range) }
         if elements.contains(.emphasis) {
+            each(MarkdownStyler.underline) { wrap($0, content: $0.range(at: 2), closing: $0.range(at: 3).length, protected: prose) }
             for pattern in [MarkdownStyler.bold, MarkdownStyler.italic, MarkdownStyler.strike] {
                 each(pattern) { m in
                     guard pattern !== MarkdownStyler.strike || clear(m.range, of: critics) else { return }
@@ -212,7 +213,7 @@ enum MathPresentation {
         if elements.contains(.code) {
             // A code span is itself code, so only blocks and math protect it.
             each(MarkdownStyler.code) { m in
-                wrap(m, content: NSRange(location: m.range.location + 1, length: m.range.length - 2), closing: 1,
+                wrap(m, content: m.range(at: 2), closing: m.range(at: 1).length,
                      protected: frontMatter + fences + math + comments)
             }
         }

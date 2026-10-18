@@ -60,6 +60,15 @@ struct DocumentWindow: View {
                     .frame(minWidth: 260, idealWidth: 560, maxWidth: .infinity)
             }
         }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !model.focusMode && prefs.contextualToolbarPlacement == .floating {
+                    ContextualToolbar(model: model, source: document.text,
+                                      undoManager: model.documentUndoManager, floating: true)
+                        .padding(.horizontal, 12)
+                        .padding(.top, 8)
+                        .padding(.bottom, model.manutius ? 32 : 12)
+                }
+            }
             .overlay(alignment: .bottom) {
                 if model.zenMode { ZenExit(model: model) } else if model.focusMode { FocusFooter(model: model) }
                 else if model.manutius && (model.renderMode != .preview || pages) { BookStatusBar(model: model) }
