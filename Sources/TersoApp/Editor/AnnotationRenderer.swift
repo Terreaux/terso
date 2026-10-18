@@ -3,7 +3,8 @@ import AppKit
 import TersoCore
 
 /// How findings look in the document. Normal text carries nothing; then:
-///  • passive  — a thin underline in the finding's family treatment, no fill;
+///  • passive  — an underline in the finding's family treatment; AI-style
+///               contributors also get a faint tint so punctuation is visible;
 ///  • hover    — the same underline, stronger, with a faint tint;
 ///  • passage  — the selected passage gets one warm wash, so it is obvious
 ///               which sentences the expanded Review card is about;
@@ -70,9 +71,14 @@ enum HighlightStyle {
         (pattern(f).rawValue & ~0xFF) | NSUnderlineStyle.thick.rawValue
     }
 
-    /// A quiet finding (a whole sentence, or an AI-style feature's scattered
-    /// words) takes a thin, faint underline so word-level findings stand out.
+    /// Sentence findings stay quiet. AI-style contributors can be single
+    /// punctuation glyphs, too short to display a dash-dot pattern reliably.
     static func passive(_ c: AnnotationCategory, quiet: Bool = false, contrast: Bool) -> [NSAttributedString.Key: Any] {
+        if c == .aiStyle {
+            return [.underlineStyle: NSUnderlineStyle.single.rawValue,
+                    .underlineColor: color(c).withAlphaComponent(contrast ? 1 : 0.75),
+                    .backgroundColor: color(c).withAlphaComponent(contrast ? 0.2 : 0.1)]
+        }
         if quiet {
             return [.underlineStyle: pattern(c.family).rawValue, .underlineColor: color(c).withAlphaComponent(contrast ? 0.8 : 0.45)]
         }
@@ -131,9 +137,8 @@ extension EditorCoordinator {
             for r in a.ranges where r.upperBound <= length && r.length > 0 {
                 let isHovered = hovered.map { $0.intersects(r) } ?? false
                 let look: [NSAttributedString.Key: Any]
-                // Quiet findings get a thin underline rather than a fill: a
-                // persistent fill on every flagged sentence drowns the one
-                // passage that is actually selected.
+                // Sentence findings stay quiet; AI-style contributors take
+                // a local tint, including single-character punctuation hits.
                 look = isHovered ? HighlightStyle.hover(a.category, contrast: contrast)
                     : HighlightStyle.passive(a.category, quiet: AnnotationLayout.isQuiet(a), contrast: contrast)
                 lm.addTemporaryAttributes(look, forCharacterRange: r.nsRange)
