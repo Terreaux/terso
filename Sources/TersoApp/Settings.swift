@@ -13,6 +13,7 @@ enum SyntaxVisibility: String, CaseIterable, Identifiable {
 
 enum ContextualToolbarPlacement: String, CaseIterable, Identifiable {
     case hidden, secondRow, floating
+    init(savedValue: String?) { self = Self(rawValue: savedValue ?? "") ?? .floating }
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -21,6 +22,14 @@ enum ContextualToolbarPlacement: String, CaseIterable, Identifiable {
         case .floating: "Floating"
         }
     }
+}
+
+enum ContextualToolbarEdge: String, CaseIterable, Identifiable {
+    case bottom, top, left, right
+    init(savedValue: String?) { self = Self(rawValue: savedValue ?? "") ?? .bottom }
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+    var isVertical: Bool { self == .left || self == .right }
 }
 
 enum EditorFont: String, Codable, CaseIterable, Identifiable {
@@ -93,6 +102,9 @@ final class Preferences {
     var contextualToolbarPlacement: ContextualToolbarPlacement {
         didSet { d.set(contextualToolbarPlacement.rawValue, forKey: "contextualToolbarPlacement") }
     }
+    var contextualToolbarEdge: ContextualToolbarEdge {
+        didSet { d.set(contextualToolbarEdge.rawValue, forKey: "contextualToolbarEdge") }
+    }
     /// What Mixed draws in place of its source, away from the editing line.
     var mixedRendered: Set<MixedElement> { didSet { d.set(mixedRendered.map(\.rawValue), forKey: "mixedRendered") } }
     var theme: EditorTheme { didSet { d.set(theme.rawValue, forKey: "theme"); NSApp.appearance = theme.nsAppearance } }
@@ -132,7 +144,8 @@ final class Preferences {
         lineSpacing = d.object(forKey: "lineSpacing") as? Double ?? 1.6
         columnWidth = d.object(forKey: "columnWidth") as? Double ?? 720
         syntax = SyntaxVisibility(rawValue: d.string(forKey: "syntax") ?? "") ?? .subdued
-        contextualToolbarPlacement = ContextualToolbarPlacement(rawValue: d.string(forKey: "contextualToolbarPlacement") ?? "") ?? .secondRow
+        contextualToolbarPlacement = ContextualToolbarPlacement(savedValue: d.string(forKey: "contextualToolbarPlacement"))
+        contextualToolbarEdge = ContextualToolbarEdge(savedValue: d.string(forKey: "contextualToolbarEdge"))
         // Groups added after the first release of these choices are turned on
         // once for people who had already saved a selection. Builds before
         // "mixedGroupsOffered" recorded only that the first six had been.
