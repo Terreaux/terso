@@ -151,6 +151,7 @@ struct ViewControls: View {
     /// Extension options (citations, footnotes, comments) appear only when used.
     let source: String
     var density: HeaderDensity = .full
+    @State private var showingMixedOptions = false
 
     var body: some View {
         if density == .minimal { menu } else { controls }
@@ -180,26 +181,70 @@ struct ViewControls: View {
 
     @ViewBuilder private var mixedSection: some View {
         Section("Mixed renders") {
-            ForEach(MixedElement.available(latex: latex, text: source)) { element in
-                Toggle(element.title, isOn: Binding(
-                    get: { model.prefs.mixedRendered.contains(element) },
-                    set: { on in
-                        if on { model.prefs.mixedRendered.insert(element) } else { model.prefs.mixedRendered.remove(element) }
-                    }))
+            mixedToggles
+        }
+    }
+
+    private var mixedToggles: some View {
+        ForEach(MixedElement.available(latex: latex, text: source)) { element in
+            Toggle(element.title, isOn: Binding(
+                get: { model.prefs.mixedRendered.contains(element) },
+                set: { on in
+                    if on { model.prefs.mixedRendered.insert(element) } else { model.prefs.mixedRendered.remove(element) }
+                }))
+        }
+    }
+
+    private var renderingModes: some View {
+        HStack(spacing: 0) {
+            ForEach(RenderMode.allCases) { mode in
+                if mode == .mixed {
+                    modeButton(mode)
+                        .simultaneousGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                            model.renderMode = .mixed
+                            showingMixedOptions = true
+                        })
+                        .contextMenu { mixedSection }
+                        .accessibilityAction(named: "Mixed rendering options") { showingMixedOptions = true }
+                        .popover(isPresented: $showingMixedOptions, arrowEdge: .bottom) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text("Mixed renders").font(.headline)
+                                mixedToggles
+                            }
+                            .toggleStyle(.checkbox)
+                            .padding(16)
+                            .frame(width: 270)
+                        }
+                } else {
+                    modeButton(mode)
+                }
             }
         }
+        .padding(2)
+        .background(Color.secondary.opacity(0.10), in: RoundedRectangle(cornerRadius: 6))
+        .frame(width: density == .full ? 220 : 170)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Rendering mode")
+    }
+
+    private func modeButton(_ mode: RenderMode) -> some View {
+        Button { model.renderMode = mode } label: {
+            Text(mode.rawValue)
+                .font(.system(size: 12))
+                .frame(maxWidth: .infinity, minHeight: 22)
+                .background(model.renderMode == mode ? Color.primary.opacity(0.16) : .clear,
+                            in: RoundedRectangle(cornerRadius: 4))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(mode.rawValue)
+        .accessibilityAddTraits(model.renderMode == mode ? [.isSelected] : [])
+        .help(mode == .mixed ? "Mixed: hold or right-click for rendering options" : "\(mode.rawValue) mode")
     }
 
     private var controls: some View {
         HStack(spacing: 4) {
-            Picker("Rendering mode", selection: $model.renderMode) {
-                ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
-            }.pickerStyle(.segmented).frame(width: density == .full ? 220 : 170).labelsHidden()
-            Menu { mixedSection } label: { Image(systemName: "slider.horizontal.3") }
-                .menuIndicator(.hidden).fixedSize()
-                .disabled(model.renderMode != .mixed)
-                .help("Choose what Mixed renders in place of its source")
-                .accessibilityLabel("Mixed rendering options")
+            renderingModes
             HStack(spacing: 2) {
                 ForEach(WritingMode.allCases) { mode in
                     let unavailable = mode.shapesEditor && !caretModesAvailable

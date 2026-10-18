@@ -9,34 +9,45 @@ struct ContextualToolbar: View {
     let source: String
     let undoManager: UndoManager?
     var floating: Bool = false
+    var vertical: Bool = false
     @State private var canUndo = false
     @State private var canRedo = false
 
-    init(model: WorkspaceModel, source: String, undoManager: UndoManager?, floating: Bool = false) {
+    init(model: WorkspaceModel, source: String, undoManager: UndoManager?, floating: Bool = false, vertical: Bool = false) {
         self.model = model
         self.source = source
         self.undoManager = undoManager
         self.floating = floating
+        self.vertical = vertical
     }
 
-    init(document: TabDocument, floating: Bool = false) {
-        self.init(model: document.model, source: document.contents.text, undoManager: document.undoManager, floating: floating)
+    init(document: TabDocument, floating: Bool = false, vertical: Bool = false) {
+        self.init(model: document.model, source: document.contents.text, undoManager: document.undoManager, floating: floating, vertical: vertical)
     }
 
     private var editable: Bool { model.renderMode != .preview && model.editor != nil }
     private var latex: Bool { RenderMode.isLaTeX(source: source, fileURL: model.fileURL) }
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            controls(compact: false)
-            controls(compact: true)
-            controls(compact: true, minimal: true)
-            controls(compact: true, minimal: true, ultra: true)
+        Group {
+            if vertical {
+                ViewThatFits(in: .vertical) {
+                    verticalControls(minimal: false)
+                    verticalControls(minimal: true)
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    controls(compact: false)
+                    controls(compact: true)
+                    controls(compact: true, minimal: true)
+                    controls(compact: true, minimal: true, ultra: true)
+                }
+            }
         }
         .font(.system(size: 12))
         .buttonStyle(.plain)
-        .padding(.horizontal, floating ? 14 : 12)
-        .padding(.vertical, floating ? 9 : 7)
+        .padding(.horizontal, floating ? (vertical ? 9 : 14) : 12)
+        .padding(.vertical, floating ? (vertical ? 14 : 9) : 7)
         .background {
             if floating {
                 Capsule().fill(.regularMaterial)
@@ -53,6 +64,29 @@ struct ContextualToolbar: View {
             NotificationCenter.default.publisher(for: Notification.Name.NSUndoManagerDidUndoChange, object: undoManager),
             NotificationCenter.default.publisher(for: Notification.Name.NSUndoManagerDidRedoChange, object: undoManager)
         )) { _ in refreshUndo() }
+    }
+
+    private func verticalControls(minimal: Bool) -> some View {
+        VStack(spacing: 5) {
+            if model.renderMode != .preview {
+                toolbarButton("Undo", symbol: "arrow.uturn.backward", enabled: editable && canUndo) {
+                    undoManager?.undo()
+                    refreshUndo()
+                }
+                toolbarButton("Redo", symbol: "arrow.uturn.forward", enabled: editable && canRedo) {
+                    undoManager?.redo()
+                    refreshUndo()
+                }
+                Divider().frame(width: 22).padding(.vertical, 2).accessibilityHidden(true)
+                FormattingToolbar(model: model, source: source, latex: latex, compact: true, minimal: minimal, iconOnly: true, vertical: true)
+                    .disabled(!editable)
+                Divider().frame(width: 22).padding(.vertical, 2).accessibilityHidden(true)
+            }
+            TypographyControls(model: model, compact: true, latex: latex)
+                .menuIndicator(.hidden)
+            more
+        }
+        .fixedSize(horizontal: true, vertical: true)
     }
 
     private func controls(compact: Bool, minimal: Bool = false, ultra: Bool = false) -> some View {
@@ -113,6 +147,11 @@ struct ContextualToolbar: View {
                 Picker("Position", selection: Binding(get: { model.prefs.contextualToolbarPlacement }, set: { model.prefs.contextualToolbarPlacement = $0 })) {
                     ForEach(ContextualToolbarPlacement.allCases) { Text($0.title).tag($0) }
                 }
+                if model.prefs.contextualToolbarPlacement == .floating {
+                    Picker("Floating position", selection: Binding(get: { model.prefs.contextualToolbarEdge }, set: { model.prefs.contextualToolbarEdge = $0 })) {
+                        ForEach(ContextualToolbarEdge.allCases) { Text($0.title).tag($0) }
+                    }
+                }
             }
         } label: {
             Image(systemName: "ellipsis").frame(width: 26, height: 26).contentShape(Rectangle())
@@ -138,9 +177,11 @@ struct FormattingToolbar: View {
     var compact = false
     var minimal = false
     var iconOnly = false
+    var vertical = false
 
     var body: some View {
-        HStack(spacing: 2) {
+        let layout = vertical ? AnyLayout(VStackLayout(spacing: 2)) : AnyLayout(HStackLayout(spacing: 2))
+        return layout {
             if minimal {
                 Menu {
                     blockStyles
@@ -155,9 +196,10 @@ struct FormattingToolbar: View {
                 .accessibilityLabel("Formatting")
             } else {
                 Menu { blockStyles } label: {
-                    if compact { Image(systemName: "textformat") } else { Text(activeBlock.rawValue) }
+                    if compact { Image(systemName: "textformat").frame(width: 26, height: 26) } else { Text(activeBlock.rawValue) }
                 }
-                .fixedSize().padding(.horizontal, 4)
+                .menuIndicator(vertical ? .hidden : .visible)
+                .fixedSize().padding(.horizontal, vertical ? 0 : 4)
                 .help("Change paragraph style").accessibilityLabel("Block style")
                 commandButton("Bold", "bold", .bold)
                 commandButton("Italic", "italic", .italic)
