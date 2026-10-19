@@ -31,6 +31,9 @@ document types (`.md`, `.markdown`, `.tex`, `.txt`) used by AppKit document hand
 Documents share one window through [in-window tabs](Documentation/DocumentTabs.md),
 with separate editor state and undo history for each document.
 
+[Writing Exercises](Documentation/WritingExercises.md) offers eight offline prompts
+in a native sheet. Open it from Tools; optional suggestions start off in Settings.
+
 ## Download a build
 
 The **Build DMG** GitHub Actions workflow tests the app and uploads a

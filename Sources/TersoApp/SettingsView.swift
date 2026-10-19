@@ -10,6 +10,7 @@ struct SettingsView: View {
         TabView {
             GeneralSettings().tabItem { Label("General", systemImage: "gearshape") }
             EditorSettings().tabItem { Label("Editor", systemImage: "textformat") }
+            ExerciseSettings().tabItem { Label("Writing", systemImage: "pencil.and.outline") }
             AnalysisSettings().tabItem { Label("Analysis", systemImage: "text.magnifyingglass") }
             AssistantSettings().tabItem { Label("Assistant", systemImage: "sparkles") }
             PrivacySettings().tabItem { Label("Privacy", systemImage: "lock") }

@@ -115,6 +115,7 @@ final class DocumentTabs {
         var edited: Bool
         var typeName: String?
         var bookMode: Bool?
+        var identity: UUID? = nil
     }
     struct SavedWorkspace: Codable {
         var documents: [SavedDocument]
@@ -126,7 +127,7 @@ final class DocumentTabs {
         do {
             let saved = try workspaces.map { workspace in
                 SavedWorkspace(documents: try workspace.documents.map {
-                    SavedDocument(url: $0.fileURL, data: try $0.data(ofType: $0.fileType ?? "public.plain-text"), edited: $0.isDocumentEdited, typeName: $0.fileType, bookMode: $0.model.manutius)
+                    SavedDocument(url: $0.fileURL, data: try $0.data(ofType: $0.fileType ?? "public.plain-text"), edited: $0.isDocumentEdited, typeName: $0.fileType, bookMode: $0.model.manutius, identity: $0.exerciseIdentity)
                 }, selected: workspace.documents.firstIndex { $0 === workspace.selected } ?? 0)
             }
             try FileManager.default.createDirectory(at: recoveryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -154,6 +155,7 @@ final class DocumentTabs {
                         document.fileType = typeName
                         try document.read(from: item.data, ofType: document.fileType!)
                     }
+                    if let identity = item.identity { document.exerciseIdentity = identity }
                     if let bookMode = item.bookMode { document.model.setWritingMode(bookMode ? .manutius : .hemingway) }
                     if typeName == "public.plain-text" { document.model.renderMode = .source }
                     TabDocumentController.sharedController.addDocument(document)
@@ -303,6 +305,7 @@ final class TabWorkspace: NSWindowController, NSWindowDelegate {
 @MainActor
 final class TersoAppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        ExerciseRuntime.shared.start()
         DocumentTabs.shared.isRunning = true
         DocumentTabs.shared.restore()
         if DocumentTabs.shared.workspaces.isEmpty { DocumentTabs.shared.showStartWindow() }
@@ -319,6 +322,7 @@ final class TersoAppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard ExercisePresentation.shared.flushAll() else { return .terminateCancel }
         // Persist recovery before AppKit reviews saves. Keep documents open so
         // their tab order and unsaved text survive a normal quit as well.
         DocumentTabs.shared.saveRecovery()

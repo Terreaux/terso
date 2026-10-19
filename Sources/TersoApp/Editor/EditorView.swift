@@ -289,7 +289,19 @@ struct EditorView: NSViewRepresentable {
         tv.onGeometryChange = { [weak c] in c?.updateMathPresentation() }
         tv.onClick = { [weak c] index in c?.handleClick(at: index) }
         tv.onHover = { [weak c] index in c?.handleHover(at: index) }
-        tv.contextItems = { [weak c] index in c?.spellingMenuItems(at: index) ?? [] }
+        tv.contextItems = { [weak c] index in
+            guard let c else { return [] }
+            var items = c.spellingMenuItems(at: index)
+            if c.selection.length > 0 {
+                items.append(ClosureMenuItem("Start writing exercise from selection…") { [weak c] in
+                    guard let c, let tv = c.textView, let workspace = DocumentTabs.shared.workspaces.first(where: { $0.selected?.model === c.model }) else { return }
+                    let range = tv.selectedRange()
+                    guard NSMaxRange(range) <= (tv.string as NSString).length else { return }
+                    ExercisePresentation.shared.open(in: workspace, excerpt: (tv.string as NSString).substring(with: range))
+                })
+            }
+            return items
+        }
         tv.onTypedWords = { [weak c] words in
             guard let c else { return }
             WritingStats.shared.record(words, in: c.model.fileURL)
@@ -417,6 +429,7 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
 
     func textDidChange(_ notification: Notification) {
         guard let tv = textView else { return }
+        ExerciseSuggestionState.shared.recordEdit()
         textBinding.wrappedValue = tv.string
         model.textDidChange()
         updateMathPresentation()
