@@ -8,6 +8,8 @@ import UniformTypeIdentifiers
 @objc(TersoTabDocument)
 final class TabDocument: NSDocument, ObservableObject, Identifiable {
     let id = UUID()
+    /// Stable internal reference retained by workspace recovery across relaunches.
+    var exerciseIdentity = UUID()
     let model = WorkspaceModel()
     @Published var contents = MarkdownDocument()
     @Published private(set) var tabTitle = "Untitled"
