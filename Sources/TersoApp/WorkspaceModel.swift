@@ -189,6 +189,8 @@ final class WorkspaceModel {
     private(set) var documentBook: BookDesign?
     /// "Not now" to setting this document up as a book, for this session.
     var bookSetupDeclined = false
+    /// A Markdown flavour chosen before the file has a path.
+    var unsavedFlavour: MarkdownFlavour?
 
     /// The design Manutius sets the document in.
     var bookDesign: BookDesign { documentBook ?? prefs.bookDesign }

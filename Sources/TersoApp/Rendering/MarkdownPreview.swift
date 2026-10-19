@@ -40,14 +40,16 @@ struct MarkdownPreview: NSViewRepresentable {
         let prefs = model.prefs
         let config = EditorConfig(prefs: prefs, model: model)
         let width = config.book.map { Double(BookPage(trim: $0.trim, fontSize: config.pageScale).column) } ?? config.columnWidth
-        let key = "\(scheme):\(prefs.theme.rawValue):\(config.font.rawValue):\(config.fontSize):\(config.lineSpacing):\(width):\(source)"
+        let flavour = model.markdownFlavour
+        let key = "\(scheme):\(flavour.rawValue):\(prefs.theme.rawValue):\(config.font.rawValue):\(config.fontSize):\(config.lineSpacing):\(width):\(source)"
         guard key != context.coordinator.key else { return }
         context.coordinator.key = key
         view.loadHTMLString(MarkdownPreviewHTML.document(source: source, dark: scheme == .dark,
                                                          fontSize: config.fontSize, ink: prefs.theme.cssInk,
                                                          selection: model.editor?.selection.location ?? 0,
                                                          fontFamily: config.font.previewCSSFamily,
-                                                         lineSpacing: config.lineSpacing, columnWidth: width), baseURL: nil)
+                                                         lineSpacing: config.lineSpacing, columnWidth: width,
+                                                         flavour: flavour), baseURL: nil)
         DispatchQueue.main.async { view.window?.makeFirstResponder(view) }
     }
     static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
@@ -98,11 +100,13 @@ enum MarkdownPreviewHTML {
 
     @MainActor static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0,
                                    fontFamily: String = "-apple-system", lineSpacing: Double = 1.65,
-                                   columnWidth: Double = 760) -> String {
-        let mermaidBlocks = MermaidPresentation.blocks(in: source)
-        let mermaidScripts = mermaidBlocks.isEmpty ? "" : MermaidPresentation.scripts
+                                   columnWidth: Double = 760, flavour: MarkdownFlavour = .terso) -> String {
+        let features = flavour.features
+        let mermaid = features.contains(.mermaid) && !MermaidPresentation.blocks(in: source).isEmpty
+        let mermaidScripts = mermaid ? MermaidPresentation.scripts : ""
         let ns = source as NSString
-        let regions = MathPresentation.regions(in: source)
+        // A flavour without math leaves `$…$` to Markdown, as its platform does.
+        let regions = features.contains(.math) ? MathPresentation.regions(in: source) : []
         let marker = "TERSOMATH" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
         var prepared = source
         for (index, region) in regions.enumerated().reversed() {
@@ -152,6 +156,8 @@ enum MarkdownPreviewHTML {
         .admonition:is(.warning,.caution,.attention) {--tone:#e68a00;}
         .admonition:is(.danger,.error,.failure,.fail,.missing,.bug) {--tone:#e5484d;}
         .admonition:is(.example) {--tone:#7c4dff;} .admonition:is(.quote,.cite) {--tone:#8a8a8a;}
+        .admonition.alert.important {--tone:#8957e5;} .admonition.alert.caution {--tone:#e5484d;}
+        .wikilink {color:\#(dark ? "#8cbcff" : "#1565c0"); text-decoration:underline dotted;}
         .footnote-ref {line-height:0;} .footnote-ref a, .footnote-back {text-decoration:none;}
         .footnotes {font-size:.9em; color:\#(dark ? "#bbb" : "#555");} .footnotes li {scroll-margin-top:32px;}
         .mermaid-diagram {overflow:auto; padding:12px; border-radius:6px; background:#8881; text-align:center;}
@@ -174,14 +180,15 @@ enum MarkdownPreviewHTML {
             for (const r of replacements) { if (r.offset >= offset) break; delta += r.length-r.token.length; }
             return offset+delta;
         }
-        // Without options marked uses its defaults (GFM), which carry Terso's extensions.
+        // The flavour decides which of marked's GFM and Terso's extensions apply.
+        TersoMarkdown.install(marked, \#(MathPresentation.json(flavour.previewOptions)));
         const purify={FORBID_TAGS:['style','form','iframe','object','embed'], FORBID_ATTR:['style']};
         const tokens=marked.lexer(source); let offset=0; const notes=new Map();
         for (const token of tokens) {
             const section=document.createElement('section'); section.dataset.source=sourceOffset(offset);
             if (token.type==='footnoteDefinition' && !notes.has(token.id)) notes.set(token.id, section.dataset.source);
             const group=[token]; group.links=tokens.links;
-            if (token.type==='code' && /^mermaid(?:\s|$)/i.test(token.lang?.trim() || '')) {
+            if (token.type==='code' && \#(features.contains(.mermaid)) && /^mermaid(?:\s|$)/i.test(token.lang?.trim() || '')) {
                 const diagram=document.createElement('div'); diagram.className='mermaid-diagram';
                 const fallback=document.createElement('pre'); const code=document.createElement('code');
                 code.textContent=token.text; fallback.append(code); diagram.append(fallback); section.append(diagram);

@@ -48,6 +48,10 @@ struct EditorSettings: View {
                 HStack { Slider(value: $prefs.columnWidth, in: 600...860, step: 10); Text("\(Int(prefs.columnWidth)) pt").monospacedDigit().frame(width: 54) }
             }
             Picker("Markdown syntax", selection: $prefs.syntax) { ForEach(SyntaxVisibility.allCases) { Text($0.title).tag($0) } }
+            Picker("Markdown flavour", selection: Bindable(MarkdownFlavours.shared).standard) {
+                ForEach(MarkdownFlavour.allCases) { Text($0.title).tag($0) }
+            }
+            .help("How Preview draws Markdown files, as the platform they are published on. Each file can choose its own from the View menu.")
             Picker("Theme", selection: $prefs.theme) { ForEach(EditorTheme.allCases) { Text($0.title).tag($0) } }
             Toggle("Smart quotes", isOn: $prefs.smartQuotes)
             Section("Contextual toolbar") {

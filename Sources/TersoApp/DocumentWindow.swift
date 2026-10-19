@@ -103,6 +103,7 @@ struct DocumentWindow: View {
                     TectonicPreview(source: document.text, fileURL: fileURL)
                 } else {
                     MarkdownPreview(source: document.text, model: model).id(fileURL?.deletingLastPathComponent())
+                        .overlay(alignment: .bottom) { FlavourNote(flavour: model.markdownFlavour, source: document.text) }
                 }
             }
         }
