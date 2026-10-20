@@ -88,8 +88,24 @@ struct LineHeightReservation {
                     result.glyphs.append(RenderedMath(range: bullet, image: glyph, reservesHeight: false))
                 }
             }
+            // A callout the platform renders is drawn whole, like an
+            // admonition, until the caret is on any of its lines; one it
+            // doesn't keeps its quote bars and `[!KIND]`, marked amber.
+            let callouts = config.flavour.features.contains(.alerts)
+                ? MarkdownConversion.callouts(in: ns, fences: blocks).filter { block in
+                    clear(ns.lineRange(for: NSRange(location: block.range.location, length: 0))) && !revealed(block.range)
+                        && (![.github, .gitlab].contains(config.flavour) || MarkdownConversion.supports(block, config.flavour))
+                }
+                : []
+            for block in callouts {
+                let key = "callout|\(style)|\(width)|\(ns.substring(with: block.range))"
+                result.glyphs.append(RenderedMath(range: block.range, image: image(key) {
+                    admonitionImage(Admonition(block), config: config, width: width)
+                }))
+            }
             each(quoteMarker) { m in
-                guard clear(m.range), !revealed(m.range) else { return }
+                guard clear(m.range), !revealed(m.range),
+                      !callouts.contains(where: { NSIntersectionRange($0.range, m.range).length > 0 }) else { return }
                 let marker = m.range(at: 1)
                 let depth = ns.substring(with: marker).filter { $0 == ">" }.count
                 let spacer = image("quote|\(depth)") { NSImage(size: NSSize(width: CGFloat(depth) * quoteIndent, height: 1)) }
@@ -204,6 +220,16 @@ struct LineHeightReservation {
                 line.hasPrefix("\t") ? String(line.dropFirst()) : line.hasPrefix("    ") ? String(line.dropFirst(4)) : line
             }
             paragraphs = lines.split { $0.trimmingCharacters(in: .whitespaces).isEmpty }
+                .map { $0.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ") }
+        }
+
+        /// A `> [!kind]± Title` callout as the admonition it reads as: a
+        /// folded `-` draws as `???`, an open `+` as `???+`.
+        init(_ callout: MarkdownConversion.Block) {
+            fold = callout.fold == "-" ? "???" : callout.fold == "+" ? "???+" : "!!!"
+            kind = callout.kind
+            title = callout.title ?? kind.prefix(1).uppercased() + kind.dropFirst()
+            paragraphs = callout.body.split { $0.trimmingCharacters(in: .whitespaces).isEmpty }
                 .map { $0.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ") }
         }
 

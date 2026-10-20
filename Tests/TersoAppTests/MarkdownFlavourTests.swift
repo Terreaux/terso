@@ -336,6 +336,34 @@ import WebKit
         config.flavour = .mkdocs
         #expect(toggles() == 0)
     }
+
+    @Test func calloutsDrawAsThePlatformRendersThem() {
+        let model = WorkspaceModel()
+        var config = EditorConfig(prefs: model.prefs, model: model)
+        let text = "> [!tip]- Folded\n> In.\n\n> [!NOTE]\n> Fine.\n\nEnd.\n"
+        let ns = text as NSString
+        func drawn(_ flavour: MarkdownFlavour, caret: Int = ns.length) -> [String] {
+            config.flavour = flavour
+            return MixedPresentation.layout(in: text, selection: NSRange(location: caret, length: 0), config: config,
+                                            elements: [.blocks], width: 600).glyphs
+                .map { ns.substring(with: $0.range) }.filter { $0.contains("[!") }
+        }
+        #expect(drawn(.github) == ["> [!NOTE]\n> Fine."])
+        #expect(drawn(.obsidian) == ["> [!tip]- Folded\n> In.", "> [!NOTE]\n> Fine."])
+        #expect(drawn(.mkdocs).isEmpty)
+        // The caret on any line of a callout shows the whole of it as source.
+        #expect(drawn(.obsidian, caret: ns.range(of: "In.").location) == ["> [!NOTE]\n> Fine."])
+        // One left as typed keeps its quote bars.
+        config.flavour = .github
+        let bars = MixedPresentation.layout(in: text, selection: NSRange(location: ns.length, length: 0), config: config,
+                                            elements: [.blocks], width: 600).quoteBars
+        #expect(bars.map { ns.substring(with: $0.range) } == ["> [!tip]- Folded", "> In."])
+        // Titles and folds read as the admonition's.
+        let blocks = MarkdownConversion.callouts(in: ns, fences: [])
+        let folded = MixedPresentation.Admonition(blocks[0]), note = MixedPresentation.Admonition(blocks[1])
+        #expect(folded.title == "Folded" && folded.fold == "???" && folded.tone == .systemGreen)
+        #expect(note.title == "Note" && note.fold == "!!!" && note.paragraphs == ["Fine."])
+    }
 }
 
 @Suite(.serialized) @MainActor struct MixedFlavourEditorTests {
