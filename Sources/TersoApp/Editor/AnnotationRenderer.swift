@@ -12,6 +12,15 @@ import TersoCore
 ///               thick underline and a denser tint of its own.
 /// Overlapping findings are drawn once, as a cluster, so nothing stacks.
 enum HighlightStyle {
+    /// Syntax the Markdown flavour's platform won't render: Preview's amber
+    /// tint and dotted underline, so the two modes read alike.
+    static var unrendered: [NSAttributedString.Key: Any] {
+        let amber = dynamic(light: 0xD08A1C, dark: 0xE8A33D)
+        return [.backgroundColor: amber.withAlphaComponent(0.16),
+                .underlineStyle: NSUnderlineStyle.single.rawValue | NSUnderlineStyle.patternDot.rawValue,
+                .underlineColor: amber]
+    }
+
     /// Four restrained families instead of one colour per analyzer. Every
     /// family also has its own underline pattern: colour is never the only cue.
     static func color(_ f: AnnotationFamily) -> NSColor {
@@ -125,6 +134,13 @@ extension EditorCoordinator {
             lm.removeTemporaryAttribute(key, forCharacterRange: all)
         }
         let contrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
+        // Syntax the platform won't render, under every finding: an amber
+        // tint and dotted underline, as Preview marks it.
+        if let layout = lm as? MathLayoutManager, !layout.flavourMarks.isEmpty, !model.focusMode {
+            for range in layout.flavourMarkSpans(in: tv.string as NSString) where range.upperBound <= length {
+                lm.addTemporaryAttributes(HighlightStyle.unrendered, forCharacterRange: range)
+            }
+        }
         let drawn = model.drawnAnnotations
         clusters = AnnotationLayout.clusters(drawn)
         // Paint each finding's own span, least prominent first, so the

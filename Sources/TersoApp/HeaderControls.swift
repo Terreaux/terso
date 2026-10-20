@@ -183,10 +183,24 @@ struct ViewControls: View {
         Section("Mixed renders") {
             mixedToggles
         }
+        if !latex {
+            Picker("Markdown Flavour", selection: flavourChoice) { flavourOptions }
+        }
+    }
+
+    /// nil follows what the file's folder says, else Settings.
+    private var flavourChoice: Binding<MarkdownFlavour?> {
+        Binding(get: { model.chosenFlavour }, set: { model.chosenFlavour = $0 })
+    }
+
+    @ViewBuilder private var flavourOptions: some View {
+        Text("Automatic (\(model.automaticFlavour.title))").tag(MarkdownFlavour?.none)
+        Divider()
+        ForEach(MarkdownFlavour.allCases) { Text($0.title).tag(Optional($0)) }
     }
 
     private var mixedToggles: some View {
-        ForEach(MixedElement.available(latex: latex, text: source)) { element in
+        ForEach(MixedElement.available(latex: latex, text: source, flavour: model.markdownFlavour)) { element in
             Toggle(element.title, isOn: Binding(
                 get: { model.prefs.mixedRendered.contains(element) },
                 set: { on in
@@ -210,6 +224,12 @@ struct ViewControls: View {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text("Mixed renders").font(.headline)
                                 mixedToggles
+                                if !latex {
+                                    Divider()
+                                    // Mixed draws only what this platform renders and marks the rest.
+                                    Picker("Flavour", selection: flavourChoice) { flavourOptions }
+                                        .help(model.markdownFlavour.help)
+                                }
                             }
                             .toggleStyle(.checkbox)
                             .padding(16)

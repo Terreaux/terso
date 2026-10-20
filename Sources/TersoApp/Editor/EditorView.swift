@@ -18,6 +18,8 @@ struct EditorConfig: Equatable {
     var dimInactive: Bool
     var theme: EditorTheme
     var mixedRendered: Set<MixedElement>
+    /// Where this Markdown is published; Mixed draws only what that renders.
+    var flavour: MarkdownFlavour
     /// Manutius: book pages, justified and hyphenated, at a book measure,
     /// set as the book design asks.
     var book: BookDesign?
@@ -37,6 +39,7 @@ struct EditorConfig: Equatable {
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
         theme = prefs.theme; mixedRendered = prefs.mixedRendered
+        flavour = latex ? .terso : model.markdownFlavour
         book = model.manutius && !latex ? model.bookDesign : nil
         latexBook = model.manutius && latex
         pageScale = prefs.fontSize
@@ -510,7 +513,8 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
             tv.typingAttributes = MarkdownStyler.baseAttributes(new)
         }
         if styleChanged { applyBook(); scheduleBookOutline() } else if old?.latexBook != new.latexBook { refreshBookOutline() }
-        if styleChanged || old?.columnWidth != new.columnWidth || old?.mixedRendered != new.mixedRendered || old?.latex != new.latex { updateMathPresentation() }
+        if styleChanged || old?.columnWidth != new.columnWidth || old?.mixedRendered != new.mixedRendered || old?.latex != new.latex
+            || old?.flavour != new.flavour { updateMathPresentation() }
         if force || old?.focusMode != new.focusMode || old?.dimInactive != new.dimInactive || old?.typewriter != new.typewriter {
             popover?.close()
             refreshDecorations()

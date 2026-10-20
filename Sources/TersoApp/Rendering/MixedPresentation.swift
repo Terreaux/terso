@@ -73,7 +73,9 @@ struct LineHeightReservation {
             let rules = result.glyphs.filter { !$0.reservesHeight }.map(\.range)
             each(bulletOrTask) { m in
                 guard clear(m.range), !revealed(m.range), !rules.contains(where: { NSIntersectionRange($0, m.range).length > 0 }) else { return }
-                let bullet = m.range(at: 1), box = m.range(at: 2)
+                let bullet = m.range(at: 1)
+                // A task box stays as typed where the platform has no task lists.
+                let box = config.flavour.features.contains(.taskLists) ? m.range(at: 2) : NSRange(location: NSNotFound, length: 0)
                 if box.location != NSNotFound {
                     let checked = ns.substring(with: box).lowercased() == "[x]"
                     let start = bullet.location != NSNotFound ? bullet.location : box.location

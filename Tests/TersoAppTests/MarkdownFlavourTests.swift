@@ -258,3 +258,116 @@ import WebKit
     }
 }
 
+
+@Suite @MainActor struct MixedFlavourTests {
+    static let text = "==key== ~~gone~~ [[Note|alias]] [site](https://x.org) %%draft%% <!-- aside --> {++add++}\n\n"
+        + "- [x] done\n\n!!! tip\n    Body.\n\n> [!tip]- Folded\n> In.\n\n> [!NOTE]\n> Fine.\n\nClaim.[^1] $x$\n\n[^1]: Note.\n\n`==code==`\n"
+
+    private func marked(_ flavour: MarkdownFlavour) -> [MarkdownFeature: [String]] {
+        let ns = Self.text as NSString
+        return Dictionary(grouping: MarkdownCompatibility.marks(in: Self.text, flavour: flavour), by: \.feature)
+            .mapValues { $0.map { ns.substring(with: $0.range) } }
+    }
+
+    @Test func marksWhatEachPlatformLeavesAsTyped() {
+        #expect(marked(.terso).isEmpty)
+        let github = marked(.github)
+        #expect(github[.highlights] == ["==key=="])
+        #expect(github[.wikiLinks] == ["[[Note|alias]]"])
+        #expect(github[.comments] == ["%%draft%%"])
+        #expect(github[.critic] == ["{++add++}"])
+        #expect(github[.admonitions] == ["!!! tip\n    Body."])
+        // Only the folded callout: GitHub renders the plain NOTE.
+        #expect(github[.alerts] == ["> [!tip]- Folded\n> In."])
+        #expect(github[.strikethrough] == nil && github[.math] == nil && github[.footnotes] == nil)
+        let mkdocs = marked(.mkdocs)
+        #expect(mkdocs[.strikethrough] == ["~~gone~~"])
+        #expect(mkdocs[.taskLists] == ["[x]"])
+        #expect(mkdocs[.math] == ["$x$"])
+        #expect(mkdocs[.footnotes] == ["[^1]", "[^1]:"])
+        #expect(mkdocs[.alerts]?.count == 2)
+        // Code is never marked, and the link's URL is not a bare link.
+        #expect(!mkdocs.values.joined().contains { $0.contains("code") })
+        #expect(mkdocs[.autolinks] == nil)
+        #expect(marked(.obsidian).keys.sorted(by: { $0.rawValue < $1.rawValue }) == [.admonitions, .critic])
+        #expect(MarkdownCompatibility.marks(in: "See https://example.com/a.", flavour: .mkdocs).map(\.range.length) == [21])
+    }
+
+    @Test func mixedOffersOnlyWhatThePlatformRenders() {
+        let terso = MixedElement.available(latex: false, text: Self.text)
+        #expect([.admonitions, .critic, .footnotes, .math, .comments].allSatisfy(terso.contains))
+        let github = MixedElement.available(latex: false, text: Self.text, flavour: .github)
+        #expect(!github.contains(.admonitions) && !github.contains(.critic))
+        #expect(github.contains(.footnotes) && github.contains(.math) && github.contains(.comments))
+        let mkdocs = MixedElement.available(latex: false, text: Self.text, flavour: .mkdocs)
+        #expect(!mkdocs.contains(.math) && !mkdocs.contains(.footnotes) && mkdocs.contains(.tables) == true)
+        // LaTeX ignores Markdown flavours.
+        #expect(MixedElement.available(latex: true, text: "\\documentclass{article}", flavour: .commonMark).contains(.math))
+    }
+
+    @Test func mixedHidesOnlyMarkersThePlatformUses() {
+        let ns = Self.text as NSString
+        let away = NSRange(location: ns.length, length: 0)
+        func hides(_ token: String, _ flavour: MarkdownFlavour) -> Bool {
+            let hidden = MarkerPresentation.hiddenSyntax(in: Self.text, selection: away, latex: false,
+                                                         elements: Set(MixedElement.allCases), flavour: flavour)
+                + LinkPresentation.hiddenSyntax(in: Self.text, selection: away, flavour: flavour)
+            let range = ns.range(of: token)
+            return hidden.contains { NSIntersectionRange($0, range).length > 0 }
+        }
+        #expect(hides("==key==", .terso) && !hides("==key==", .github))
+        #expect(hides("%%draft%%", .obsidian) && !hides("%%draft%%", .github))
+        #expect(hides("<!-- aside -->", .github))
+        #expect(hides("~~gone~~", .github) && !hides("~~gone~~", .mkdocs))
+        #expect(hides("[[Note|", .obsidian) && !hides("[[Note|", .github))
+        #expect(hides("](https://x.org)", .github))
+    }
+
+    @Test func taskBoxesStayTypedWithoutTaskLists() {
+        let model = WorkspaceModel()
+        var config = EditorConfig(prefs: model.prefs, model: model)
+        func toggles() -> Int {
+            // The caret sits on the blank last line, away from both tasks.
+            MixedPresentation.layout(in: "- [x] done\n- [ ] todo\n\n", selection: NSRange(location: 23, length: 0), config: config,
+                                     elements: [.blocks], width: 600).glyphs.filter { $0.toggle != nil }.count
+        }
+        config.flavour = .github
+        #expect(toggles() == 2)
+        config.flavour = .mkdocs
+        #expect(toggles() == 0)
+    }
+}
+
+@Suite(.serialized) @MainActor struct MixedFlavourEditorTests {
+    @Test func mixedMarksUnrenderedSyntaxAndExplainsItOnHover() async throws {
+        _ = NSApplication.shared
+        let document = TabDocument(), workspace = TabWorkspace()
+        defer { document.close(); workspace.close() }
+        document.contents.text = "# Notes\n\nNow ==twice as fast== and [[Bench]].\n"
+        document.model.renderMode = .mixed
+        document.model.chosenFlavour = .github
+        workspace.insert(document)
+        let host = document.hostedEditor()
+        host.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
+        host.layoutSubtreeIfNeeded()
+        let deadline = ContinuousClock.now + .seconds(3)
+        while document.model.editor == nil && ContinuousClock.now < deadline { await Task.yield() }
+        let editor = try #require(document.model.editor as? EditorCoordinator)
+        let tv = try #require(editor.textView)
+        let layout = try #require(tv.layoutManager as? MathLayoutManager)
+        editor.updateMathPresentation()
+        #expect(layout.flavourMarks.map(\.feature) == [.highlights, .wikiLinks])
+        let index = (tv.string as NSString).range(of: "twice").location
+        #expect(layout.temporaryAttribute(.underlineColor, atCharacterIndex: index, effectiveRange: nil) != nil)
+        editor.handleHover(at: index)
+        #expect(tv.toolTip == "GitHub doesn't render highlights; it's published as typed")
+        editor.handleHover(at: 0)
+        #expect(tv.toolTip == nil)
+        // Back to Terso: nothing is marked.
+        document.model.chosenFlavour = .terso
+        editor.config?.flavour = .terso
+        editor.updateMathPresentation()
+        #expect(layout.flavourMarks.isEmpty)
+        #expect(layout.temporaryAttribute(.underlineColor, atCharacterIndex: index, effectiveRange: nil) == nil)
+    }
+}

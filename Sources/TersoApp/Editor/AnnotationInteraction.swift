@@ -7,14 +7,31 @@ extension EditorCoordinator {
     /// Hover: stronger underline plus a small tooltip. Never opens UI.
     func handleHover(at index: Int?) {
         let cluster = index.flatMap { i in clusters.first { $0.contains(i) } }
-        guard cluster?.id != model.hoveredClusterID else { return }
+        guard cluster?.id != model.hoveredClusterID else {
+            if cluster == nil { setToolTip(unrenderedTip(at: index)) }
+            return
+        }
         model.hoveredClusterID = cluster?.id
-        textView?.toolTip = cluster.map { c in
+        setToolTip(cluster.map { c in
             let names = c.annotationIDs.compactMap { model.annotation(id: $0)?.message }
             let unique = names.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }
             return unique.joined(separator: " · ") + " — click to review"
-        }
+        } ?? unrenderedTip(at: index))
         applyHighlights()
+    }
+
+    /// Setting the same tip again would restart its delay on every mouse move.
+    private func setToolTip(_ tip: String?) {
+        if textView?.toolTip != tip { textView?.toolTip = tip }
+    }
+
+    /// "GitHub doesn't render highlights" over syntax Mixed marks.
+    private func unrenderedTip(at index: Int?) -> String? {
+        guard let index, let marks = (textView?.layoutManager as? MathLayoutManager)?.flavourMarks,
+              let mark = marks.first(where: { NSLocationInRange(index, $0.range) }) else { return nil }
+        let flavour = model.markdownFlavour
+        let title = mark.feature == .alerts && flavour.features.contains(.alerts) ? "this kind of callout" : mark.feature.title
+        return "\(flavour.title) doesn't render \(title); it's published as typed"
     }
 
     /// Click on a finding: select it everywhere. With the inspector open the

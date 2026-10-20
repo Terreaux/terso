@@ -23,6 +23,31 @@ struct QuoteBar: Equatable {
 /// accessibility and source navigation all continue to use the original text.
 final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     var rendered: [RenderedMath] = []
+    /// Syntax the Markdown flavour's platform won't render, drawn by the highlight pass.
+    var flavourMarks: [MarkdownCompatibility.Mark] = []
+
+    /// The marks as drawn: line by line without line endings, so a block's
+    /// tint ends with its text, and around markers Mixed hides or draws over.
+    func flavourMarkSpans(in ns: NSString) -> [NSRange] {
+        let covered = (hiddenSyntax + rendered.map(\.range)).sorted { $0.location < $1.location }
+        var spans: [NSRange] = []
+        for mark in flavourMarks where mark.range.upperBound <= ns.length {
+            var location = mark.range.location
+            while location < mark.range.upperBound {
+                let line = ns.lineRange(for: NSRange(location: location, length: 0))
+                var end = min(line.upperBound, mark.range.upperBound)
+                while end > location, [10, 13].contains(ns.character(at: end - 1)) { end -= 1 }
+                var start = location
+                for gap in covered where gap.upperBound > start && gap.location < end {
+                    if gap.location > start { spans.append(NSRange(location: start, length: gap.location - start)) }
+                    start = max(start, gap.upperBound)
+                }
+                if end > start { spans.append(NSRange(location: start, length: end - start)) }
+                location = line.upperBound
+            }
+        }
+        return spans
+    }
     private var syntaxRanges: [NSRange] = []
     var hiddenSyntax: [NSRange] {
         get { syntaxRanges }
@@ -285,7 +310,9 @@ extension EditorCoordinator {
         guard config.renderMode == .mixed, !tv.hasMarkedText() else {
             mathTask?.cancel()
             mathPresentationRequest = nil
-            layout.setRendered([]); layout.hiddenSyntax = []; layout.quoteBars = []; layout.reservedLineHeights = []; return
+            layout.setRendered([]); layout.hiddenSyntax = []; layout.quoteBars = []; layout.reservedLineHeights = []
+            if !layout.flavourMarks.isEmpty { layout.flavourMarks = []; applyHighlights() }
+            return
         }
         let source = tv.string
         let selection = tv.selectedRange()
@@ -297,10 +324,18 @@ extension EditorCoordinator {
         guard mathPresentationRequest != request || mathTask?.isCancelled == true else { return }
         mathPresentationRequest = request
         mathTask?.cancel()
-        let shown = config.mixedRendered.intersection(MixedElement.available(latex: config.latex, text: source))
+        let shown = config.mixedRendered.intersection(MixedElement.available(latex: config.latex, text: source, flavour: config.flavour))
         let decor = MixedPresentation.layout(in: source, selection: selection, config: config, elements: shown, width: width)
-        layout.hiddenSyntax = (shown.contains(.links) ? LinkPresentation.hiddenSyntax(in: source, selection: selection) : [])
-            + MarkerPresentation.hiddenSyntax(in: source, selection: selection, latex: config.latex, elements: shown)
+        let previouslyHidden = layout.hiddenSyntax
+        layout.hiddenSyntax = (shown.contains(.links) ? LinkPresentation.hiddenSyntax(in: source, selection: selection, flavour: config.flavour) : [])
+            + MarkerPresentation.hiddenSyntax(in: source, selection: selection, latex: config.latex, elements: shown, flavour: config.flavour)
+        // What the platform won't render is marked, as Preview marks it.
+        let marks = config.latex ? [] : MarkdownCompatibility.marks(in: source, flavour: config.flavour)
+        // Marks are drawn around hidden markers, so they follow the caret's reveals too.
+        if marks != layout.flavourMarks || (!marks.isEmpty && previouslyHidden != layout.hiddenSyntax) {
+            layout.flavourMarks = marks
+            applyHighlights()
+        }
         layout.quoteBars = decor.quoteBars
         layout.reservedLineHeights = decor.reservedLineHeights
         // Math or an image inside a rendered table is drawn by the table.
@@ -315,7 +350,7 @@ extension EditorCoordinator {
                 && !MathPresentation.showsSource(region.range.nsRange, selection: selection, text: source)
                 && !allEmbeds.contains { NSIntersectionRange($0.range, region.range.nsRange).length > 0 }
         }
-        let mermaid = config.latex || !shown.contains(.code) ? [] : MermaidPresentation.blocks(in: source).filter {
+        let mermaid = config.latex || !shown.contains(.code) || !config.flavour.features.contains(.mermaid) ? [] : MermaidPresentation.blocks(in: source).filter {
             !MathPresentation.showsSource($0.range, selection: selection, text: source) && !covered($0.range)
         }
         let visible = regions.map(\.range.nsRange) + embeds.map(\.range) + mermaid.map(\.range)

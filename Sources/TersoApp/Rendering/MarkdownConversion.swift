@@ -40,7 +40,7 @@ enum MarkdownConversion {
         for block in callouts(in: ns, fences: fences) where clear(block.range, of: literal) {
             if features.contains(.admonitions) && !features.contains(.alerts) {
                 edits.append(Edit(range: block.range, replacement: admonition(block, newline: newline), feature: .alerts))
-            } else if features.contains(.alerts), flavour != .obsidian, !supports(block, flavour) {
+            } else if [.github, .gitlab].contains(flavour), !supports(block, flavour) {
                 edits.append(Edit(range: block.range, replacement: callout(block, for: flavour, newline: newline), feature: .alerts))
             }
         }
