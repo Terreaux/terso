@@ -165,7 +165,6 @@ struct ViewControls: View {
                 ForEach(RenderMode.allCases) { Text($0.rawValue).tag($0) }
             }.pickerStyle(.inline)
             if model.renderMode == .mixed { mixedSection }
-            if !latex { flavourPicker.pickerStyle(.menu) }
             if model.writingMode == .manutius {
                 Button("Book Design…") { model.showBookDesign() }
                 Button("Whole Book…") { model.showBookOverview = true }
@@ -178,25 +177,6 @@ struct ViewControls: View {
         } label: { Image(systemName: "eye") }
             .menuIndicator(.hidden).fixedSize()
             .help("View: rendering and writing modes").accessibilityLabel("View")
-    }
-
-    /// Where this Markdown will be published; Preview draws it as that platform would.
-    private var flavourPicker: some View {
-        Picker("Markdown Flavour", selection: $model.markdownFlavour) {
-            ForEach(MarkdownFlavour.allCases) { Text($0.title).tag($0) }
-        }
-    }
-
-    private var flavourMenu: some View {
-        Menu {
-            flavourPicker.pickerStyle(.inline)
-        } label: {
-            Text(model.markdownFlavour.shortTitle).font(.system(size: 11, weight: .medium))
-        }
-        .menuStyle(.borderlessButton).menuIndicator(.visible).fixedSize()
-        .help("Markdown flavour: \(model.markdownFlavour.help)")
-        .accessibilityLabel("Markdown flavour")
-        .accessibilityValue(model.markdownFlavour.title)
     }
 
     @ViewBuilder private var mixedSection: some View {
@@ -265,7 +245,6 @@ struct ViewControls: View {
     private var controls: some View {
         HStack(spacing: 4) {
             renderingModes
-            if !latex { flavourMenu.padding(.horizontal, 2) }
             HStack(spacing: 2) {
                 ForEach(WritingMode.allCases) { mode in
                     let unavailable = mode.shapesEditor && !caretModesAvailable

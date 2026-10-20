@@ -51,7 +51,7 @@ struct EditorSettings: View {
             Picker("Markdown flavour", selection: Bindable(MarkdownFlavours.shared).standard) {
                 ForEach(MarkdownFlavour.allCases) { Text($0.title).tag($0) }
             }
-            .help("How Preview draws Markdown files, as the platform they are published on. Each file can choose its own from the View menu.")
+            .help("How Preview draws Markdown files when nothing around them says where they're published: a docs-site config, an Obsidian vault or a git remote. Each file can choose its own in Preview.")
             Picker("Theme", selection: $prefs.theme) { ForEach(EditorTheme.allCases) { Text($0.title).tag($0) } }
             Toggle("Smart quotes", isOn: $prefs.smartQuotes)
             Section("Contextual toolbar") {

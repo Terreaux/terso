@@ -3,8 +3,8 @@
 // footnotes, admonitions (`!!!`, and collapsible `???`), ==highlights== and
 // CriticMarkup; after GitHub and Obsidian: alerts and callouts, wiki links
 // and %% comments %%. Each token keeps its exact `raw` so the preview can map
-// it back to the source. A Markdown flavour installs only what its platform
-// renders, so everything else stays as typed.
+// it back to the source. A Markdown flavour renders only what its platform
+// renders; the rest is drawn as typed and marked, so the writer sees it.
 const TersoMarkdown = (() => {
     const escape = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const slug = id => id.replace(/[^\p{L}\p{N}_-]/gu, '-');
@@ -14,6 +14,20 @@ const TersoMarkdown = (() => {
     // Definitions are block tokens, so all of them are known before any
     // reference is tokenized. Notes number in order of first reference.
     const notes = new Map(), order = [], references = new Map();
+
+    // Syntax the flavour's platform doesn't render: the source as typed,
+    // tinted, with a tooltip naming the platform.
+    let platform = 'This platform', titles = {}, footnotesLive = true;
+    const unrendered = (feature, raw, block) => {
+        const tip = escape(`${platform} doesn't render ${titles[feature] || feature}`);
+        const attributes = `data-feature="${feature}" title="${tip}"`;
+        return block ? `<div class="unrendered unrendered-block" ${attributes}>${escape(raw.replace(/\s+$/, ''))}</div>\n`
+                     : `<span class="unrendered" ${attributes}>${escape(raw)}</span>`;
+    };
+    /// The same tokenizer, so the syntax is still recognised, drawn as typed.
+    const typed = (extension, feature) => ({
+        ...extension, renderer(token) { return unrendered(feature, token.raw, extension.level === 'block'); }
+    });
 
     const footnoteDefinition = {
         name: 'footnoteDefinition', level: 'block',
@@ -144,15 +158,18 @@ const TersoMarkdown = (() => {
             const head = /^ {0,3}>[ \t]*\[!([\w-]+)\]([+-]?)[ \t]*([^\n]*)(?:\n|$)/.exec(src);
             if (!head) return;
             const kind = head[1].toLowerCase(), title = head[3].trim();
-            if (style !== 'obsidian' && (!alertKinds.includes(kind) || head[2] || (style === 'github' && title))) return;
+            // A callout the platform doesn't know is still read whole, so it can be marked.
+            const supported = style === 'obsidian' || (alertKinds.includes(kind) && !head[2] && !(style === 'github' && title));
             const rest = src.slice(head[0].length).split('\n');
             let take = 0;
             while (take < rest.length && /^ {0,3}>/.test(rest[take])) take++;
             const raw = head[0] + (take ? rest.slice(0, take).join('\n') + (take < rest.length ? '\n' : '') : '');
             const body = rest.slice(0, take).map(line => line.replace(/^ {0,3}> ?/, ''));
-            return { type: 'alert', raw, kind, fold: head[2], title, tokens: this.lexer.blockTokens(body.join('\n'), []) };
+            return { type: 'alert', raw, kind, fold: head[2], title, supported,
+                     tokens: this.lexer.blockTokens(body.join('\n'), []) };
         },
         renderer(token) {
+            if (!token.supported) return unrendered('alerts', token.raw, true);
             const title = escape(token.title || token.kind.charAt(0).toUpperCase() + token.kind.slice(1));
             const classes = `admonition alert ${escape(token.kind)}`;
             const body = this.parser.parse(token.tokens);
@@ -198,36 +215,75 @@ const TersoMarkdown = (() => {
         renderer() { return ''; }
     };
 
+    // GFM syntax that marked has built in, recognised when the flavour turns it off.
+    const typedTable = {
+        name: 'typedTable', level: 'block',
+        start(src) { return src.match(/^ {0,3}[^\n]*\|[^\n]*\n {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/m)?.index; },
+        tokenizer(src) {
+            const m = /^ {0,3}[^\n]*\|[^\n]*\n {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*(?:\n|$)(?: {0,3}[^\n]*\|[^\n]*(?:\n|$))*/.exec(src);
+            if (m) return { type: 'typedTable', raw: m[0] };
+        },
+        renderer(token) { return unrendered('tables', token.raw, true); }
+    };
+    const typedStrike = {
+        name: 'typedStrike', level: 'inline',
+        start(src) { const i = src.indexOf('~~'); return i < 0 ? undefined : i; },
+        tokenizer(src) {
+            const m = /^~~(?=\S)[^\n]*?\S~~(?!~)/.exec(src);
+            if (m) return { type: 'typedStrike', raw: m[0] };
+        },
+        renderer(token) { return unrendered('strikethrough', token.raw); }
+    };
+    const typedLink = {
+        name: 'typedLink', level: 'inline',
+        start(src) { const i = src.search(/https?:\/\/|www\./); return i < 0 ? undefined : i; },
+        tokenizer(src) {
+            const m = /^(?:https?:\/\/|www\.)[^\s<]*[^\s<?!.,:*_~)'"]/.exec(src);
+            if (m) return { type: 'typedLink', raw: m[0] };
+        },
+        renderer(token) { return unrendered('autolinks', token.raw); }
+    };
+
     const everything = ['tables', 'strikethrough', 'taskLists', 'autolinks', 'footnotes', 'admonitions',
                         'alerts', 'highlights', 'critic', 'wikiLinks', 'comments'];
     return {
-        /// `features` names what the flavour renders; `alerts` is 'github',
-        /// 'gitlab' or 'obsidian'. CommonMark turns off marked's GFM.
-        install(marked, { features = everything, alerts = 'obsidian', gfm = true } = {}) {
+        /// `features` names what the flavour renders; the rest is marked.
+        /// `alerts` is 'github', 'gitlab' or 'obsidian'; `platform` and
+        /// `titles` word the tooltips. CommonMark turns off marked's GFM.
+        install(marked, { features = everything, alerts = 'obsidian', gfm = true, platform: name, titles: words } = {}) {
             const has = new Set(features);
-            // An overriding tokenizer that returns nothing turns that syntax off.
+            if (name) platform = name;
+            titles = words || {};
+            footnotesLive = has.has('footnotes');
+            const either = (extension, feature) => has.has(feature) ? extension : typed(extension, feature);
+            // An overriding tokenizer that returns nothing turns marked's own off;
+            // the typed extensions below then pick the syntax up.
             const off = () => undefined;
             const tokenizer = {};
             if (!has.has('tables')) tokenizer.table = off;
             if (!has.has('strikethrough')) tokenizer.del = off;
             if (!has.has('autolinks')) tokenizer.url = off;
-            // Marked reads task items with GFM; without task lists they print as typed.
-            const renderer = has.has('taskLists') ? {} : { checkbox: ({ checked }) => checked ? '[x]' : '[ ]' };
-            const extensions = [];
-            if (has.has('footnotes')) extensions.push(footnoteDefinition);
-            if (has.has('admonitions')) extensions.push(admonition);
-            if (has.has('alerts')) extensions.push(alert(alerts));
-            if (has.has('comments')) extensions.push(commentBlock, comment);
-            if (has.has('footnotes')) extensions.push(footnoteReference);
-            if (has.has('wikiLinks')) extensions.push(wikiLink);
-            if (has.has('critic')) extensions.push(critic);
-            if (has.has('highlights')) extensions.push(mark);
+            const renderer = has.has('taskLists') ? {} : {
+                checkbox: ({ checked }) => unrendered('taskLists', checked ? '[x]' : '[ ]')
+            };
+            const extensions = [
+                either(footnoteDefinition, 'footnotes'), either(admonition, 'admonitions'),
+                has.has('alerts') ? alert(alerts) : typed(alert('obsidian'), 'alerts'),
+                either(commentBlock, 'comments'), either(comment, 'comments'),
+                either(footnoteReference, 'footnotes'), either(wikiLink, 'wikiLinks'),
+                // CriticMarkup's `{~~` comes before strikethrough's `~~`.
+                either(critic, 'critic'), either(mark, 'highlights')
+            ];
+            if (!has.has('tables')) extensions.push(typedTable);
+            if (!has.has('strikethrough')) extensions.push(typedStrike);
+            if (!has.has('autolinks')) extensions.push(typedLink);
             marked.use({ gfm, tokenizer, renderer, extensions });
         },
+        unrendered,
         /// The notes list, rendered after the body so numbering follows the references.
         footnotes(marked, links, sources) {
             const ids = [...order, ...[...notes.keys()].filter(id => !order.includes(id))];
-            if (!ids.length) return '';
+            if (!ids.length || !footnotesLive) return '';
             const items = ids.map(id => {
                 const key = slug(id), group = [...notes.get(id).tokens];
                 group.links = links;

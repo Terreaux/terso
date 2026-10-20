@@ -56,10 +56,11 @@ struct TersoCommands: Commands {
                     .keyboardShortcut(mode == .source ? "1" : mode == .mixed ? "2" : "3", modifiers: [.command, .control])
                     .disabled(model == nil)
             }
-            Picker("Markdown Flavour", selection: Binding(
-                get: { model?.markdownFlavour ?? MarkdownFlavours.shared.standard },
-                set: { model?.markdownFlavour = $0 })) {
-                ForEach(MarkdownFlavour.allCases) { Text($0.title).tag($0) }
+            Picker("Preview Markdown As", selection: Binding(
+                get: { model?.chosenFlavour }, set: { model?.chosenFlavour = $0 })) {
+                Text("Automatic (\(model?.automaticFlavour.title ?? MarkdownFlavours.shared.standard.title))").tag(MarkdownFlavour?.none)
+                Divider()
+                ForEach(MarkdownFlavour.allCases) { Text($0.title).tag(Optional($0)) }
             }
             .disabled(model == nil || model?.isLaTeXDocument == true)
             Divider()

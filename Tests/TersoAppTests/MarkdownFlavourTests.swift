@@ -24,7 +24,13 @@ import WebKit
         try await web.evaluateJavaScript("document.querySelectorAll(\"\(selector)\").length") as? Int ?? -1
     }
 
-    @Test func githubRendersAlertsButLeavesObsidianAndPythonSyntaxAsTyped() async throws {
+    private func marked(_ web: WKWebView) async throws -> [String: Int] {
+        try await web.evaluateJavaScript("""
+            const counts={}; document.querySelectorAll('.unrendered').forEach(el => counts[el.dataset.feature]=(counts[el.dataset.feature]||0)+1); counts
+            """) as? [String: Int] ?? [:]
+    }
+
+    @Test func githubRendersAlertsAndMarksWhatItLeavesAsTyped() async throws {
         let web = try await render(.github)
         #expect(try await count(web, "table") == 1)
         #expect(try await count(web, "del") == 1)
@@ -32,11 +38,18 @@ import WebKit
         #expect(try await count(web, ".katex") == 1)
         #expect(try await count(web, "sup.footnote-ref") == 1)
         #expect(try await count(web, "div.alert.note") == 1)
-        // GitHub knows five kinds and no title or fold, so this stays a quote.
-        #expect(try await count(web, "details.alert") == 0)
-        #expect(try await count(web, "mark, .wikilink, div.admonition.warning, ins.critic") == 0)
-        let text = try await web.evaluateJavaScript("document.getElementById('document').textContent") as? String ?? ""
-        for typed in ["==key==", "[[Note|alias]]", "%%hidden%%", "!!! warning", "{++added++}"] { #expect(text.contains(typed)) }
+        #expect(try await count(web, "details.alert, mark, .wikilink, div.admonition.warning, ins.critic") == 0)
+        // GitHub has no folded or custom callouts, so that one is marked rather than drawn as a quote.
+        #expect(try await marked(web) == ["highlights": 1, "wikiLinks": 1, "comments": 1, "alerts": 1, "admonitions": 1, "critic": 1])
+        #expect(try await web.evaluateJavaScript("document.querySelector('.unrendered[data-feature=alerts]').textContent") as? String
+                == "> [!tip]- Folded tip\n> Inside.")
+        #expect(try await web.evaluateJavaScript("document.querySelector('.unrendered[data-feature=highlights]').title") as? String
+                == "GitHub doesn't render highlights")
+        #expect(try await web.evaluateJavaScript("document.querySelector('.unrendered[data-feature=alerts]').title") as? String
+                == "GitHub doesn't render this kind of callout")
+        // A marked passage still leads back to its source.
+        let offset = try await web.evaluateJavaScript("Number(document.querySelector('.unrendered[data-feature=admonitions]').closest('[data-source]').dataset.source)") as? Int
+        #expect(offset == (Self.source as NSString).range(of: "!!! warning").location)
     }
 
     @Test func obsidianFoldsCalloutsAndHidesComments() async throws {
@@ -47,15 +60,18 @@ import WebKit
         #expect(try await count(web, "mark") == 1)
         let text = try await web.evaluateJavaScript("document.getElementById('document').textContent") as? String ?? ""
         #expect(!text.contains("hidden"))
-        #expect(text.contains("!!! warning"))
+        #expect(try await marked(web) == ["admonitions": 1, "critic": 1])
     }
 
-    @Test func mkdocsKeepsOnlyTables() async throws {
+    @Test func mkdocsKeepsTablesAndMarksEverythingElse() async throws {
         let web = try await render(.mkdocs)
         #expect(try await count(web, "table") == 1)
-        #expect(try await count(web, "del, mark, .katex, .alert, .admonition, sup.footnote-ref, input, a[href^=http]") == 0)
-        let text = try await web.evaluateJavaScript("document.getElementById('document').textContent") as? String ?? ""
-        for typed in ["~~gone~~", "$x^2$", "[x] done", "[^1]"] { #expect(text.contains(typed)) }
+        #expect(try await count(web, "del, mark, .katex, .alert, .admonition, sup.footnote-ref, input, a[href^=http], .footnotes") == 0)
+        #expect(try await marked(web) == ["strikethrough": 1, "highlights": 1, "math": 1, "autolinks": 1, "wikiLinks": 1,
+                                          "comments": 1, "taskLists": 1, "alerts": 2, "admonitions": 1, "footnotes": 2, "critic": 1])
+        #expect(try await web.evaluateJavaScript("document.querySelector('.unrendered[data-feature=math]').textContent") as? String == "$x^2$")
+        #expect(try await web.evaluateJavaScript("document.querySelector('.unrendered[data-feature=autolinks]').textContent") as? String
+                == "https://example.com")
     }
 
     @Test func materialMatchesItsRecommendedExtensions() async throws {
@@ -64,25 +80,87 @@ import WebKit
         #expect(try await count(web, "mark") == 1)
         #expect(try await count(web, "ins.critic") == 1)
         #expect(try await count(web, ".katex") == 1)
-        #expect(try await count(web, ".alert, .wikilink") == 0)
+        #expect(try await count(web, "div.alert, .wikilink") == 0)
+        #expect(try await marked(web) == ["alerts": 2, "wikiLinks": 1, "comments": 1, "autolinks": 1])
     }
 
     @Test func commonMarkTurnsOffGFM() async throws {
         let web = try await render(.commonMark)
         #expect(try await count(web, "table, del, input, .katex, sup.footnote-ref") == 0)
         #expect(try await count(web, "h1") == 1)
+        #expect(try await marked(web)["tables"] == 1)
     }
 
-    @Test func unrenderedNamesSyntaxOutsideCode() {
-        let text = "==key== and [[Note]]\n\n```\n!!! note\n```\n\n$x$"
-        #expect(MarkdownFlavour.github.unrendered(in: text) == [.highlights, .wikiLinks])
-        #expect(MarkdownFlavour.mkdocs.unrendered(in: text) == [.math, .highlights, .wikiLinks])
-        #expect(MarkdownFlavour.terso.unrendered(in: text).isEmpty)
-        // CriticMarkup deletions are not strikethrough.
-        #expect(!MarkdownFlavour.mkdocs.unrendered(in: "{~~a~>b~~}").contains(.strikethrough))
+    @Test func tersoMarksNothingAndExportIsUnchanged() async throws {
+        let web = try await render(.terso)
+        #expect(try await marked(web).isEmpty)
     }
 
-    @Test func documentFlavourFollowsTheFile() throws {
+    @Test func revealCyclesThroughOneKind() async throws {
+        let web = try await render(.mkdocs)
+        func reveal(_ feature: String) async throws -> [Int]? { try await web.evaluateJavaScript("tersoReveal('\(feature)')") as? [Int] }
+        #expect(try await reveal("footnotes") == [1, 2])
+        #expect(try await reveal("footnotes") == [2, 2])
+        #expect(try await reveal("footnotes") == [1, 2])
+        #expect(try await reveal("math") == [1, 1])
+        #expect(try await reveal("tables") == [0, 0])
+        #expect(try await count(web, ".unrendered.reveal") == 1)
+    }
+
+    // MARK: Detection
+
+    private func folder(_ files: [String: String]) throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("flavour-\(UUID().uuidString)")
+        for (path, contents) in files {
+            let url = root.appendingPathComponent(path)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if path.hasSuffix("/") { try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true) }
+            else { try contents.write(to: url, atomically: true, encoding: .utf8) }
+        }
+        return root
+    }
+
+    @Test func detectsDocsSitesVaultsAndRemotes() throws {
+        let site = try folder(["mkdocs.yml": "site_name: X\ntheme:\n  # the look\n  name: 'material'\n",
+                               "docs/guide/page.md": "", "README.md": "",
+                               ".git/config": "[remote \"origin\"]\n\turl = git@github.com:me/site.git\n"])
+        defer { try? FileManager.default.removeItem(at: site) }
+        #expect(FlavourDetection.detect(for: site.appendingPathComponent("docs/guide/page.md"))
+                == FlavourDetection(flavour: .material, reason: "mkdocs.yml with Material"))
+        // A README beside mkdocs.yml is outside docs_dir: GitHub shows it.
+        #expect(FlavourDetection.detect(for: site.appendingPathComponent("README.md"))?.flavour == .github)
+
+        let plain = try folder(["mkdocs.yaml": "docs_dir: 'pages/' # source\ntheme: readthedocs\n", "pages/a.md": ""])
+        defer { try? FileManager.default.removeItem(at: plain) }
+        #expect(FlavourDetection.detect(for: plain.appendingPathComponent("pages/a.md"))?.flavour == .mkdocs)
+
+        let proper = try folder(["properdocs.yml": "site_name: P\n", "docs/a.md": ""])
+        defer { try? FileManager.default.removeItem(at: proper) }
+        #expect(FlavourDetection.detect(for: proper.appendingPathComponent("docs/a.md"))?.flavour == .properdocs)
+
+        let vault = try folder([".obsidian/": "", "Daily/today.md": ""])
+        defer { try? FileManager.default.removeItem(at: vault) }
+        #expect(FlavourDetection.detect(for: vault.appendingPathComponent("Daily/today.md"))
+                == FlavourDetection(flavour: .obsidian, reason: "Obsidian vault"))
+
+        // The nearest folder decides: a repository without a known host stops the search.
+        let nested = try folder([".obsidian/": "", "code/.git/config": "[core]\n", "code/notes.md": "",
+                                 "lab/.git/config": "[remote \"origin\"]\n\turl = https://gitlab.example.org/x.git\n", "lab/n.md": ""])
+        defer { try? FileManager.default.removeItem(at: nested) }
+        #expect(FlavourDetection.detect(for: nested.appendingPathComponent("code/notes.md")) == nil)
+        #expect(FlavourDetection.detect(for: nested.appendingPathComponent("lab/n.md"))?.flavour == .gitlab)
+    }
+
+    @Test func materialThemeIsReadFromEitherForm() {
+        #expect(FlavourDetection.usesMaterial("theme: material\n"))
+        #expect(FlavourDetection.usesMaterial("theme:\n  features:\n    - navigation.tabs\n\n  name: \"material\"\n"))
+        #expect(!FlavourDetection.usesMaterial("theme:\n  name: readthedocs\nextra:\n  name: material\n"))
+        #expect(!FlavourDetection.usesMaterial("site_name: material\n"))
+        #expect(FlavourDetection.docsDirectory(in: "site_name: x\n") == "docs")
+        #expect(FlavourDetection.docsDirectory(in: "docs_dir: src/docs/\n") == "src/docs")
+    }
+
+    @Test func choiceWinsOverDetectionAndDefaults() throws {
         let defaults = try #require(UserDefaults(suiteName: "MarkdownFlavourTests"))
         defer { defaults.removePersistentDomain(forName: "MarkdownFlavourTests") }
         let url = URL(fileURLWithPath: "/tmp/notes/readme.md")
@@ -96,5 +174,87 @@ import WebKit
         #expect(reopened.standard == .obsidian)
         reopened.choose(nil, for: url)
         #expect(MarkdownFlavours(defaults: defaults).flavour(for: url) == nil)
+
+        let model = WorkspaceModel()
+        model.chosenFlavour = .material
+        #expect(model.markdownFlavour == .material)
+        model.chosenFlavour = nil
+        #expect(model.markdownFlavour == model.automaticFlavour)
+    }
+
+    // MARK: Conversion
+
+    private func converted(_ text: String, _ flavour: MarkdownFlavour) -> String {
+        guard let change = MarkdownConversion.replacement(for: MarkdownConversion.edits(in: text, to: flavour), in: text) else { return text }
+        return (text as NSString).replacingCharacters(in: change.range, with: change.text)
+    }
+
+    @Test func admonitionsBecomeCalloutsAndBack() {
+        let admonition = "Intro.\n\n!!! warning \"Mind the gap\"\n    Body.\n\n    More.\n\nAfter."
+        #expect(converted(admonition, .github) == "Intro.\n\n> [!WARNING]\n> **Mind the gap**\n> Body.\n>\n> More.\n\nAfter.")
+        #expect(converted(admonition, .gitlab) == "Intro.\n\n> [!WARNING] Mind the gap\n> Body.\n>\n> More.\n\nAfter.")
+        #expect(converted("???+ tip\n    Open", .obsidian) == "> [!tip]+\n> Open")
+        #expect(converted("!!! bug\n    Ouch", .github) == "> [!CAUTION]\n> Ouch")
+        #expect(converted("> [!CAUTION]\n> Hot.\n\nNext", .material) == "!!! danger\n    Hot.\n\nNext")
+        #expect(converted("> [!note]- Later \"on\"\n> x\n>\n> y", .material) == "??? note \"Later 'on'\"\n    x\n\n    y")
+        // A callout GitHub can't draw is put in GitHub's form; one it can is left alone.
+        #expect(converted("> [!tip]- Folded tip\n> Inside.", .github) == "> [!TIP]\n> **Folded tip**\n> Inside.")
+        #expect(converted("> [!NOTE]\n> Fine.", .github) == "> [!NOTE]\n> Fine.")
+        #expect(MarkdownConversion.edits(in: admonition, to: .material).isEmpty)
+        #expect(MarkdownConversion.edits(in: admonition, to: .terso).isEmpty)
+    }
+
+    @Test func conversionKeepsLineEndingsAndLeavesCodeAlone() {
+        #expect(converted("!!! note\r\n    Body\r\nAfter", .github) == "> [!NOTE]\r\n> Body\r\nAfter")
+        let fenced = "```\n!!! note\n    Body\n```\n\n`%%x%%` and $a [[b]]$ and %%y%%"
+        #expect(converted(fenced, .github) == "```\n!!! note\n    Body\n```\n\n`%%x%%` and $a [[b]]$ and <!--y-->")
+        #expect(converted("%%a -- b%%", .github) == "%%a -- b%%")
+    }
+
+    @Test func wikiLinksBecomeLinks() {
+        #expect(converted("[[My Note#Part One|see]] ![[pic.png]] ![[Other]] [[Plain]] [[#Local]]", .github)
+                == "[see](My%20Note.md#part-one) ![](pic.png) ![[Other]] [Plain](Plain.md) [Local](#local)")
+    }
+
+    @Test func pythonMarkdownGetsHTMLForHighlightsAndStrikethrough() {
+        #expect(converted("==a== ~~b~~ {==c==} {~~d~>e~~}", .mkdocs) == "<mark>a</mark> <del>b</del> {==c==} {~~d~>e~~}")
+        // GitHub may not keep <mark>, so highlights stay for the writer to decide.
+        #expect(converted("==a==", .github) == "==a==")
+    }
+
+    @Test func summaryNamesEachRewrite() {
+        let edits = MarkdownConversion.edits(in: "!!! note\n    a\n\n!!! tip\n    b\n\n[[X]]", to: .github)
+        #expect(MarkdownConversion.summary(of: edits, for: .github) == "2 admonitions as callouts and 1 wiki link as a link")
+        #expect(MarkdownConversion.replacement(for: [], in: "") == nil)
     }
 }
+
+@Suite(.serialized) @MainActor struct MarkdownConversionEditorTests {
+    @Test func convertIsOneUndoableEditFromPreview() async throws {
+        _ = NSApplication.shared
+        let document = TabDocument(), workspace = TabWorkspace()
+        defer { document.close(); workspace.close() }
+        let original = "# Notes\n\n!!! tip \"Speed\"\n    Twice as fast.\n\nSee [[Benchmarks]] %%todo%%.\n"
+        document.contents.text = original
+        workspace.insert(document)
+        let host = document.hostedEditor()
+        host.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
+        host.layoutSubtreeIfNeeded()
+        let deadline = ContinuousClock.now + .seconds(3)
+        while document.model.editor == nil && ContinuousClock.now < deadline { await Task.yield() }
+        _ = try #require(document.model.editor)
+        let undo = try #require(document.undoManager)
+        document.model.renderMode = .preview
+        document.model.convertMarkdown(to: .github)
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(document.contents.text == "# Notes\n\n> [!TIP]\n> **Speed**\n> Twice as fast.\n\nSee [Benchmarks](Benchmarks.md) <!--todo-->.\n")
+        #expect(undo.undoActionName == "Convert for GitHub")
+        undo.undo()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(document.contents.text == original)
+        // Nothing to convert leaves the document and its undo stack alone.
+        document.model.convertMarkdown(to: .terso)
+        #expect(!undo.canUndo || undo.undoActionName != "Convert for Terso")
+    }
+}
+
