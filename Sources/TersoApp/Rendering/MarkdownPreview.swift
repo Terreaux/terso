@@ -22,17 +22,20 @@ extension EditorFont {
 struct MarkdownPreview: NSViewRepresentable {
     let source: String
     let model: WorkspaceModel
+    var bridge: PreviewBridge? = nil
     @Environment(\.colorScheme) private var scheme
 
-    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
+    func makeCoordinator() -> Coordinator { Coordinator(model: model, bridge: bridge) }
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.userContentController.add(context.coordinator, name: "editSource")
+        config.userContentController.add(context.coordinator, name: "unrendered")
         config.setURLSchemeHandler(PreviewImages(directory: model.fileURL?.deletingLastPathComponent()), forURLScheme: "terso-image")
         let view = WKWebView(frame: .zero, configuration: config)
         view.setValue(false, forKey: "drawsBackground")
         view.navigationDelegate = context.coordinator
+        bridge?.webView = view
         view.setAccessibilityLabel("Rendered Markdown. Double-click a passage to edit its source.")
         return view
     }
@@ -44,6 +47,8 @@ struct MarkdownPreview: NSViewRepresentable {
         let key = "\(scheme):\(flavour.rawValue):\(prefs.theme.rawValue):\(config.font.rawValue):\(config.fontSize):\(config.lineSpacing):\(width):\(source)"
         guard key != context.coordinator.key else { return }
         context.coordinator.key = key
+        // The new page reports its own counts; clear the old ones after this update.
+        DispatchQueue.main.async { [bridge] in bridge?.unrendered = nil; bridge?.position = nil }
         view.loadHTMLString(MarkdownPreviewHTML.document(source: source, dark: scheme == .dark,
                                                          fontSize: config.fontSize, ink: prefs.theme.cssInk,
                                                          selection: model.editor?.selection.location ?? 0,
@@ -54,13 +59,22 @@ struct MarkdownPreview: NSViewRepresentable {
     }
     static func dismantleNSView(_ view: WKWebView, coordinator: Coordinator) {
         view.configuration.userContentController.removeScriptMessageHandler(forName: "editSource")
+        view.configuration.userContentController.removeScriptMessageHandler(forName: "unrendered")
         view.stopLoading()
     }
     final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
         let model: WorkspaceModel
+        let bridge: PreviewBridge?
         var key = ""
-        init(model: WorkspaceModel) { self.model = model }
+        init(model: WorkspaceModel, bridge: PreviewBridge?) { self.model = model; self.bridge = bridge }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            if message.name == "unrendered" {
+                let counts = message.body as? [String: Int] ?? [:]
+                bridge?.unrendered = Dictionary(uniqueKeysWithValues: counts.compactMap { key, count in
+                    MarkdownFeature(rawValue: key).map { ($0, count) }
+                })
+                return
+            }
             guard let index = message.body as? Int, let snapshot = model.editor?.currentSnapshot,
                   index >= 0, index <= snapshot.utf16Length else { return }
             model.editor?.reveal(TextSpan(location: index, length: 0), select: true)
@@ -105,8 +119,8 @@ enum MarkdownPreviewHTML {
         let mermaid = features.contains(.mermaid) && !MermaidPresentation.blocks(in: source).isEmpty
         let mermaidScripts = mermaid ? MermaidPresentation.scripts : ""
         let ns = source as NSString
-        // A flavour without math leaves `$…$` to Markdown, as its platform does.
-        let regions = features.contains(.math) ? MathPresentation.regions(in: source) : []
+        // A flavour without math still finds it, to draw it as typed and marked.
+        let regions = MathPresentation.regions(in: source)
         let marker = "TERSOMATH" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
         var prepared = source
         for (index, region) in regions.enumerated().reversed() {
@@ -123,7 +137,8 @@ enum MarkdownPreviewHTML {
             let offset = region.range.location + delta
             delta += token.utf16.count - region.range.length
             return ["token":token, "offset":offset, "source":region.range.location, "length":region.range.length,
-                    "formula":ns.substring(with: region.contentRange.nsRange), "display":region.kind == .displayMath]
+                    "formula":ns.substring(with: region.contentRange.nsRange), "display":region.kind == .displayMath,
+                    "raw":ns.substring(with: region.range.nsRange)]
         }
         return #"""
         <!doctype html><html><head><meta charset="utf-8">
@@ -157,6 +172,11 @@ enum MarkdownPreviewHTML {
         .admonition:is(.danger,.error,.failure,.fail,.missing,.bug) {--tone:#e5484d;}
         .admonition:is(.example) {--tone:#7c4dff;} .admonition:is(.quote,.cite) {--tone:#8a8a8a;}
         .admonition.alert.important {--tone:#8957e5;} .admonition.alert.caution {--tone:#e5484d;}
+        .unrendered {font:.86em/1.5 ui-monospace,monospace; white-space:pre-wrap; color:\#(dark ? "#f3c77a" : "#8a5300"); background:\#(dark ? "#e8a33d24" : "#ffb43a24"); border-bottom:1.5px dotted \#(dark ? "#e8a33d" : "#d08a1c"); border-radius:2px; padding:0 2px; cursor:help;}
+        .unrendered-block {display:block; margin:1em 0; padding:8px 12px; border-bottom:0; border-left:3px solid \#(dark ? "#e8a33d" : "#d08a1c"); border-radius:0 4px 4px 0;}
+        pre.unrendered {font:inherit; padding:16px; cursor:help;} pre.unrendered code {font: .88em ui-monospace,monospace;}
+        .unrendered.reveal {outline:2px solid \#(dark ? "#e8a33d" : "#d08a1c"); outline-offset:2px; transition:outline-color .9s ease-out .6s;}
+        .unrendered.reveal.settle {outline-color:transparent;}
         .wikilink {color:\#(dark ? "#8cbcff" : "#1565c0"); text-decoration:underline dotted;}
         .footnote-ref {line-height:0;} .footnote-ref a, .footnote-back {text-decoration:none;}
         .footnotes {font-size:.9em; color:\#(dark ? "#bbb" : "#555");} .footnotes li {scroll-margin-top:32px;}
@@ -188,12 +208,17 @@ enum MarkdownPreviewHTML {
             const section=document.createElement('section'); section.dataset.source=sourceOffset(offset);
             if (token.type==='footnoteDefinition' && !notes.has(token.id)) notes.set(token.id, section.dataset.source);
             const group=[token]; group.links=tokens.links;
-            if (token.type==='code' && \#(features.contains(.mermaid)) && /^mermaid(?:\s|$)/i.test(token.lang?.trim() || '')) {
+            const mermaid=token.type==='code' && /^mermaid(?:\s|$)/i.test(token.lang?.trim() || '');
+            if (mermaid && \#(features.contains(.mermaid))) {
                 const diagram=document.createElement('div'); diagram.className='mermaid-diagram';
                 const fallback=document.createElement('pre'); const code=document.createElement('code');
                 code.textContent=token.text; fallback.append(code); diagram.append(fallback); section.append(diagram);
             } else {
                 section.innerHTML=DOMPurify.sanitize(marked.parser(group), purify);
+                // The platform shows the diagram's source as a code block.
+                const pre=mermaid && section.querySelector('pre');
+                if (pre) { pre.classList.add('unrendered'); pre.dataset.feature='mermaid';
+                           pre.title=`\#(flavour.title) doesn't render Mermaid diagrams`; }
             }
             if (section.innerHTML) root.append(section);
             offset+=token.raw.length;
@@ -236,12 +261,29 @@ enum MarkdownPreviewHTML {
                 const r=replacements[Number(match[1])]; const math=document.createElement('span'); math.dataset.source=r.source;
                 let formula=r.formula.replace(/\\label\{[^}]*\}/g,'');
                 if(formula.includes('&') || formula.includes('\\\\')) formula='\\begin{aligned}'+formula+'\\end{aligned}';
-                try { katex.render(formula,math,{displayMode:r.display,macros:{...macros},trust:false,throwOnError:true,maxExpand:200,maxSize:20}); }
+                if (!\#(features.contains(.math))) math.innerHTML=TersoMarkdown.unrendered('math',r.raw);
+                else try { katex.render(formula,math,{displayMode:r.display,macros:{...macros},trust:false,throwOnError:true,maxExpand:200,maxSize:20}); }
                 catch { math.textContent=r.formula; math.className='math-source'; }
                 fragment.append(math); last=pattern.lastIndex;
             }
             if(last) {fragment.append(document.createTextNode(node.textContent.slice(last))); node.replaceWith(fragment);}
         }
+        // What the platform leaves as typed, counted for the compatibility bar.
+        const unrenderedCounts={};
+        root.querySelectorAll('.unrendered').forEach(el => unrenderedCounts[el.dataset.feature]=(unrenderedCounts[el.dataset.feature]||0)+1);
+        window.webkit?.messageHandlers?.unrendered?.postMessage(unrenderedCounts);
+        // Each call brings the next one of a kind into view, briefly outlined.
+        const revealed={};
+        window.tersoReveal = feature => {
+            const all=[...root.querySelectorAll(`.unrendered[data-feature="${feature}"]`)];
+            if (!all.length) return [0,0];
+            const index=((revealed[feature] ?? -1)+1) % all.length; revealed[feature]=index;
+            const el=all[index]; el.scrollIntoView({block:'center',behavior:'smooth'});
+            root.querySelectorAll('.unrendered.reveal').forEach(other => other.classList.remove('reveal','settle'));
+            void el.offsetWidth; el.classList.add('reveal');
+            setTimeout(() => el.classList.add('settle'), 50);
+            return [index+1, all.length];
+        };
         root.addEventListener('dblclick', event => {
             if(event.target.closest('a')) return;
             const block=event.target.closest('[data-source]');
