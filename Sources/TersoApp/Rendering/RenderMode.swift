@@ -37,18 +37,33 @@ enum MixedElement: String, CaseIterable, Identifiable {
     }
     static let defaults: [MixedElement] = allCases
 
+    /// The syntax this group draws, where a Markdown flavour may not have it.
+    var feature: MarkdownFeature? {
+        switch self {
+        case .math: .math
+        case .tables: .tables
+        case .footnotes: .footnotes
+        case .admonitions: .admonitions
+        case .critic: .critic
+        default: nil
+        }
+    }
+
     static let addedLater: [MixedElement] = [.code, .blocks, .tables, .footnotes, .citations, .comments, .admonitions, .critic]
 
-    /// Extension syntax (Pandoc, Obsidian) is offered only when the document uses it.
-    @MainActor static func available(latex: Bool, text: String) -> [MixedElement] {
+    /// Extension syntax (Pandoc, Obsidian) is offered only when the document
+    /// uses it, and only when the Markdown flavour's platform renders it:
+    /// Mixed draws what will be published.
+    @MainActor static func available(latex: Bool, text: String, flavour: MarkdownFlavour = .terso) -> [MixedElement] {
         if latex { return [.math, .headings, .emphasis] + LaTeXMixedPresentation.elements(in: text) }
         let all = NSRange(location: 0, length: (text as NSString).length)
         func uses(_ pattern: NSRegularExpression) -> Bool { pattern.firstMatch(in: text, range: all) != nil }
         return allCases.filter { element in
-            switch element {
+            if let feature = element.feature, !flavour.features.contains(feature) { return false }
+            return switch element {
             case .footnotes: uses(MarkdownStyler.footnote)
             case .citations: uses(PandocSyntax.citation) || uses(PandocSyntax.label)
-            case .comments: uses(MarkdownStyler.highlight) || uses(MarkdownStyler.comment)
+            case .comments: (flavour.features.contains(.highlights) && uses(MarkdownStyler.highlight)) || uses(MarkdownStyler.comment)
             case .admonitions: uses(MarkdownStyler.admonition)
             case .critic: MarkdownStyler.critic.contains { uses($0) }
             default: true
@@ -121,14 +136,15 @@ enum MathPresentation {
 
 /// Links display their label (or wiki alias), revealing source on the editing line.
 @MainActor enum LinkPresentation {
-    static func hiddenSyntax(in text: String, selection: NSRange) -> [NSRange] {
+    static func hiddenSyntax(in text: String, selection: NSRange, flavour: MarkdownFlavour = .terso) -> [NSRange] {
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
         let syntax = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text))
         let protected = syntax.regions.filter { [.inlineMath, .displayMath, .code].contains($0.kind) }.map(\.range.nsRange)
             + [MarkdownSyntax.frontMatter(in: text)].compactMap { $0 }
         var hidden: [NSRange] = []
-        for pattern in [MarkdownStyler.link, MarkdownStyler.wikiLink] {
+        // Wiki links stay as typed where the platform has none.
+        for pattern in flavour.features.contains(.wikiLinks) ? [MarkdownStyler.link, MarkdownStyler.wikiLink] : [MarkdownStyler.link] {
             for match in pattern.matches(in: text, range: all) {
                 guard !MathPresentation.showsSource(match.range, selection: selection, text: text),
                       !protected.contains(where: { NSIntersectionRange($0, match.range).length > 0 }) else { continue }
@@ -154,7 +170,8 @@ enum MathPresentation {
 /// emphasis, code, highlights, comments, CriticMarkup braces, citation `@`s
 /// and cross-reference labels. Footnotes are drawn by MixedPresentation.
 @MainActor enum MarkerPresentation {
-    static func hiddenSyntax(in text: String, selection: NSRange, latex: Bool, elements: Set<MixedElement>) -> [NSRange] {
+    static func hiddenSyntax(in text: String, selection: NSRange, latex: Bool, elements: Set<MixedElement>,
+                             flavour: MarkdownFlavour = .terso) -> [NSRange] {
         let hiding: Set<MixedElement> = [.headings, .emphasis, .code, .comments, .citations, .critic, .blocks]
         guard !elements.isDisjoint(with: hiding) else { return [] }
         let ns = text as NSString
@@ -207,7 +224,8 @@ enum MathPresentation {
         let critics = MarkdownStyler.critic.flatMap { $0.matches(in: text, range: all).map(\.range) }
         if elements.contains(.emphasis) {
             each(MarkdownStyler.underline) { wrap($0, content: $0.range(at: 2), closing: $0.range(at: 3).length, protected: prose) }
-            for pattern in [MarkdownStyler.bold, MarkdownStyler.italic, MarkdownStyler.strike] {
+            // Strikethrough keeps its tildes where the platform has none.
+            for pattern in [MarkdownStyler.bold, MarkdownStyler.italic] + (flavour.features.contains(.strikethrough) ? [MarkdownStyler.strike] : []) {
                 each(pattern) { m in
                     guard pattern !== MarkdownStyler.strike || clear(m.range, of: critics) else { return }
                     wrap(m, content: m.range(at: 2), closing: m.range(at: 1).length, protected: prose)
@@ -222,9 +240,13 @@ enum MathPresentation {
             }
         }
         if elements.contains(.comments) {
-            each(MarkdownStyler.highlight) { wrap($0, content: $0.range(at: 2), closing: 2, protected: prose + critics) }
+            if flavour.features.contains(.highlights) {
+                each(MarkdownStyler.highlight) { wrap($0, content: $0.range(at: 2), closing: 2, protected: prose + critics) }
+            }
             // A comment disappears line by line, so its lines stay apart.
-            for comment in comments where !revealed(comment) && clear(comment, of: kinds([.code]) + fences + frontMatter) {
+            // `%%` comments are Obsidian's; elsewhere they are published as typed.
+            let hideable = comments.filter { flavour.features.contains(.comments) || ns.character(at: $0.location) != 37 }
+            for comment in hideable where !revealed(comment) && clear(comment, of: kinds([.code]) + fences + frontMatter) {
                 var location = comment.location
                 while location < comment.upperBound {
                     let line = ns.lineRange(for: NSRange(location: location, length: 0))
