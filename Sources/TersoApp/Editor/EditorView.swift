@@ -19,7 +19,7 @@ struct EditorConfig: Equatable {
     var theme: EditorTheme
     var mixedRendered: Set<MixedElement>
     /// Where this Markdown is published; Mixed draws only what that renders.
-    var flavour: MarkdownFlavour
+    var flavour: MarkdownDialect
     /// Manutius: book pages, justified and hyphenated, at a book measure,
     /// set as the book design asks.
     var book: BookDesign?
@@ -39,7 +39,7 @@ struct EditorConfig: Equatable {
         columnWidth = prefs.columnWidth; syntax = prefs.syntax; smartQuotes = prefs.smartQuotes
         focusMode = model.focusMode; typewriter = model.typewriter; dimInactive = prefs.dimInactiveParagraphs
         theme = prefs.theme; mixedRendered = prefs.mixedRendered
-        flavour = latex ? .terso : model.markdownFlavour
+        flavour = latex ? .terso : model.markdownDialect
         book = model.manutius && !latex ? model.bookDesign : nil
         latexBook = model.manutius && latex
         pageScale = prefs.fontSize

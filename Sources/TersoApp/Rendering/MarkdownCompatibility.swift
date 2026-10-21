@@ -14,10 +14,10 @@ enum MarkdownCompatibility {
 
     static let bareLink = MarkdownStyler.re(#"(?<![(<\[\w/@.])(?:https?://|www\.)[^\s<>()\[\]]*[^\s<>()\[\].,;:!?'"*_~]"#, [])
 
-    static func marks(in text: String, flavour: MarkdownFlavour) -> [Mark] {
+    static func marks(in text: String, flavour: MarkdownDialect) -> [Mark] {
         let features = flavour.features
-        // GitHub and GitLab render some callouts, so theirs are checked one by one.
-        let strictCallouts = [MarkdownFlavour.github, .gitlab].contains(flavour)
+        // GitHub-style callouts come in five kinds, so each is checked.
+        let strictCallouts = features.contains(.alerts) && flavour.alertStyle != "obsidian"
         guard features.count < MarkdownFeature.allCases.count || strictCallouts else { return [] }
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)

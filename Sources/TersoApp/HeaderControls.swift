@@ -200,7 +200,7 @@ struct ViewControls: View {
     }
 
     private var mixedToggles: some View {
-        ForEach(MixedElement.available(latex: latex, text: source, flavour: model.markdownFlavour)) { element in
+        ForEach(MixedElement.available(latex: latex, text: source, flavour: model.markdownDialect)) { element in
             Toggle(element.title, isOn: Binding(
                 get: { model.prefs.mixedRendered.contains(element) },
                 set: { on in
