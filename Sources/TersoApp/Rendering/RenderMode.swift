@@ -54,7 +54,7 @@ enum MixedElement: String, CaseIterable, Identifiable {
     /// Extension syntax (Pandoc, Obsidian) is offered only when the document
     /// uses it, and only when the Markdown flavour's platform renders it:
     /// Mixed draws what will be published.
-    @MainActor static func available(latex: Bool, text: String, flavour: MarkdownFlavour = .terso) -> [MixedElement] {
+    @MainActor static func available(latex: Bool, text: String, flavour: MarkdownDialect = .terso) -> [MixedElement] {
         if latex { return [.math, .headings, .emphasis] + LaTeXMixedPresentation.elements(in: text) }
         let all = NSRange(location: 0, length: (text as NSString).length)
         func uses(_ pattern: NSRegularExpression) -> Bool { pattern.firstMatch(in: text, range: all) != nil }
@@ -136,7 +136,7 @@ enum MathPresentation {
 
 /// Links display their label (or wiki alias), revealing source on the editing line.
 @MainActor enum LinkPresentation {
-    static func hiddenSyntax(in text: String, selection: NSRange, flavour: MarkdownFlavour = .terso) -> [NSRange] {
+    static func hiddenSyntax(in text: String, selection: NSRange, flavour: MarkdownDialect = .terso) -> [NSRange] {
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
         let syntax = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text))
@@ -171,7 +171,7 @@ enum MathPresentation {
 /// and cross-reference labels. Footnotes are drawn by MixedPresentation.
 @MainActor enum MarkerPresentation {
     static func hiddenSyntax(in text: String, selection: NSRange, latex: Bool, elements: Set<MixedElement>,
-                             flavour: MarkdownFlavour = .terso) -> [NSRange] {
+                             flavour: MarkdownDialect = .terso) -> [NSRange] {
         let hiding: Set<MixedElement> = [.headings, .emphasis, .code, .comments, .citations, .critic, .blocks]
         guard !elements.isDisjoint(with: hiding) else { return [] }
         let ns = text as NSString
