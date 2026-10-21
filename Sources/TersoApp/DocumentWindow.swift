@@ -112,6 +112,13 @@ struct DocumentWindow: View {
                     IssueRail(model: model).padding(.trailing, 16)
                 }
             }
+            .overlay(alignment: .topLeading) {
+                // Mixed draws Markdown as its platform will; Preview shows the
+                // same chip beside what that platform won't render.
+                if !latex, !model.manutius, !model.focusMode, model.renderMode == .mixed {
+                    FlavourChip(model: model).padding(12).transition(.opacity)
+                }
+            }
             .overlay(alignment: .top) {
                 if model.manutius, model.documentBook == nil, !model.bookSetupDeclined, model.renderMode != .preview {
                     BookSetupBanner(model: model).transition(.move(edge: .top).combined(with: .opacity))

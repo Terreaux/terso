@@ -31,14 +31,21 @@ struct MarkdownPreviewPane: View {
 
     var body: some View {
         MarkdownPreview(source: source, model: model, bridge: bridge)
-            .overlay(alignment: .topTrailing) { FlavourChip(model: model).padding(12) }
-            .overlay(alignment: .bottom) {
-                CompatibilityBar(model: model, source: source, bridge: bridge).padding(.bottom, 14)
+            // The platform and what it won't render read as one line, clear
+            // of the floating toolbar at the bottom.
+            .overlay(alignment: .topLeading) {
+                HStack(alignment: .center, spacing: 8) {
+                    FlavourChip(model: model)
+                    CompatibilityBar(model: model, source: source, bridge: bridge)
+                }
+                .padding(12)
             }
     }
 }
 
-/// "Preview as GitHub · GitHub remote", choosing the flavour this file is drawn in.
+/// "Rendering as GitHub", at the top left of a Markdown document in Mixed
+/// and Preview: the platform both modes draw it as, and the choice of it.
+/// Where the choice came from is in its help.
 struct FlavourChip: View {
     let model: WorkspaceModel
 
@@ -49,7 +56,7 @@ struct FlavourChip: View {
 
     var body: some View {
         Menu {
-            Picker("Preview As", selection: Binding(get: { model.chosenFlavour }, set: { model.chosenFlavour = $0 })) {
+            Picker("Render As", selection: Binding(get: { model.chosenFlavour }, set: { model.chosenFlavour = $0 })) {
                 Text("Automatic (\(model.automaticFlavour.title), \(model.flavourDetection?.reason ?? "Settings"))")
                     .tag(MarkdownFlavour?.none)
                 Divider()
@@ -58,16 +65,20 @@ struct FlavourChip: View {
             .pickerStyle(.inline)
         } label: {
             // A menu's label is drawn as one title, so it is one string.
-            Text("Preview as \(model.markdownFlavour.title)")
+            Text("Rendering as \(model.markdownFlavour.title)")
         }
         .menuStyle(.button)
         .menuIndicator(.visible)
         .buttonStyle(.accessoryBar)
         .controlSize(.small)
         .fixedSize()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6))
+        .padding(.horizontal, 4)
+        // The bar beside it in Preview is as tall, so the chip stays put between modes.
+        .frame(height: CompatibilityBar.height)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(.separator, lineWidth: 0.5))
         .help("\(model.markdownFlavour.help). \(origin).")
-        .accessibilityLabel("Preview as \(model.markdownFlavour.title)")
+        .accessibilityLabel("Rendering as \(model.markdownFlavour.title)")
         .accessibilityHint(origin)
     }
 }
@@ -75,6 +86,7 @@ struct FlavourChip: View {
 /// What the platform won't render, a pill per kind that finds each one,
 /// and a conversion where the platform has its own form.
 struct CompatibilityBar: View {
+    static let height: CGFloat = 30
     let model: WorkspaceModel
     let source: String
     let bridge: PreviewBridge
@@ -100,9 +112,9 @@ struct CompatibilityBar: View {
                 }
             }
             .font(.system(size: 12))
+            .frame(height: Self.height)
             .background(.regularMaterial, in: Capsule())
             .overlay(Capsule().strokeBorder(.separator, lineWidth: 0.5))
-            .padding(.horizontal, 24)
             .animation(.snappy(duration: 0.2), value: missing.map(\.count))
         }
     }
