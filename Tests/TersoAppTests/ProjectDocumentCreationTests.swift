@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import AppKit
 import Testing
+import TersoDocument
 @testable import TersoApp
 
 @Suite(.serialized) @MainActor struct ProjectDocumentCreationTests {
@@ -17,7 +18,8 @@ import Testing
         let text = document.contents.text
         let url = directory.appendingPathComponent("Draft.\(kind.fileExtension)")
         try await ProjectDocumentCreation.save(document, to: url, in: project.id, store: store)
-        #expect(try String(contentsOf: url, encoding: .utf8) == text)
+        let saved = kind == .terso ? try TersoPackage.decode(Data(contentsOf: url)).text : try String(contentsOf: url, encoding: .utf8)
+        #expect(saved == text)
         #expect(document.fileURL == url)
         #expect(!document.isDocumentEdited)
         #expect(store.contains(url, in: project.id))

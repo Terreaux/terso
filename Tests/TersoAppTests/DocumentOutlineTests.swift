@@ -106,19 +106,26 @@ struct DocumentOutlineTests {
         undo.beginUndoGrouping()
         editor.addHeading(under: parent)
         undo.endUndoGrouping()
-        try await Task.sleep(for: .milliseconds(50))
+        try await eventually { document.isDocumentEdited && document.model.documentOutline.headings.count == 3 }
         #expect(document.contents.text == (original as NSString).replacingCharacters(in: NSRange(location: edit.location, length: 0), with: edit.text))
         #expect(editor.selection.nsRange == edit.selection)
-        #expect(document.isDocumentEdited)
-        #expect(document.model.documentOutline.headings.count == 3)
         undo.undo()
-        try await Task.sleep(for: .milliseconds(50))
+        try await eventually { document.model.documentOutline.headings.count == 2 }
         #expect(document.contents.text == original)
-        #expect(document.model.documentOutline.headings.count == 2)
         undo.redo()
-        try await Task.sleep(for: .milliseconds(50))
+        try await eventually { document.model.documentOutline.headings.count == 3 }
         #expect(document.contents.text.contains("Subsection 1"))
-        #expect(document.model.documentOutline.headings.count == 3)
         #expect(other.contents.text == "Untouched.")
+    }
+
+    /// NSDocument counts the change after the undo group closes, and the
+    /// outline reads the model's current editor, which SwiftUI may rebuild
+    /// while other suites drive the main actor. Wait for both, not a delay.
+    private func eventually(_ condition: () -> Bool) async throws {
+        let deadline = ContinuousClock.now + .seconds(3)
+        while !condition() {
+            if ContinuousClock.now >= deadline { Issue.record("Timed out waiting for the outline"); return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
     }
 }
