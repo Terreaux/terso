@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import SwiftUI
 import TersoCore
+import TersoDocument
 
 enum WritingStatsTab: String, CaseIterable, Identifiable {
     case overview = "Overview", stories = "Stories", awards = "Awards"
@@ -396,9 +397,12 @@ private struct StoriesTab: View {
         }
         return await Task.detached(priority: .utility) {
             var out: [String: DocumentStatistics] = [:]
-            for url in urls where ["md", "markdown", "txt", "text", "tex"].contains(url.pathExtension.lowercased()) {
+            for url in urls where ["md", "markdown", "txt", "text", "tex", "terso"].contains(url.pathExtension.lowercased()) {
                 let key = WritingStats.key(url)
-                guard let text = live[key] ?? (try? String(contentsOf: url, encoding: .utf8)) else { continue }
+                let saved = url.pathExtension.lowercased() == "terso"
+                    ? (try? TersoPackage.decode(Data(contentsOf: url)).text)
+                    : (try? String(contentsOf: url, encoding: .utf8))
+                guard let text = live[key] ?? saved else { continue }
                 let snapshot = DocumentSnapshot(revision: DocumentRevision(0), text: text, fileName: url.lastPathComponent)
                 out[key] = DocumentStatistics(prose: ProseText(snapshot))
             }

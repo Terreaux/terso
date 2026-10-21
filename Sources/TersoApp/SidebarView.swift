@@ -248,7 +248,7 @@ struct SidebarView: View {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = ["md", "markdown", "txt", "tex", "latex"].compactMap { UTType(filenameExtension: $0) }
+        panel.allowedContentTypes = ["md", "markdown", "txt", "tex", "latex", "terso"].compactMap { UTType(filenameExtension: $0) }
         panel.prompt = "Add to \(project.name)"
         guard panel.runModal() == .OK else { return }
         store.add(panel.urls, to: project.id)
@@ -284,7 +284,7 @@ struct SidebarView: View {
         }
         guard let dir = fileURL?.deletingLastPathComponent() else { files = []; return }
         let items = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
-        files = items.filter { ["md", "markdown", "txt", "tex", "latex"].contains($0.pathExtension.lowercased()) }
+        files = items.filter { ["md", "markdown", "txt", "tex", "latex", "terso"].contains($0.pathExtension.lowercased()) }
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
     }
 }

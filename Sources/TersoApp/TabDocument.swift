@@ -31,7 +31,9 @@ final class TabDocument: NSDocument, ObservableObject, Identifiable {
     override class func canConcurrentlyReadDocuments(ofType typeName: String) -> Bool { false }
 
     override func read(from data: Data, ofType typeName: String) throws {
-        let (text, codec) = try PlainTextCodec.decode(data)
+        let (text, codec) = typeName == UTType.tersoDocument.identifier
+            ? (try TersoPackage.decode(data).text, PlainTextCodec())
+            : try PlainTextCodec.decode(data)
         MainActor.assumeIsolated {
             contents = MarkdownDocument(text: text)
             contents.codec = codec
@@ -48,15 +50,19 @@ final class TabDocument: NSDocument, ObservableObject, Identifiable {
         }
     }
 
-    override func data(ofType typeName: String) throws -> Data { try contents.codec.encode(contents.text) }
+    override func data(ofType typeName: String) throws -> Data {
+        typeName == UTType.tersoDocument.identifier
+            ? try TersoPackage(text: contents.text).encode()
+            : try contents.codec.encode(contents.text)
+    }
 
     override func save(to url: URL, ofType typeName: String, for saveOperation: NSDocument.SaveOperationType,
                        completionHandler: @escaping (Error?) -> Void) {
         // A Markdown tutorial or plain-text note can quote this command.
         // Its explicitly selected format and destination take precedence over
         // source heuristics, so saving examples never creates a sidecar file.
-        let nonLaTeXType = typeName == UTType.markdownText.identifier || typeName == UTType.plainText.identifier
-        let nonLaTeXExtension = ["md", "markdown", "txt"].contains(url.pathExtension.lowercased())
+        let nonLaTeXType = [UTType.markdownText, .plainText, .tersoDocument].contains { $0.identifier == typeName }
+        let nonLaTeXExtension = ["md", "markdown", "txt", "terso"].contains(url.pathExtension.lowercased())
         let latex = !nonLaTeXType && !nonLaTeXExtension
             && (typeName == UTType.latexSource.identifier || RenderMode.isLaTeX(source: contents.text, fileURL: url))
         let needsPackage = latex && LaTeXBookDesign.line(in: contents.text) != nil
