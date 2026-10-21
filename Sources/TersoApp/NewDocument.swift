@@ -5,12 +5,13 @@ import UniformTypeIdentifiers
 
 /// Blank documents describe a source format; writing templates describe a task.
 enum NewDocumentKind: String, CaseIterable, Identifiable {
-    case markdown, latex, text
+    case markdown, terso, latex, text
     var id: Self { self }
 
     var title: String {
         switch self {
         case .markdown: "Markdown"
+        case .terso: "Terso"
         case .latex: "LaTeX"
         case .text: "Plain Text"
         }
@@ -19,6 +20,7 @@ enum NewDocumentKind: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .markdown: "Headings, links and formatted writing · .md"
+        case .terso: "Markdown with its metadata kept in a YAML file · .terso"
         case .latex: "A document ready for equations and typesetting · .tex"
         case .text: "A blank page for plain text · .txt"
         }
@@ -27,6 +29,7 @@ enum NewDocumentKind: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .markdown: "doc.richtext"
+        case .terso: "doc.zipper"
         case .latex: "function"
         case .text: "doc.plaintext"
         }
@@ -35,6 +38,7 @@ enum NewDocumentKind: String, CaseIterable, Identifiable {
     var contentType: UTType {
         switch self {
         case .markdown: .markdownText
+        case .terso: .tersoDocument
         case .latex: .latexSource
         case .text: .plainText
         }
@@ -43,6 +47,7 @@ enum NewDocumentKind: String, CaseIterable, Identifiable {
     var fileExtension: String {
         switch self {
         case .markdown: "md"
+        case .terso: "terso"
         case .latex: "tex"
         case .text: "txt"
         }
@@ -53,7 +58,7 @@ enum NewDocumentKind: String, CaseIterable, Identifiable {
         document.fileType = contentType.identifier
         document.contents.codec = PlainTextCodec()
         switch self {
-        case .markdown: break
+        case .markdown, .terso: break
         case .text: document.model.renderMode = .source
         case .latex:
             let opening = "\\documentclass{article}\n\n\\begin{document}\n\n"
@@ -126,17 +131,48 @@ enum WritingTemplate: String, CaseIterable, Identifiable {
 
 /// Only formats the current editor can create and save are offered.
 enum TemplateSourceFormat: String, CaseIterable, Identifiable {
-    case markdown, latex
+    case markdown, terso, latex
     var id: Self { self }
-    var title: String { self == .markdown ? "Markdown" : "LaTeX" }
-    var contentType: UTType { self == .markdown ? .markdownText : .latexSource }
-    var fileExtension: String { self == .markdown ? "md" : "tex" }
+
+    var title: String {
+        switch self {
+        case .markdown: "Markdown"
+        case .terso: "Terso"
+        case .latex: "LaTeX"
+        }
+    }
+
+    var contentType: UTType {
+        switch self {
+        case .markdown: .markdownText
+        case .terso: .tersoDocument
+        case .latex: .latexSource
+        }
+    }
+
+    var fileExtension: String {
+        switch self {
+        case .markdown: "md"
+        case .terso: "terso"
+        case .latex: "tex"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .markdown: "doc.richtext"
+        case .terso: "doc.zipper"
+        case .latex: "function"
+        }
+    }
 
     func detail(book: Bool) -> String {
         switch (self, book) {
         case (.markdown, true): "Write directly on editable book pages · .md"
+        case (.terso, true): "Book pages, with the design kept in a YAML file · .terso"
         case (.latex, true): "Edit source beside compiled book pages · .tex"
         case (.markdown, false): "Write with Markdown formatting and a live preview · .md"
+        case (.terso, false): "Markdown, with its metadata kept in a YAML file · .terso"
         case (.latex, false): "Edit LaTeX source with a typeset preview · .tex"
         }
     }
@@ -178,7 +214,7 @@ private struct TemplateScaffold {
         var opening: String
         let trailer: String
         switch format {
-        case .markdown:
+        case .markdown, .terso:
             let metadata = ["---", "title: \"\(template.documentTitle)\"", "author: \"\""]
                 + (template.isBook ? design.yaml : []) + ["---", "", ""]
             opening = metadata.joined(separator: "\n")

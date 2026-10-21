@@ -96,7 +96,7 @@ struct NewDocumentChoices: View {
                     create(.template(template, format))
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: format == .markdown ? "doc.richtext" : "function")
+                        Image(systemName: format.symbol)
                             .font(.title2).frame(width: 30).foregroundStyle(Color.accentColor)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("\(template.title) · \(format.title) (.\(format.fileExtension))")

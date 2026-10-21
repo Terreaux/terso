@@ -11,9 +11,10 @@ import TersoDocument
         defer { document.close() }
         #expect(document.fileType == kind.contentType.identifier)
         #expect(document.fileURL == nil)
-        #expect(try document.data(ofType: kind.contentType.identifier) == Data(document.contents.text.utf8))
+        let data = try document.data(ofType: kind.contentType.identifier)
+        #expect(kind == .terso ? try TersoPackage.decode(data).text == document.contents.text : data == Data(document.contents.text.utf8))
         switch kind {
-        case .markdown, .text:
+        case .markdown, .terso, .text:
             #expect(document.contents.text.isEmpty)
             #expect(!document.isDocumentEdited)
             #expect(document.model.renderMode == (kind == .text ? .source : .mixed))
