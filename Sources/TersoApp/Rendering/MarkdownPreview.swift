@@ -43,8 +43,8 @@ struct MarkdownPreview: NSViewRepresentable {
         let prefs = model.prefs
         let config = EditorConfig(prefs: prefs, model: model)
         let width = config.book.map { Double(BookPage(trim: $0.trim, fontSize: config.pageScale).column) } ?? config.columnWidth
-        let flavour = model.markdownFlavour
-        let key = "\(scheme):\(flavour.rawValue):\(prefs.theme.rawValue):\(config.font.rawValue):\(config.fontSize):\(config.lineSpacing):\(width):\(source)"
+        let flavour = model.markdownDialect
+        let key = "\(scheme):\(flavour.key):\(prefs.theme.rawValue):\(config.font.rawValue):\(config.fontSize):\(config.lineSpacing):\(width):\(source)"
         guard key != context.coordinator.key else { return }
         context.coordinator.key = key
         // The new page reports its own counts; clear the old ones after this update.
@@ -114,7 +114,7 @@ enum MarkdownPreviewHTML {
 
     @MainActor static func document(source: String, dark: Bool, fontSize: Double, ink: String? = nil, selection: Int = 0,
                                    fontFamily: String = "-apple-system", lineSpacing: Double = 1.65,
-                                   columnWidth: Double = 760, flavour: MarkdownFlavour = .terso) -> String {
+                                   columnWidth: Double = 760, flavour: MarkdownDialect = .terso) -> String {
         let features = flavour.features
         let mermaid = features.contains(.mermaid) && !MermaidPresentation.blocks(in: source).isEmpty
         let mermaidScripts = mermaid ? MermaidPresentation.scripts : ""

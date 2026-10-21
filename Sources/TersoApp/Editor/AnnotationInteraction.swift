@@ -29,7 +29,7 @@ extension EditorCoordinator {
     private func unrenderedTip(at index: Int?) -> String? {
         guard let index, let marks = (textView?.layoutManager as? MathLayoutManager)?.flavourMarks,
               let mark = marks.first(where: { NSLocationInRange(index, $0.range) }) else { return nil }
-        let flavour = model.markdownFlavour
+        let flavour = model.markdownDialect
         let title = mark.feature == .alerts && flavour.features.contains(.alerts) ? "this kind of callout" : mark.feature.title
         return "\(flavour.title) doesn't render \(title); it's published as typed"
     }

@@ -9,7 +9,7 @@ import WebKit
         + "- [x] done\n\n> [!NOTE]\n> Heads up.\n\n> [!tip]- Folded tip\n> Inside.\n\n!!! warning\n    Careful.\n\n"
         + "Claim.[^1] {++added++}\n\n[^1]: The note.\n"
 
-    private func render(_ flavour: MarkdownFlavour) async throws -> WKWebView {
+    private func render(_ flavour: MarkdownDialect) async throws -> WKWebView {
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 700, height: 800))
         web.loadHTMLString(MarkdownPreviewHTML.document(source: Self.source, dark: false, fontSize: 18, flavour: flavour), baseURL: nil)
         let deadline = ContinuousClock.now + .seconds(10)
@@ -125,8 +125,9 @@ import WebKit
                                "docs/guide/page.md": "", "README.md": "",
                                ".git/config": "[remote \"origin\"]\n\turl = git@github.com:me/site.git\n"])
         defer { try? FileManager.default.removeItem(at: site) }
-        #expect(FlavourDetection.detect(for: site.appendingPathComponent("docs/guide/page.md"))
-                == FlavourDetection(flavour: .material, reason: "mkdocs.yml with Material"))
+        let page = FlavourDetection.detect(for: site.appendingPathComponent("docs/guide/page.md"))
+        #expect(page?.flavour == .material && page?.reason == "mkdocs.yml with Material")
+        #expect(page?.config?.lastPathComponent == "mkdocs.yml")
         // A README beside mkdocs.yml is outside docs_dir: GitHub shows it.
         #expect(FlavourDetection.detect(for: site.appendingPathComponent("README.md"))?.flavour == .github)
 
@@ -184,7 +185,7 @@ import WebKit
 
     // MARK: Conversion
 
-    private func converted(_ text: String, _ flavour: MarkdownFlavour) -> String {
+    private func converted(_ text: String, _ flavour: MarkdownDialect) -> String {
         guard let change = MarkdownConversion.replacement(for: MarkdownConversion.edits(in: text, to: flavour), in: text) else { return text }
         return (text as NSString).replacingCharacters(in: change.range, with: change.text)
     }
@@ -263,7 +264,7 @@ import WebKit
     static let text = "==key== ~~gone~~ [[Note|alias]] [site](https://x.org) %%draft%% <!-- aside --> {++add++}\n\n"
         + "- [x] done\n\n!!! tip\n    Body.\n\n> [!tip]- Folded\n> In.\n\n> [!NOTE]\n> Fine.\n\nClaim.[^1] $x$\n\n[^1]: Note.\n\n`==code==`\n"
 
-    private func marked(_ flavour: MarkdownFlavour) -> [MarkdownFeature: [String]] {
+    private func marked(_ flavour: MarkdownDialect) -> [MarkdownFeature: [String]] {
         let ns = Self.text as NSString
         return Dictionary(grouping: MarkdownCompatibility.marks(in: Self.text, flavour: flavour), by: \.feature)
             .mapValues { $0.map { ns.substring(with: $0.range) } }
@@ -308,7 +309,7 @@ import WebKit
     @Test func mixedHidesOnlyMarkersThePlatformUses() {
         let ns = Self.text as NSString
         let away = NSRange(location: ns.length, length: 0)
-        func hides(_ token: String, _ flavour: MarkdownFlavour) -> Bool {
+        func hides(_ token: String, _ flavour: MarkdownDialect) -> Bool {
             let hidden = MarkerPresentation.hiddenSyntax(in: Self.text, selection: away, latex: false,
                                                          elements: Set(MixedElement.allCases), flavour: flavour)
                 + LinkPresentation.hiddenSyntax(in: Self.text, selection: away, flavour: flavour)
@@ -342,7 +343,7 @@ import WebKit
         var config = EditorConfig(prefs: model.prefs, model: model)
         let text = "> [!tip]- Folded\n> In.\n\n> [!NOTE]\n> Fine.\n\nEnd.\n"
         let ns = text as NSString
-        func drawn(_ flavour: MarkdownFlavour, caret: Int = ns.length) -> [String] {
+        func drawn(_ flavour: MarkdownDialect, caret: Int = ns.length) -> [String] {
             config.flavour = flavour
             return MixedPresentation.layout(in: text, selection: NSRange(location: caret, length: 0), config: config,
                                             elements: [.blocks], width: 600).glyphs
@@ -399,3 +400,105 @@ import WebKit
         #expect(layout.temporaryAttribute(.underlineColor, atCharacterIndex: index, effectiveRange: nil) == nil)
     }
 }
+
+@Suite @MainActor struct MkDocsSiteTests {
+    private func folder(_ files: [String: String]) throws -> URL {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("site-\(UUID().uuidString)")
+        for (path, contents) in files {
+            let url = root.appendingPathComponent(path)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try contents.write(to: url, atomically: true, encoding: .utf8)
+        }
+        return root
+    }
+
+    @Test func readsExtensionListsInEveryYAMLForm() {
+        let config = """
+            site_name: Docs
+            markdown_extensions:
+              - admonition   # boxes
+              - markdown.extensions.footnotes
+              - pymdownx.superfences:
+                  custom_fences:
+                    - name: mermaid
+                      class: mermaid
+                      format: !!python/name:pymdownx.superfences.fence_code_format
+              - pymdownx.arithmatex:
+                  generic: true
+              - toc:
+                  permalink: true
+            plugins:
+            - search
+            - callouts
+            extra:
+              name: material
+            """
+        #expect(MkDocsSite.list("markdown_extensions", in: config) == ["admonition", "footnotes", "pymdownx.superfences", "pymdownx.arithmatex", "toc"])
+        #expect(MkDocsSite.list("plugins", in: config) == ["search", "callouts"])
+        #expect(MkDocsSite.list("markdown_extensions", in: "markdown_extensions: [toc, 'pymdownx.mark']\n") == ["toc", "pymdownx.mark"])
+        #expect(MkDocsSite.list("plugins", in: config + "\n") == ["search", "callouts"])
+        #expect(MkDocsSite.mermaidFence(in: config))
+        #expect(!MkDocsSite.mermaidFence(in: "markdown_extensions:\n  - pymdownx.superfences\nextra:\n  name: mermaid\n"))
+        #expect(!MkDocsSite.usesMaterial(config))
+    }
+
+    @Test func featuresComeFromTheConfigNotTheTheme() throws {
+        let root = try folder([
+            "base.yml": "theme:\n  name: material\nmarkdown_extensions:\n  - admonition\n  - pymdownx.mark\n",
+            "mkdocs.yml": "INHERIT: base.yml\nmarkdown_extensions:\n  - pymdownx.tasklist\n  - pymdownx.magiclink\nplugins:\n  - roamlinks\n",
+            "plain/mkdocs.yml": "theme: material\n",
+            "proper/properdocs.yml": "markdown_extensions:\n  - github-callouts\n  - pymdownx.tilde\n"])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let site = try #require(MkDocsSite.read(root.appendingPathComponent("mkdocs.yml")))
+        #expect(site.extensions == ["admonition", "pymdownx.mark", "pymdownx.tasklist", "pymdownx.magiclink"])
+        #expect(site.material && site.flavour == .material)
+        #expect(site.features == [.tables, .admonitions, .highlights, .taskLists, .autolinks, .wikiLinks])
+        // Material with nothing configured renders little more than CommonMark.
+        let plain = try #require(MkDocsSite.read(root.appendingPathComponent("plain/mkdocs.yml")))
+        #expect(plain.flavour == .material && plain.features == [.tables])
+        let proper = try #require(MkDocsSite.read(root.appendingPathComponent("proper/properdocs.yml")))
+        #expect(proper.flavour == .properdocs && proper.features == [.tables, .alerts, .strikethrough] && proper.alertStyle == "github")
+        let help = site.dialect.help
+        #expect(help.hasPrefix("Material for MkDocs with admonition, pymdownx.mark, pymdownx.tasklist"))
+        #expect(help.contains("pymdownx.magiclink") && help.hasSuffix(", from mkdocs.yml"))
+    }
+
+    @Test func theSitesExtensionsDecideWhatIsMarked() throws {
+        let root = try folder(["mkdocs.yml": "markdown_extensions:\n  - pymdownx.mark\n  - admonition\n", "docs/page.md": ""])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = WorkspaceModel()
+        model.fileURL = root.appendingPathComponent("docs/page.md")
+        #expect(model.markdownFlavour == .mkdocs)
+        #expect(model.markdownDialect.features == [.tables, .highlights, .admonitions])
+        let text = "==key== ~~gone~~ $x$\n\n!!! note\n    Body.\n"
+        #expect(MarkdownCompatibility.marks(in: text, flavour: model.markdownDialect).map(\.feature) == [.strikethrough, .math])
+        // Choosing Material keeps the site's extensions; choosing GitHub leaves them.
+        model.chosenFlavour = .material
+        #expect(model.markdownDialect.flavour == .material && model.markdownDialect.features == [.tables, .highlights, .admonitions])
+        model.chosenFlavour = .github
+        #expect(model.markdownDialect == .github)
+        model.chosenFlavour = nil
+        // The config is read again once it changes on disk.
+        try "markdown_extensions:\n  - pymdownx.arithmatex\n".write(to: root.appendingPathComponent("mkdocs.yml"), atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(5)], ofItemAtPath: root.appendingPathComponent("mkdocs.yml").path)
+        #expect(model.markdownDialect.features == [.tables, .math])
+    }
+
+    @Test func aLinkedConfigWinsOverTheNearestOne() throws {
+        let root = try folder(["notes/page.md": "", "notes/.git/config": "[remote \"o\"]\n\turl = git@github.com:a/b.git\n",
+                               "site/properdocs.yml": "markdown_extensions:\n  - footnotes\n"])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let defaults = try #require(UserDefaults(suiteName: "MkDocsSiteTests"))
+        defer { defaults.removePersistentDomain(forName: "MkDocsSiteTests") }
+        let store = MarkdownFlavours(defaults: defaults)
+        let page = root.appendingPathComponent("notes/page.md")
+        #expect(store.detection(for: page)?.flavour == .github)
+        store.link(root.appendingPathComponent("site/properdocs.yml"), to: page)
+        let linked = store.detection(for: page)
+        #expect(linked?.flavour == .properdocs && linked?.reason == "linked properdocs.yml")
+        #expect(MarkdownFlavours(defaults: defaults).linkedConfig(for: page)?.lastPathComponent == "properdocs.yml")
+        store.link(nil, to: page)
+        #expect(store.detection(for: page)?.flavour == .github)
+    }
+}
+

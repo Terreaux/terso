@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import SwiftUI
 import TersoCore
+import UniformTypeIdentifiers
 import WebKit
 
 /// What the preview page reports back: the syntax its platform leaves as
@@ -63,6 +64,9 @@ struct FlavourChip: View {
                 ForEach(MarkdownFlavour.allCases) { Text($0.title).tag(Optional($0)) }
             }
             .pickerStyle(.inline)
+            if let fileURL = model.fileURL, model.markdownFlavour.readsSiteConfig || model.flavourDetection?.config != nil {
+                siteSection(fileURL)
+            }
         } label: {
             // A menu's label is drawn as one title, so it is one string.
             Text("Rendering as \(model.markdownFlavour.title)")
@@ -77,9 +81,46 @@ struct FlavourChip: View {
         .frame(height: CompatibilityBar.height)
         .background(.regularMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(.separator, lineWidth: 0.5))
-        .help("\(model.markdownFlavour.help). \(origin).")
+        .help("\(model.markdownDialect.help). \(origin).")
         .accessibilityLabel("Rendering as \(model.markdownFlavour.title)")
         .accessibilityHint(origin)
+    }
+
+    /// The MkDocs config whose extensions decide what renders, and the
+    /// writer's own choice of one when the nearest isn't the site's.
+    @ViewBuilder private func siteSection(_ fileURL: URL) -> some View {
+        Divider()
+        if let site = model.mkDocsSite {
+            Section(site.config.lastPathComponent) {
+                Text(model.markdownDialect.help)
+                Button("Show \(site.config.lastPathComponent) in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([site.config])
+                }
+            }
+        } else if model.markdownFlavour.readsSiteConfig {
+            Text("No mkdocs.yml found: \(model.markdownFlavour.title)'s defaults")
+        }
+        Button("Link a Site Config…") { linkConfig(for: fileURL) }
+        if MarkdownFlavours.shared.linkedConfig(for: fileURL) != nil {
+            Button("Use the Nearest Site Config") { MarkdownFlavours.shared.link(nil, to: fileURL) }
+        }
+    }
+
+    /// An mkdocs.yml or properdocs.yml elsewhere, for a page kept outside the site's folder.
+    private func linkConfig(for fileURL: URL) {
+        let panel = NSOpenPanel()
+        panel.message = "Choose the mkdocs.yml or properdocs.yml that publishes this page."
+        panel.prompt = "Link"
+        panel.allowedContentTypes = ["yml", "yaml"].compactMap { UTType(filenameExtension: $0) }
+        panel.directoryURL = fileURL.deletingLastPathComponent()
+        panel.begin { response in
+            guard response == .OK, let config = panel.url else { return }
+            MainActor.assumeIsolated {
+                MarkdownFlavours.shared.link(config, to: fileURL)
+                // The linked site decides the flavour, as a nearby one would.
+                model.chosenFlavour = nil
+            }
+        }
     }
 }
 
@@ -92,8 +133,8 @@ struct CompatibilityBar: View {
     let bridge: PreviewBridge
 
     var body: some View {
-        let flavour = model.markdownFlavour
-        if flavour != .terso, let counts = bridge.unrendered {
+        let flavour = model.markdownDialect
+        if flavour.flavour != .terso, let counts = bridge.unrendered {
             let missing = MarkdownFeature.allCases.compactMap { f in counts[f].map { (feature: f, count: $0) } }
             let edits = MarkdownConversion.edits(in: source, to: flavour)
             Group {
@@ -119,7 +160,7 @@ struct CompatibilityBar: View {
         }
     }
 
-    private func full(_ flavour: MarkdownFlavour, _ missing: [(feature: MarkdownFeature, count: Int)],
+    private func full(_ flavour: MarkdownDialect, _ missing: [(feature: MarkdownFeature, count: Int)],
                       _ edits: [MarkdownConversion.Edit], worded: Bool) -> some View {
         HStack(spacing: 6) {
             warning(flavour, worded: worded)
@@ -129,7 +170,7 @@ struct CompatibilityBar: View {
         .fixedSize()
     }
 
-    private func compact(_ flavour: MarkdownFlavour, _ missing: [(feature: MarkdownFeature, count: Int)],
+    private func compact(_ flavour: MarkdownDialect, _ missing: [(feature: MarkdownFeature, count: Int)],
                          _ edits: [MarkdownConversion.Edit]) -> some View {
         HStack(spacing: 6) {
             warning(flavour)
@@ -145,7 +186,7 @@ struct CompatibilityBar: View {
         .fixedSize()
     }
 
-    private func warning(_ flavour: MarkdownFlavour, worded: Bool = true) -> some View {
+    private func warning(_ flavour: MarkdownDialect, worded: Bool = true) -> some View {
         HStack(spacing: 5) {
             Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
             if worded { Text("\(flavour.title) won't render").foregroundStyle(.secondary) }
@@ -174,7 +215,7 @@ struct CompatibilityBar: View {
     }
 
     @ViewBuilder
-    private func convert(_ flavour: MarkdownFlavour, _ edits: [MarkdownConversion.Edit]) -> some View {
+    private func convert(_ flavour: MarkdownDialect, _ edits: [MarkdownConversion.Edit]) -> some View {
         if !edits.isEmpty {
             Divider().frame(height: 14)
             Button("Convert for \(flavour.title)") { model.convertMarkdown(to: flavour) }

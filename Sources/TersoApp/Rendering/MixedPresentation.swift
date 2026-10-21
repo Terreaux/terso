@@ -94,7 +94,7 @@ struct LineHeightReservation {
             let callouts = config.flavour.features.contains(.alerts)
                 ? MarkdownConversion.callouts(in: ns, fences: blocks).filter { block in
                     clear(ns.lineRange(for: NSRange(location: block.range.location, length: 0))) && !revealed(block.range)
-                        && (![.github, .gitlab].contains(config.flavour) || MarkdownConversion.supports(block, config.flavour))
+                        && MarkdownConversion.supports(block, config.flavour)
                 }
                 : []
             for block in callouts {

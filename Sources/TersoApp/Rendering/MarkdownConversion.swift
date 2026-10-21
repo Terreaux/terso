@@ -16,7 +16,7 @@ enum MarkdownConversion {
         let feature: MarkdownFeature
     }
 
-    static func edits(in text: String, to flavour: MarkdownFlavour) -> [Edit] {
+    static func edits(in text: String, to flavour: MarkdownDialect) -> [Edit] {
         let ns = text as NSString
         let all = NSRange(location: 0, length: ns.length)
         let features = flavour.features
@@ -40,7 +40,7 @@ enum MarkdownConversion {
         for block in callouts(in: ns, fences: fences) where clear(block.range, of: literal) {
             if features.contains(.admonitions) && !features.contains(.alerts) {
                 edits.append(Edit(range: block.range, replacement: admonition(block, newline: newline), feature: .alerts))
-            } else if [.github, .gitlab].contains(flavour), !supports(block, flavour) {
+            } else if features.contains(.alerts), flavour.alertStyle != "obsidian", !supports(block, flavour) {
                 edits.append(Edit(range: block.range, replacement: callout(block, for: flavour, newline: newline), feature: .alerts))
             }
         }
@@ -64,7 +64,7 @@ enum MarkdownConversion {
             }
         }
         // Python-Markdown and CommonMark pass inline HTML through.
-        if [.mkdocs, .properdocs, .commonMark].contains(flavour) {
+        if flavour.flavour.readsSiteConfig || flavour.flavour == .commonMark {
             for (pattern, tag, feature) in [(MarkdownStyler.highlight, "mark", MarkdownFeature.highlights),
                                             (MarkdownStyler.strike, "del", .strikethrough)] where !features.contains(feature) {
                 for match in pattern.matches(in: text, range: all) where clear(match.range, of: literal + critics) {
@@ -95,7 +95,7 @@ enum MarkdownConversion {
     }
 
     /// "2 admonitions as callouts and 1 wiki link as a link".
-    static func summary(of edits: [Edit], for flavour: MarkdownFlavour) -> String {
+    static func summary(of edits: [Edit], for flavour: MarkdownDialect) -> String {
         var counts: [MarkdownFeature: Int] = [:]
         for edit in edits { counts[edit.feature, default: 0] += 1 }
         let parts = MarkdownFeature.allCases.compactMap { feature -> String? in
@@ -191,19 +191,21 @@ enum MarkdownConversion {
         }
     }
 
-    static func supports(_ block: Block, _ flavour: MarkdownFlavour) -> Bool {
+    static func supports(_ block: Block, _ flavour: MarkdownDialect) -> Bool {
+        if flavour.alertStyle == "obsidian" { return true }
         guard ["note", "tip", "important", "warning", "caution"].contains(block.kind), block.fold.isEmpty else { return false }
-        return flavour != .github || block.title == nil
+        return flavour.alertStyle != "github" || block.title == nil
     }
 
     /// The block as the flavour's callout: GitHub has no title, so one becomes a bold first line.
-    static func callout(_ block: Block, for flavour: MarkdownFlavour, newline: String = "\n") -> String {
-        let obsidian = flavour == .obsidian
+    static func callout(_ block: Block, for flavour: MarkdownDialect, newline: String = "\n") -> String {
+        let obsidian = flavour.alertStyle == "obsidian"
         let kind = obsidian ? block.kind : alertKind(block.kind)
         let fold = obsidian ? (block.fold == "???" || block.fold == "-" ? "-" : block.fold == "???+" || block.fold == "+" ? "+" : "") : ""
         let title = block.title.flatMap { $0.isEmpty ? nil : $0 }
-        var lines = ["> [!\(kind)]\(fold)" + (title != nil && flavour != .github ? " \(title!)" : "")]
-        if let title, flavour == .github { lines.append("> **\(title)**") }
+        let github = flavour.alertStyle == "github"
+        var lines = ["> [!\(kind)]\(fold)" + (title != nil && !github ? " \(title!)" : "")]
+        if let title, github { lines.append("> **\(title)**") }
         lines += block.body.map { $0.isEmpty ? ">" : "> \($0)" }
         return lines.joined(separator: newline)
     }
@@ -242,7 +244,7 @@ enum MarkdownConversion {
 extension WorkspaceModel {
     /// Rewrites what `flavour` would leave as typed into its own form, as
     /// one undoable edit made against the editor's current text.
-    func convertMarkdown(to flavour: MarkdownFlavour) {
+    func convertMarkdown(to flavour: MarkdownDialect) {
         guard let editor else { return }
         let text = editor.currentSnapshot.text
         guard let change = MarkdownConversion.replacement(for: MarkdownConversion.edits(in: text, to: flavour), in: text) else { return }
