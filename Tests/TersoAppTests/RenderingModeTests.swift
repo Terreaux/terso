@@ -104,6 +104,30 @@ import TersoCore
         }
     }
 
+    /// A caret reveal edits nothing, so the selection redraw that follows must
+    /// already find the new layout: otherwise a highlight's background is filled
+    /// where its text was, under glyphs drawn where they are now.
+    @Test func revealsRelayOutAndRedrawTheVisibleText() {
+        let text = "The sampler is now ==twice as fast==, as measured.\n\nNext line"
+        let storage = NSTextStorage(string: text)
+        let layout = MathLayoutManager(); storage.addLayoutManager(layout)
+        let container = NSTextContainer(size: NSSize(width: 700, height: 2000)); layout.addTextContainer(container)
+        let tv = TersoTextView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), textContainer: container)
+        let window = NSWindow(contentRect: tv.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = tv
+        window.display()
+        let markers = MarkerPresentation.hiddenSyntax(in: text, selection: NSRange(location: storage.length, length: 0),
+                                                      latex: false, elements: [.comments])
+        #expect(markers.count == 2)
+        for hidden in [markers, [], markers] {
+            layout.hiddenSyntax = hidden
+            #expect(layout.firstUnlaidCharacterIndex() == storage.length)
+            let twice = layout.glyphIndexForCharacter(at: (text as NSString).range(of: "twice").location)
+            #expect(tv.needsToDraw(layout.lineFragmentRect(forGlyphAt: twice, effectiveRange: nil).offsetBy(dx: tv.textContainerOrigin.x, dy: tv.textContainerOrigin.y)))
+            window.display()
+        }
+    }
+
     @Test func tallMathAndSourceTransitionsStayInsideTheirLines() {
         let text = "Text before.\n\n*$$\n\\begin{aligned}\nu &= 1 \\\\\nv &= 2\n\\end{aligned}\n$$*\n\nText after."
         let model = WorkspaceModel()

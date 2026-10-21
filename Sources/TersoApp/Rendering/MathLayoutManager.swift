@@ -29,8 +29,7 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         set {
             guard syntaxRanges != newValue else { return }
             syntaxRanges = newValue
-            guard let storage = textStorage else { return }
-            invalidateGlyphs(forCharacterRange: NSRange(location: 0, length: storage.length), changeInLength: 0, actualCharacterRange: nil)
+            invalidateSubstitutions()
         }
     }
     private var bars: [QuoteBar] = []
@@ -50,8 +49,24 @@ final class MathLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
         guard rendered.map(\.range) != items.map(\.range)
                 || zip(rendered, items).contains(where: { $0.image !== $1.image }) else { return }
         rendered = items
+        invalidateSubstitutions()
+    }
+
+    /// New glyphs reflow their lines, but a caret reveal edits nothing, so
+    /// TextKit neither redraws nor re-lays them out: the next selection redraw
+    /// would fill backgrounds at the old positions under glyphs at the new.
+    private func invalidateSubstitutions() {
         guard let storage = textStorage else { return }
         invalidateGlyphs(forCharacterRange: NSRange(location: 0, length: storage.length), changeInLength: 0, actualCharacterRange: nil)
+        for container in textContainers {
+            guard let view = container.textView, view.window != nil else { continue }
+            let visible = view.visibleRect
+            // Mid-edit, the storage edit lays out and redraws once it lands.
+            if storage.editedMask.isEmpty {
+                ensureLayout(forBoundingRect: visible.offsetBy(dx: -view.textContainerOrigin.x, dy: -view.textContainerOrigin.y), in: container)
+            }
+            view.setNeedsDisplay(visible)
+        }
     }
 
     /// Keep substitutions outside an edit alive, translating their UTF-16 offsets
