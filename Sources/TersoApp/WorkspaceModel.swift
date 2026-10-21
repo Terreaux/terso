@@ -98,6 +98,8 @@ final class WorkspaceModel {
                 wordTargets.setTarget(pendingWordTarget, for: WritingStats.key(fileURL))
                 self.pendingWordTarget = nil
             }
+            // Save As can change the source format without a text edit.
+            if fileURL != oldValue { scheduleAnalysis() }
         }
     }
     private var pendingWordTarget: Int?
@@ -253,6 +255,11 @@ final class WorkspaceModel {
     private(set) var focusedReview = false
     var showAskPanel = false
     var showDocumentReport = false
+    private(set) var showDocumentStatistics = false
+    /// Session identity stays distinct even for two unsaved documents at r0.
+    let statisticsDocumentID = UUID()
+    private(set) var documentStatistics: DocumentStatisticsSnapshot?
+    @ObservationIgnored private var statisticsNavigation: (revision: DocumentRevision, range: TextSpan)?
     /// The writing stats sheet, open at a tab.
     var writingStats: WritingStatsTab?
     var mapMarkers: [MapMarker] = []
@@ -275,6 +282,8 @@ final class WorkspaceModel {
 
     func textDidChange() {
         revision = revision.next()
+        documentStatistics = nil
+        statisticsNavigation = nil
         refreshDocumentBook()
         selectedScienceObjectID = nil
         previewAnnotation(nil)
@@ -285,6 +294,7 @@ final class WorkspaceModel {
     }
 
     func scheduleAnalysis(delay: Duration = .zero) {
+        documentStatistics = nil
         previewAnnotation(nil)
         analysisTask?.cancel()
         let generation = UUID()
@@ -293,6 +303,7 @@ final class WorkspaceModel {
         let domain = prefs.domain
         let scienceProfile = scienceProfile
         let optionalRules = prefs.optionalRules
+        let documentID = statisticsDocumentID
         analysisTask = Task { [weak self] in
             if delay > .zero { try? await Task.sleep(for: delay) }
             guard !Task.isCancelled else { return }
@@ -302,20 +313,24 @@ final class WorkspaceModel {
                 let prose = ProseText(snap)
                 try Task.checkCancellation()
                 let rules = analysisRules(domain: domain, optionalRuleIDs: optionalRules)
-                let local = WritingAnalyzer(rules: rules, profile: scienceProfile).analyze(snap)
+                let local = WritingAnalyzer(rules: rules, profile: scienceProfile).analyze(snap, prose: prose)
                 try Task.checkCancellation()
-                let style = StyleEngine().analyze(snap, domain: domain)
+                let style = StyleEngine().analyze(snap, domain: domain, prose: prose)
                 try Task.checkCancellation()
-                return (local, style, prose.masked, prose.sentences.map(\.range), prose.headings.map(\.range))
+                let statistics = DocumentStatisticsAggregator.aggregate(
+                    documentID: documentID, snapshot: snap, prose: prose, local: local, style: style)
+                try Task.checkCancellation()
+                return (local, style, statistics, prose.masked, prose.sentences.map(\.range), prose.headings.map(\.range))
             }
             let result = await withTaskCancellationHandler {
                 try? await work.value
             } onCancel: {
                 work.cancel()
             }
-            guard let (local, style, masked, sentences, headings) = result else { return }
+            guard let (local, style, statistics, masked, sentences, headings) = result else { return }
             guard let self, !Task.isCancelled, self.revision == snap.revision, self.analysisGeneration == generation else { return }
             self.local = local
+            self.documentStatistics = statistics
             self.sentenceSpans = sentences
             self.headingSpans = headings
             self.style = style
@@ -422,6 +437,36 @@ final class WorkspaceModel {
     }
 
     // MARK: Selection and navigation
+
+    /// The report and its detailed statistics share one native sheet. Changing
+    /// the page keeps macOS sheet presentation and dismissal under one owner.
+    func openDocumentStatistics() {
+        showDocumentStatistics = true
+        showDocumentReport = true
+        if documentStatistics?.revision != revision { scheduleAnalysis() }
+    }
+
+    func returnToDocumentReport() { showDocumentStatistics = false }
+
+    /// Defer revealing source until the sheet has actually dismissed. The
+    /// revision is checked again then, including edits during dismissal.
+    func navigateFromStatistics(_ range: TextSpan, revision: DocumentRevision) {
+        guard revision == self.revision, let snapshot = editor?.currentSnapshot,
+              snapshot.revision == revision, range.location >= 0, range.length > 0,
+              range.upperBound <= snapshot.utf16Length else { return }
+        statisticsNavigation = (revision, range)
+        showDocumentReport = false
+    }
+
+    func documentReportDidDismiss() {
+        showDocumentStatistics = false
+        let pending = statisticsNavigation
+        statisticsNavigation = nil
+        guard let pending, pending.revision == revision,
+              let snapshot = editor?.currentSnapshot, snapshot.revision == revision,
+              pending.range.upperBound <= snapshot.utf16Length else { return }
+        editor?.reveal(pending.range, select: false)
+    }
 
     /// Reveal a semantic object without changing the insertion point or first responder.
     /// The same layout-manager treatment used by Review supplies a brief emphasis.

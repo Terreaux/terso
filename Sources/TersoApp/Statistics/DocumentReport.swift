@@ -57,12 +57,25 @@ struct DocumentReport: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 80)
             }
-            Button("Open Statistics") {
-                model.inspectorTab = .statistics
-                model.showInspector = true
-                dismiss()
+            Button {
+                model.openDocumentStatistics()
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "chart.bar.xaxis").font(.title3).foregroundStyle(Color.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Open Statistics").font(.callout.weight(.medium))
+                        Text("Sentence and paragraph shape, readability across the document, vocabulary")
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+                .padding(12)
+                .dashboardSurface(cornerRadius: 8)
+                .contentShape(Rectangle())
             }
-            .help("Show writing, specificity and AI-style statistics in the inspector")
+            .buttonStyle(.plain)
+            .help("Explore this document’s structure, readability and vocabulary")
         }
     }
 
@@ -185,7 +198,7 @@ struct FeaturedStat<Footer: View>: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(12)
-        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        .dashboardSurface(cornerRadius: 8)
         .accessibilityElement(children: .contain)
     }
 }
@@ -254,7 +267,7 @@ private struct DocumentWordTarget: View {
     }
 }
 
-private struct DetailRow: View {
+struct DetailRow: View {
     let label: String
     let value: String
     var body: some View {

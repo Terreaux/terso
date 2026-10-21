@@ -15,6 +15,8 @@ public struct LocalAnalysisResult: Sendable {
 /// Runs every deterministic rule over a snapshot. Pure and thread-safe; call
 /// it from a background task so typing is never blocked.
 public struct WritingAnalyzer: Sendable {
+    /// Shared function-word exclusions for descriptive content-word frequency.
+    public static let contentStopwords: Set<String> = Lexicon.stopwords
     public let rules: [any WritingRule]
     public let profile: ScientificProfile
 
@@ -38,7 +40,11 @@ public struct WritingAnalyzer: Sendable {
     }
 
     public func analyze(_ snapshot: DocumentSnapshot) -> LocalAnalysisResult {
-        let ctx = AnalysisContext(snapshot: snapshot, profile: profile)
+        analyze(snapshot, prose: ProseText(snapshot))
+    }
+
+    public func analyze(_ snapshot: DocumentSnapshot, prose: ProseText) -> LocalAnalysisResult {
+        let ctx = AnalysisContext(snapshot: snapshot, prose: prose, profile: profile)
         var issues: [WritingIssue] = []
         for rule in rules {
             if Task.isCancelled { break }

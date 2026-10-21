@@ -104,17 +104,17 @@ public struct StyleEngine: Sendable {
         self.features = features
     }
 
-    public func analyze(_ snapshot: DocumentSnapshot, domain: WritingDomain) -> StyleReport {
+    public func analyze(_ snapshot: DocumentSnapshot, domain: WritingDomain, prose: ProseText? = nil) -> StyleReport {
         let profile = BaselineLibrary.profile(for: domain)
-        return analyze(snapshot, domain: domain, profile: profile)
+        return analyze(snapshot, domain: domain, profile: profile, prose: prose)
     }
 
     public func measureRaw(_ ctx: StyleContext) -> [String: Double] {
         Dictionary(uniqueKeysWithValues: features.map { ($0.id, $0.measure(ctx).value) })
     }
 
-    public func analyze(_ snapshot: DocumentSnapshot, domain: WritingDomain, profile: BaselineProfile?) -> StyleReport {
-        let ctx = StyleContext(snapshot: snapshot, aiLexicon: profile?.aiLexicon ?? Lexicon.aiLean)
+    public func analyze(_ snapshot: DocumentSnapshot, domain: WritingDomain, profile: BaselineProfile?, prose: ProseText? = nil) -> StyleReport {
+        let ctx = StyleContext(prose: prose ?? ProseText(snapshot), aiLexicon: profile?.aiLexicon ?? Lexicon.aiLean)
         let measurements = features.map { f -> FeatureMeasurement in
             let raw = f.measure(ctx)
             let band = profile?.isBanded(f.id) == true ? profile?.bands[f.id] : nil
