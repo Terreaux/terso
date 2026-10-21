@@ -23,7 +23,10 @@ public struct StyleContext: Sendable {
     public let aiLexicon: Set<String>
 
     public init(snapshot: DocumentSnapshot, aiLexicon: Set<String> = Lexicon.aiLean) {
-        let prose = ProseText(snapshot)
+        self.init(prose: ProseText(snapshot), aiLexicon: aiLexicon)
+    }
+
+    public init(prose: ProseText, aiLexicon: Set<String> = Lexicon.aiLean) {
         self.prose = prose
         self.words = prose.words.map { prose.string($0).lowercased() }
         self.sentences = prose.sentences.filter { $0.words.count > 2 }

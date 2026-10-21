@@ -10,8 +10,12 @@ public struct AnalysisContext: Sendable {
     public let science: ScientificDocumentModel
 
     public init(snapshot: DocumentSnapshot, profile: ScientificProfile = .general) {
+        self.init(snapshot: snapshot, prose: ProseText(snapshot), profile: profile)
+    }
+
+    /// Reuse the session's source-mapped prose for the same snapshot.
+    public init(snapshot: DocumentSnapshot, prose: ProseText, profile: ScientificProfile = .general) {
         self.snapshot = snapshot
-        let prose = ProseText(snapshot)
         self.prose = prose
         self.science = ScientificDocumentModel(snapshot: snapshot, prose: prose, profile: profile)
     }

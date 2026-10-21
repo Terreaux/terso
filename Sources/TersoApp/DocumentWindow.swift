@@ -6,6 +6,7 @@ struct DocumentWindow: View {
     @Binding var document: MarkdownDocument
     let fileURL: URL?
     @Bindable var model: WorkspaceModel
+    @State private var contentSize: CGSize = .zero
     private var prefs: Preferences { Preferences.shared }
 
     var body: some View {
@@ -24,10 +25,17 @@ struct DocumentWindow: View {
                 }
         }
         .toolbar(.hidden, for: .windowToolbar)
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { contentSize = $0 }
         .sheet(item: $model.thesaurusRequest) { ThesaurusView(model: model, request: $0) }
         .sheet(isPresented: $model.showAskPanel) { AskPanel(model: model) }
         .sheet(item: $model.writingStats) { WritingStatsView(tab: $0) }
-        .sheet(isPresented: $model.showDocumentReport) { DocumentReport(model: model) }
+        .sheet(isPresented: $model.showDocumentReport, onDismiss: model.documentReportDidDismiss) {
+            if model.showDocumentStatistics {
+                DocumentStatisticsView(model: model, availableSize: contentSize)
+            } else {
+                DocumentReport(model: model)
+            }
+        }
         .sheet(isPresented: $model.showBookOverview) { BookOverview(model: model) }
         .sheet(isPresented: $model.showBookDetails) { BookDetailsSheet(model: model) }
         .focusedSceneValue(\.workspace, model)
