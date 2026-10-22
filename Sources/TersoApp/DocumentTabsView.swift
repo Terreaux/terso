@@ -279,6 +279,8 @@ struct DocumentTabCommands: Commands {
             }.keyboardShortcut("s").disabled(document == nil && exercise == nil)
             Button("Save As…") { document?.saveAs(nil) }.keyboardShortcut("s", modifiers: [.command, .shift]).disabled(document == nil)
             Button("Duplicate") { document?.duplicate(nil) }.disabled(document == nil)
+            Button("Save as Template…") { if let document { UserTemplateStore.shared.saveTemplate(from: document) } }
+                .disabled(UserTemplate.kind(forFileType: document?.fileType) == nil)
             Button("Rename…") { document?.rename(nil) }.disabled(document?.fileURL == nil)
             Button("Revert to Saved…") { document?.revertToSaved(nil) }.disabled(document?.fileURL == nil)
             Divider()
