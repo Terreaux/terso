@@ -181,10 +181,12 @@ enum TemplateSourceFormat: String, CaseIterable, Identifiable {
 enum DocumentCreationRequest {
     case blank(NewDocumentKind)
     case template(WritingTemplate, TemplateSourceFormat)
+    case saved(UserTemplate)
 
     @MainActor func makeDocument() -> TabDocument {
         switch self {
         case .blank(let kind): return kind.makeDocument()
+        case .saved(let template): return template.makeDocument()
         case .template(let template, let format):
             let document = TabDocument()
             let design = document.model.prefs.bookDesign
