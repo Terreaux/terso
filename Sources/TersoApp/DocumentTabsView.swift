@@ -268,6 +268,7 @@ struct DocumentTabCommands: Commands {
                 Divider()
                 Button("Clear Menu") { RecentDocuments.shared.clear() }
             }
+            Button("Import Word Document…") { WordImport.chooseFiles() }.disabled(exercise != nil)
         }
         CommandGroup(replacing: .saveItem) {
             Button("Save") { tabs.activeDocument?.save(nil) }.keyboardShortcut("s").disabled(tabs.activeDocument == nil)
