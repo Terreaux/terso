@@ -144,6 +144,13 @@ private struct ZipWriter {
     }
 }
 
+/// The entries of a ZIP archive by name, for other ZIP-based formats (`.docx`).
+public enum ZipArchive {
+    public static func entries(in data: Data) throws -> [String: Data] {
+        Dictionary(try ZipReader.entries(in: data).map { ($0.name, $0.data) }) { first, _ in first }
+    }
+}
+
 /// Reads through the central directory, so data descriptors and local
 /// extra fields need no special handling. ZIP64 and encryption are rejected.
 private enum ZipReader {
