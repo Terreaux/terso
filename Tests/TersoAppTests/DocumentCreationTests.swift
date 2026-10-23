@@ -37,7 +37,8 @@ import TersoDocument
         #expect(document.fileType == format.contentType.identifier)
         #expect(document.fileURL == nil)
         #expect(document.contents.codec == PlainTextCodec())
-        #expect(try document.data(ofType: format.contentType.identifier) == Data(text.utf8))
+        let data = try document.data(ofType: format.contentType.identifier)
+        #expect(format == .terso ? try TersoPackage.decode(data).text == text : data == Data(text.utf8))
         #expect(document.isDocumentEdited)
         #expect(document.model.renderMode == .mixed)
         #expect(document.model.writingMode == (template.isBook ? .manutius : .hemingway))
@@ -49,7 +50,7 @@ import TersoDocument
 
         let headings = expectedHeadings(template)
         switch format {
-        case .markdown:
+        case .markdown, .terso:
             #expect(BookMetadata.read(text).title == expectedTitle(template))
             #expect(text.contains("author: \"\"\n"))
             #expect(text.components(separatedBy: "\n").filter { $0.hasPrefix("# ") } == headings.map { "# \($0)" })
@@ -154,7 +155,8 @@ import TersoDocument
         let recovered = try #require(group.documents.first)
         #expect(group.selected === recovered)
         #expect(recovered.contents.text == expectedText)
-        #expect(try recovered.data(ofType: format.contentType.identifier) == Data(expectedText.utf8))
+        let data = try recovered.data(ofType: format.contentType.identifier)
+        #expect(format == .terso ? try TersoPackage.decode(data).text == expectedText : data == Data(expectedText.utf8))
         #expect(recovered.fileType == format.contentType.identifier)
         #expect(recovered.fileURL == nil)
         #expect(recovered.model.writingMode == .manutius)

@@ -6,6 +6,8 @@ import UniformTypeIdentifiers
 extension UTType {
     static let latexSource = UTType(importedAs: "org.tug.tex", conformingTo: .plainText)
     static let markdownText = UTType(importedAs: "net.daringfireball.markdown", conformingTo: .plainText)
+    /// Markdown and its YAML metadata zipped together; see `TersoPackage`.
+    static let tersoDocument = UTType(exportedAs: "org.terso.document", conformingTo: .data)
 }
 
 /// A plain file. Bytes in, the same bytes out: Terso never normalises line

@@ -54,6 +54,6 @@ let package = Package(
         .testTarget(name: "TersoStyleTests", dependencies: ["TersoCore", "TersoStyle"]),
         .testTarget(name: "TersoAITests", dependencies: ["TersoCore", "TersoAI"]),
         .testTarget(name: "TersoDocumentTests", dependencies: ["TersoCore", "TersoDocument", "TersoAI"]),
-        .testTarget(name: "TersoAppTests", dependencies: ["TersoApp"]),
+        .testTarget(name: "TersoAppTests", dependencies: ["TersoApp"], resources: [.copy("Fixtures")]),
     ]
 )
