@@ -97,6 +97,7 @@ struct GoalRing: View {
 /// The writer's stats, story targets and awards.
 struct WritingStatsView: View {
     @State var tab: WritingStatsTab
+    @State private var exerciseModel: WorkspaceModel?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -121,7 +122,12 @@ struct WritingStatsView: View {
             Divider()
             Group {
                 switch tab {
-                case .overview: ScrollView { OverviewTab().padding(24) }
+                case .overview: ScrollView {
+                    VStack(spacing: 24) {
+                        OverviewTab()
+                        if let exerciseModel { ExerciseReportCard(model: exerciseModel) }
+                    }.padding(24)
+                }
                 case .stories: StoriesTab()
                 case .awards: ScrollView { AwardsTab().padding(24) }
                 }
@@ -129,6 +135,7 @@ struct WritingStatsView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(width: 780, height: 600)
+        .background(ExerciseReportContext { exerciseModel = $0 }.frame(width: 0, height: 0).accessibilityHidden(true))
     }
 }
 

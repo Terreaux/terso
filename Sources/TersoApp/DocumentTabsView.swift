@@ -13,6 +13,7 @@ struct DocumentTabsView: View {
                 tabbedEditor
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) { ExerciseInvitation(workspace: workspace) }
         .overlay {
             // Only the front window greets, so restored windows don't each show one.
             if let quote = DocumentTabs.shared.launchQuote, DocumentTabs.shared.activeWorkspace === workspace {
@@ -256,14 +257,16 @@ struct RetainedDocumentEditor: NSViewRepresentable {
 
 struct DocumentTabCommands: Commands {
     private var tabs: DocumentTabs { .shared }
+    private var exercise: ExerciseSheetController? { ExercisePresentation.shared.activeController }
+    private var document: TabDocument? { exercise == nil ? tabs.activeDocument : nil }
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            Button("New Tab") { tabs.newDocument() }.keyboardShortcut("n")
+            Button("New Tab") { tabs.newDocument() }.keyboardShortcut("n").disabled(exercise != nil)
             Button("New Window") { _ = tabs.newWorkspace(); tabs.newDocument() }.keyboardShortcut("n", modifiers: [.command, .shift])
-            Button("Open…") { TabDocumentController.sharedController.openDocument(nil) }.keyboardShortcut("o")
+            Button("Open…") { TabDocumentController.sharedController.openDocument(nil) }.keyboardShortcut("o").disabled(exercise != nil)
             Menu("Open Recent") {
                 ForEach(RecentDocuments.shared.urls(limit: 15), id: \.self) { url in
-                    Button(url.lastPathComponent) { tabs.open(url) }
+                    Button(url.lastPathComponent) { tabs.open(url) }.disabled(exercise != nil)
                 }
                 Divider()
                 Button("Clear Menu") { RecentDocuments.shared.clear() }
@@ -271,37 +274,40 @@ struct DocumentTabCommands: Commands {
             Button("Import Word Document…") { WordImport.chooseFiles() }.disabled(exercise != nil)
         }
         CommandGroup(replacing: .saveItem) {
-            Button("Save") { tabs.activeDocument?.save(nil) }.keyboardShortcut("s").disabled(tabs.activeDocument == nil)
-            Button("Save As…") { tabs.activeDocument?.saveAs(nil) }.keyboardShortcut("s", modifiers: [.command, .shift]).disabled(tabs.activeDocument == nil)
-            Button("Duplicate") { tabs.activeDocument?.duplicate(nil) }.disabled(tabs.activeDocument == nil)
-            Button("Rename…") { tabs.activeDocument?.rename(nil) }.disabled(tabs.activeDocument?.fileURL == nil)
-            Button("Revert to Saved…") { tabs.activeDocument?.revertToSaved(nil) }.disabled(tabs.activeDocument?.fileURL == nil)
+            Button("Save") {
+                if let exercise { _ = exercise.flush(explicit: true) } else { document?.save(nil) }
+            }.keyboardShortcut("s").disabled(document == nil && exercise == nil)
+            Button("Save As…") { document?.saveAs(nil) }.keyboardShortcut("s", modifiers: [.command, .shift]).disabled(document == nil)
+            Button("Duplicate") { document?.duplicate(nil) }.disabled(document == nil)
+            Button("Rename…") { document?.rename(nil) }.disabled(document?.fileURL == nil)
+            Button("Revert to Saved…") { document?.revertToSaved(nil) }.disabled(document?.fileURL == nil)
             Divider()
             Menu("Export As") {
-                if let document = tabs.activeDocument {
+                if let document = document {
                     let latex = DocumentExport.isLaTeX(document)
                     ForEach(ExportFormat.available(latex: latex)) { format in
                         Button(format.title(latex: latex) + "…") { DocumentExport.export(document, as: format) }
                     }
                 }
-            }.disabled(tabs.activeDocument == nil)
+            }.disabled(document == nil)
         }
         CommandGroup(replacing: .windowArrangement) {
-            Button("Next Tab") { tabs.activeWorkspace?.select(offset: 1) }.keyboardShortcut("]", modifiers: [.command, .shift])
-            Button("Previous Tab") { tabs.activeWorkspace?.select(offset: -1) }.keyboardShortcut("[", modifiers: [.command, .shift])
-            Button("Move Tab to New Window") { if let document = tabs.activeDocument { tabs.detach(document) } }
-                .disabled((tabs.activeWorkspace?.documents.count ?? 0) < 2)
-            Button("Merge All Windows") { tabs.mergeWindows() }.disabled(tabs.workspaces.count < 2)
+            Button("Next Tab") { tabs.activeWorkspace?.select(offset: 1) }.keyboardShortcut("]", modifiers: [.command, .shift]).disabled(exercise != nil)
+            Button("Previous Tab") { tabs.activeWorkspace?.select(offset: -1) }.keyboardShortcut("[", modifiers: [.command, .shift]).disabled(exercise != nil)
+            Button("Move Tab to New Window") { if let document = document { tabs.detach(document) } }
+                .disabled(exercise != nil || (tabs.activeWorkspace?.documents.count ?? 0) < 2)
+            Button("Merge All Windows") { tabs.mergeWindows() }.disabled(exercise != nil || tabs.workspaces.count < 2)
         }
         CommandGroup(replacing: .toolbar) {
-            Button("Toggle Sidebar") { tabs.activeDocument?.model.showSidebar.toggle() }.keyboardShortcut("s", modifiers: [.command, .control])
-            Button("Toggle Inspector") { tabs.activeDocument?.model.showInspector.toggle() }.keyboardShortcut("i", modifiers: [.command, .option])
-            Button("Writing Stats…") { tabs.activeDocument?.model.writingStats = .overview }.disabled(tabs.activeDocument == nil)
+            Button("Toggle Sidebar") { document?.model.showSidebar.toggle() }.keyboardShortcut("s", modifiers: [.command, .control])
+            Button("Toggle Inspector") { document?.model.showInspector.toggle() }.keyboardShortcut("i", modifiers: [.command, .option])
+            Button("Writing Stats…") { document?.model.writingStats = .overview }.disabled(document == nil)
         }
         CommandGroup(before: .saveItem) {
-            Button(tabs.activeDocument == nil ? "Close Window" : "Close Tab") {
-                if let workspace = tabs.activeWorkspace, workspace.showingStart { workspace.dismissStart() }
-                else if let document = tabs.activeDocument { document.workspace?.closeTab(document) }
+            Button(exercise != nil ? "Close Exercise" : document == nil ? "Close Window" : "Close Tab") {
+                if let exercise { exercise.closeSaving() }
+                else if let workspace = tabs.activeWorkspace, workspace.showingStart { workspace.dismissStart() }
+                else if let document = document { document.workspace?.closeTab(document) }
                 else { tabs.activeWorkspace?.window?.performClose(nil) }
             }.keyboardShortcut("w").disabled(tabs.activeWorkspace == nil)
         }

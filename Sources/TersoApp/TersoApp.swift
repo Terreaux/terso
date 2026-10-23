@@ -24,9 +24,17 @@ struct TersoApp: App {
 }
 
 struct TersoCommands: Commands {
-    private var model: WorkspaceModel? { DocumentTabs.shared.activeDocument?.model }
+    private var model: WorkspaceModel? {
+        guard ExercisePresentation.shared.activeController == nil else { return nil }
+        return DocumentTabs.shared.activeDocument?.model
+    }
 
     var body: some Commands {
+        CommandMenu("Tools") {
+            Button { ExercisePresentation.shared.open() } label: {
+                Label("Writing Exercises…", systemImage: ExercisePresentation.symbol)
+            }
+        }
         CommandMenu("Format") {
             Button("Bold") { model?.editor?.wrapSelection(prefix: "**", suffix: "**", placeholder: "bold") }.keyboardShortcut("b")
             Button("Italic") { model?.editor?.wrapSelection(prefix: "*", suffix: "*", placeholder: "italic") }.keyboardShortcut("i")
