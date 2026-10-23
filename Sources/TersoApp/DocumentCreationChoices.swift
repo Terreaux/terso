@@ -6,6 +6,7 @@ struct NewDocumentChoices: View {
     let create: (DocumentCreationRequest) -> Void
     @State private var selectedTemplate: WritingTemplate?
     @FocusState private var focus: ChoiceFocus?
+    private var savedTemplates: UserTemplateStore { .shared }
 
     private enum ChoiceFocus: Hashable {
         case template(WritingTemplate), format(TemplateSourceFormat)
@@ -26,6 +27,7 @@ struct NewDocumentChoices: View {
                         }
                     }
                 }
+                if !savedTemplates.templates.isEmpty { savedChoices }
             }
         }
         .themedTint(Preferences.shared.theme)
@@ -52,6 +54,34 @@ struct NewDocumentChoices: View {
                 }
             }
             .multilineTextAlignment(.center)
+        }
+    }
+
+    private var savedChoices: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("My Templates").font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(savedTemplates.templates) { template in
+                    Button { create(.saved(template)) } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: template.kind.symbol).font(.title3).frame(width: 24)
+                                .foregroundStyle(Color.accentColor)
+                            Text(template.name).font(.callout.weight(.medium)).lineLimit(1)
+                            Spacer(minLength: 0)
+                            Text(".\(template.kind.fileExtension)").font(.caption).foregroundStyle(.secondary)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                    .help("New \(template.kind.title) document from \(template.name)")
+                    .contextMenu {
+                        Button("Delete Template", role: .destructive) { savedTemplates.delete(template.id) }
+                    }
+                }
+            }
         }
     }
 
