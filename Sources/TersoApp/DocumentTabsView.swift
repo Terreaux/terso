@@ -201,6 +201,8 @@ private struct DocumentControls: View {
             CopyDocumentButton(text: document.contents.text)
                 .id(document.id)
             ExportMenu(document: document)
+            SettingsLink { Image(systemName: "gearshape") }
+                .help("Settings (⌘,)").accessibilityLabel("Settings")
             Button { model.showInspector.toggle() } label: { Image(systemName: "sidebar.right") }
                 .help("Show or hide the inspector").accessibilityLabel("Inspector")
         }
