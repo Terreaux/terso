@@ -10,6 +10,24 @@ WRITING → LOCAL ANALYSIS → STATISTICAL STYLE ANALYSIS → OPTIONAL AI ASSIST
 
 Terso works fully with no network, no API key and no AI model.
 
+## The writing experience
+
+Open a Markdown, plain-text or LaTeX file and keep writing in a native Mac
+workspace. Documents remain ordinary local files. Tabs keep each draft's editor
+state and undo history separate, while source, mixed and preview modes let you
+choose how much formatting to see.
+
+Terso marks writing issues beside the text instead of rewriting it. Open **Review**
+to move through findings in document order, read the quoted passage and explanation,
+then revise it yourself or ignore it. Focused Review shows one passage at a time;
+Focus Mode clears the surrounding interface for drafting.
+
+The **Science** inspector helps navigate scientific writing, including notation,
+references and document structure. **Statistics** shows writing measures and
+AI-style signals with the features behind them. Those signals describe patterns,
+not authorship. The optional **Assistant** is off until you enable it. It proposes
+edits for review, and changes enter the document only when you accept them.
+
 ## Build and run
 
 Requires macOS 15+ and Swift 6 (Xcode 16 or later).
@@ -31,17 +49,18 @@ document types (`.md`, `.markdown`, `.tex`, `.txt`) used by AppKit document hand
 Documents share one window through [in-window tabs](Documentation/DocumentTabs.md),
 with separate editor state and undo history for each document.
 
-## Download a build
+## Download status
 
-The **Build DMG** GitHub Actions workflow tests the app and uploads a
-`Terso-macOS-arm64` artifact on pushes to `main`, version tags (`v*`), pull requests
-to `main`, and manual runs. Download the artifact from the run's summary, unzip
-it, open the DMG, and drag Terso into Applications. Artifacts are retained for 30 days.
-These builds require Apple silicon and macOS 15 or later.
+There is no public Terso DMG release yet. The **Build DMG** GitHub
+Actions workflow tests the app and uploads a `Terso-macOS-arm64` artifact on
+pushes to `main`, version tags (`v*`), pull requests to `main`, and manual runs.
+Workflow artifacts are retained for 30 days and require repository access while
+this repository is private. They are development builds, not a public installer.
 
-The app is ad-hoc signed, not Developer ID signed or notarized. macOS may block
-the downloaded app until you approve it in System Settings → Privacy & Security.
-The local `make dmg` target packages the architecture of the Mac running it.
+To build from source, use `make app` or `make dmg`. The latter also writes a
+SHA-256 checksum and packages the architecture of the Mac running it. Current
+builds are ad-hoc signed, not Developer ID signed or notarized. Apple silicon
+builds require macOS 15 or later.
 
 ## Technical documentation
 
