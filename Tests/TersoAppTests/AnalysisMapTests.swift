@@ -51,6 +51,10 @@ import TersoCore
         let annotation = try #require(model.scienceAnnotation(for: diagnostic))
         let layout = try #require(textView.layoutManager)
         let caret = textView.selectedRange()
+        let layers = model.prefs.enabledLayers
+        defer { model.prefs.enabledLayers = layers }
+        model.prefs.enabledLayers.remove(annotation.category)
+        #expect(!model.visibleAnnotations.contains { $0.id == annotation.id })
         model.previewAnnotation(annotation.id)
         #expect(layout.temporaryAttribute(.backgroundColor, atCharacterIndex: diagnostic.sourceRange.location, effectiveRange: nil) != nil)
         #expect(textView.selectedRange() == caret && textView.string == text)
