@@ -28,6 +28,54 @@ swift test --filter TersoStyleTests
 | [DocumentSessionTests](../Tests/TersoAppTests/DocumentSessionTests.swift) | Document-local AI/analysis lifetime and cross-document isolation |
 | [ReviewScaleTests](../Tests/TersoAnalysisTests/ReviewScaleTests.swift) | Larger-document review/science behavior |
 
+### Manuscript preview and export
+
+With Tectonic installed and the required TeX packages cached, run the PDF test
+against the bundled example or supply the root of another multi-file LaTeX paper
+with a bibliography and an included section.
+
+```sh
+TERSO_TEST_MANUSCRIPT="$PWD/Samples/Pendulum/main.tex" swift test --filter ManuscriptPDFTests
+```
+
+The test opens two tabs on a temporary copy, changes both buffers, and checks
+that preview and export from the included section produce PDFs containing both
+edits. It also checks the missing citation's source location and compares the
+original files byte for byte after export.
+
+To time an edit in the Academic register, point the refresh test at a single
+TeX or Markdown source. For a multi-file paper, use a flattened copy to include
+all the prose in the timing.
+
+```sh
+TERSO_TEST_REFRESH_SOURCE=/absolute/path/paper.tex swift test --filter editedManuscriptRefreshLatency
+```
+
+This measures the interval from one editor-model change through publication
+of current scientific diagnostics and document statistics, including the typing
+debounce. The test also checks that the edit introduced the expected finding.
+
+A separate optimized-build comparison measured the deterministic writing and
+science analyzer before and after sharing the syntax scan and indexing sentence
+and region lookups. Times below are medians of three local runs per version,
+in seconds. The real input is the flattened v7 source of
+[*Attention Is All You Need*](https://arxiv.org/abs/1706.03762v7).
+
+| Input | UTF-16 units | Initial analysis, before → after | After one edit, before → after |
+|---|---:|---:|---:|
+| Transformer paper | 79,575 | 0.675 → 0.278 | 0.810 → 0.433 |
+| 600-section regression fixture | 102,506 | 2.870 → 0.968 | 2.750 → 1.100 |
+
+Both versions produced the same claim, quantity and issue counts for each input.
+The analyzer timing excludes the editor debounce, style analysis, statistics
+aggregation, project indexing and PDF typesetting.
+
+In the full debug workspace test, one edit to the flattened Transformer paper
+published updated diagnostics and statistics in 2.85 seconds, including the
+400 ms debounce. The PDF test used the paper's original multi-file layout and
+verified both unsaved edits in each PDF across eight indexed source files and
+forty bibliography entries.
+
 The CLI contract test uses a controlled executable, not a hosted model. HTTP
 request-shape tests do not prove live authentication, endpoint availability, model
 access, or model quality. System NaturalLanguage and spelling behavior may vary

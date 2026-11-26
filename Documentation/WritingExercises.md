@@ -25,6 +25,14 @@ It adds the selected responses in one undoable edit at the end of an open,
 editable manuscript. The manuscript's earlier selection is never replaced. The
 exercise stays saved after reuse, and deleting it leaves inserted prose intact.
 
+In the Science inspector, **Revise this claim…** opens *Claim, evidence,
+uncertainty* with the original passage and any author-confirmed evidence. In
+Review writing, **Preview claim revision…** compares the original with the
+response to the final paragraph prompt. **Replace original passage** applies
+that paragraph to the source in one undoable edit. If the original changed
+or now matches multiple passages equally, the revision remains available
+to edit or copy.
+
 ## Suggestions
 
 **Settings → Writing → Exercises** has two independent choices, both off for new

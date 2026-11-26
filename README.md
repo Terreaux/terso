@@ -34,6 +34,28 @@ with separate editor state and undo history for each document.
 [Writing Exercises](Documentation/WritingExercises.md) offers eight offline prompts
 in a native sheet. Open it from Tools; optional suggestions start off in Settings.
 
+## Writing a scientific manuscript
+
+Open the [pendulum example](Samples/Pendulum/main.tex) to try a paper with two
+TeX files, an equation, a table and a BibTeX bibliography.
+
+- In the sidebar's **Projects** menu, choose **Open Manuscript** and select the
+  main file. In an existing project, use **Set as Manuscript Root**.
+  An included section can also identify its root with `% !TEX root = ../main.tex`.
+  Preview or export the PDF from either tab to typeset the paper with your current edits.
+- Open **Writing → Manuscript References** to follow a label to its source or
+  inspect a missing citation. **Writing → Insert Citation** (⌥⌘K) searches by
+  author, title or key. Markdown manuscripts can declare a BibTeX file in their
+  YAML `bibliography` field and insert Pandoc citations such as `[@dlmf19]`.
+- The **Research Paper** template starts in the Academic writing register.
+  Included sections inherit the root's register and can override it in the
+  Statistics inspector. Open the document report
+  from the header to inspect manuscript findings and word counts by section.
+- Select a claim in the Science inspector and choose **Attach evidence** to
+  record the exact source passage you checked. **Revise this claim** opens an
+  offline exercise where you can compare your draft with the original and
+  apply the change with undo. [Scientific analysis guide](Documentation/ScientificAnalysis.md)
+
 ## Download a build
 
 The **Build DMG** GitHub Actions workflow tests the app and uploads a

@@ -1,0 +1,23 @@
+\documentclass{article}
+\title{How amplitude changes a pendulum's period}
+\author{Terso example manuscript}
+\date{}
+\begin{document}
+\maketitle
+\begin{abstract}
+A pendulum released from ten degrees takes about 0.19 percent longer to
+complete a cycle than the small-angle model predicts.
+\end{abstract}
+
+\section{Model}
+Let $\theta_0$ denote the release angle in radians. For an ideal pendulum of
+length $L$ in uniform gravity $g$, the small-angle period is
+$T_0=2\pi\sqrt{L/g}$. The exact period is proportional to the complete
+elliptic integral with modulus $\sin(\theta_0/2)$. Expanding that integral
+using \cite{dlmf19} gives Eq.~(\ref{eq:period}).
+
+\input{sections/results}
+
+\bibliographystyle{plain}
+\bibliography{references}
+\end{document}
