@@ -265,17 +265,17 @@ extension TersoTextView {
         let lastRow = Int(((dirty.maxY - origin.y) / book.stride).rounded(.down))
         guard firstRow <= lastRow else { return }
         let textEnd = bookTextEnd(book)
-        let indices = (firstRow...lastRow).flatMap { row in
-            book.spread ? (row == 0 ? [0] : [row * 2 - 1, row * 2]) : [row]
-        }.filter { textEnd == nil || $0 <= textEnd! + book.back }
-        guard let last = indices.last else { return }
+        let first = book.spread ? max(0, firstRow * 2 - 1) : firstRow
+        let lastVisible = book.spread ? lastRow * 2 : lastRow
+        let last = min(lastVisible, textEnd.map { $0 + book.back } ?? lastVisible)
+        guard first <= last else { return }
         let folioFont = d.font.withSize(d.font.pointSize * 0.78).oldStyleFigures
         let headFont = d.font.withSize(d.font.pointSize * 0.78).smallCaps
         let ink = NSColor.tertiaryLabelColor
         // Chapter headings laid out so far, by page: the running head names
         // the chapter a page is in, and an opening page carries none.
         let placed = chapterPlacements(book, before: last)
-        for index in indices {
+        for index in first...last {
             let page = book.rect(index).offsetBy(dx: origin.x, dy: origin.y)
             guard page.intersects(dirty) else { continue }
             NSGraphicsContext.saveGraphicsState()
