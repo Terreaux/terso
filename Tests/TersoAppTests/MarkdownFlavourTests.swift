@@ -248,11 +248,18 @@ import WebKit
         document.model.renderMode = .preview
         document.model.convertMarkdown(to: .github)
         try await Task.sleep(for: .milliseconds(50))
-        #expect(document.contents.text == "# Notes\n\n> [!TIP]\n> **Speed**\n> Twice as fast.\n\nSee [Benchmarks](Benchmarks.md) <!--todo-->.\n")
+        let converted = "# Notes\n\n> [!TIP]\n> **Speed**\n> Twice as fast.\n\nSee [Benchmarks](Benchmarks.md) <!--todo-->.\n"
+        #expect(document.contents.text == converted)
         #expect(undo.undoActionName == "Convert for GitHub")
+        let convertedRevision = document.model.revision
         undo.undo()
         try await Task.sleep(for: .milliseconds(50))
         #expect(document.contents.text == original)
+        #expect(document.model.revision == convertedRevision.next())
+        undo.redo()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(document.contents.text == converted)
+        #expect(document.model.revision == convertedRevision.next().next())
         // Nothing to convert leaves the document and its undo stack alone.
         document.model.convertMarkdown(to: .terso)
         #expect(!undo.canUndo || undo.undoActionName != "Convert for Terso")
