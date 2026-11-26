@@ -132,7 +132,7 @@ struct ExerciseSheet: View {
                 Spacer()
                 Text(session.template.duration).font(.caption).foregroundStyle(.secondary)
             }
-            TextField("Exercise title", text: Binding(get: { controller.session?.title ?? "" }, set: controller.rename))
+            TextField("Exercise title", text: Binding(get: { controller.session?.title ?? "" }, set: { controller.rename($0) }))
                 .font(.title3.weight(.semibold)).textFieldStyle(.plain).focused($editingTitle)
                 .accessibilityLabel("Exercise title, editable")
             if let source = session.source {
@@ -167,7 +167,7 @@ struct ExerciseSheet: View {
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.frame(maxHeight: 125)
             ExerciseResponseEditor(text: Binding(
-                get: { controller.session?.responses[step.id] ?? "" }, set: controller.edit),
+                get: { controller.session?.responses[step.id] ?? "" }, set: { controller.edit($0) }),
                 selectedText: $controller.selectedText)
                 .id(step.id)
                 .frame(minHeight: 90, maxHeight: .infinity)
