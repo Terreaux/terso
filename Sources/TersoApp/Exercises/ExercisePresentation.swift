@@ -22,6 +22,22 @@ final class ExercisePresentation {
 
     func controller(in workspace: TabWorkspace) -> ExerciseSheetController? { controllers[ObjectIdentifier(workspace)] }
 
+    func reviseClaim(in model: WorkspaceModel, range: TextSpan, evidence: [String]) {
+        guard let workspace = DocumentTabs.shared.workspaces.first(where: { $0.selected?.model === model }),
+              let document = workspace.selected, let snapshot = model.editor?.currentSnapshot,
+              model.currentScience?.claims.contains(where: { $0.sourceRange == range }) == true,
+              let anchor = TextAnchor(range: range, in: snapshot),
+              let template = ExerciseCatalog.templates.first(where: { $0.id == "claim-evidence-uncertainty" }) else { return }
+        let source = ExerciseSource(documentID: document.exerciseIdentity, name: document.displayName,
+                                    fileURL: document.fileURL, excerpt: anchor.originalText,
+                                    claimAnchor: anchor, confirmedEvidence: evidence)
+        guard controller(in: workspace) == nil else { return }
+        open(in: workspace, context: source)
+        guard let sheet = controller(in: workspace) else { return }
+        sheet.begin(template)
+        sheet.edit(anchor.originalText)
+    }
+
     func open(in workspace: TabWorkspace? = DocumentTabs.shared.activeWorkspace, excerpt: String? = nil, sessionID: UUID? = nil, context: ExerciseSource? = nil) {
         guard let workspace else {
             DocumentTabs.shared.showStartWindow()
@@ -115,6 +131,7 @@ final class ExerciseSheetController: NSWindowController, NSWindowDelegate {
     var page = "New"
     var review = false
     var reuse = false
+    var previewingClaim = false
     var selectedSteps: Set<String> = []
     var selectedText = ""
     var destinationID: UUID?
@@ -150,7 +167,7 @@ final class ExerciseSheetController: NSWindowController, NSWindowDelegate {
     func begin(_ template: ExerciseTemplate, source: ExerciseSource?) {
         guard flush() else { return }
         session = ExerciseSession(template: template, source: source)
-        durable = false; dirty = false; review = false; reuse = false; saveState = ""
+        durable = false; dirty = false; review = false; reuse = false; previewingClaim = false; saveState = ""
         selectedSteps = []; selectedText = ""; message = nil
         suggestions.startExercise()
     }
@@ -160,7 +177,7 @@ final class ExerciseSheetController: NSWindowController, NSWindowDelegate {
         guard !saved.template.steps.isEmpty else { message = "This exercise has no prompts. Its saved writing is preserved in local storage."; return }
         session = saved
         session?.currentStep = min(max(0, saved.currentStep), saved.template.steps.count - 1)
-        durable = true; dirty = false; review = false; reuse = false
+        durable = true; dirty = false; review = false; reuse = false; previewingClaim = false
         selectedSteps = Set(saved.template.steps.filter { !(saved.responses[$0.id] ?? "").isEmpty }.map(\.id))
         selectedText = ""; message = nil
         saveState = "Saved"
@@ -244,6 +261,17 @@ final class ExerciseSheetController: NSWindowController, NSWindowDelegate {
         reuse = true; message = nil
     }
 
+    func replaceClaim() {
+        guard flush(), let source = session?.source, let document = ExerciseDraftReuse.resolve(source),
+              let paragraph = session?.responses["paragraph"],
+              ExerciseDraftReuse.replaceClaim(from: source, with: paragraph, in: document) else {
+            message = "The original passage changed or its draft is unavailable. Reopen the draft to review it, or copy the revision."
+            return
+        }
+        closeSaving()
+        document.workspace?.select(document)
+    }
+
     func insert() {
         guard flush(), let id = destinationID,
               let document = ExerciseDraftReuse.openDocuments.first(where: { $0.id == id }),
@@ -282,7 +310,7 @@ private final class ExerciseSheetWindow: NSWindow {
     override func cancelOperation(_ sender: Any?) { cancel?() }
 }
 
-/// Explicit append only: never reuses or overwrites a stale manuscript selection.
+/// Appending is available to all exercises. Replacing always targets the original claim anchor.
 @MainActor enum ExerciseDraftReuse {
     static var openDocuments: [TabDocument] { DocumentTabs.shared.workspaces.flatMap(\.documents) }
     static func destinationLabel(_ document: TabDocument) -> String {
@@ -292,6 +320,10 @@ private final class ExerciseSheetWindow: NSWindow {
     }
     static func resolve(_ source: ExerciseSource?) -> TabDocument? {
         guard let source else { return nil }
+        if source.claimAnchor != nil, let url = source.fileURL {
+            let candidates = openDocuments.filter { $0.fileURL?.manuscriptURL == url.manuscriptURL }
+            return candidates.first { $0.exerciseIdentity == source.documentID } ?? candidates.first
+        }
         return openDocuments.first { $0.exerciseIdentity == source.documentID }
             ?? openDocuments.first { source.fileURL != nil && $0.fileURL?.standardizedFileURL == source.fileURL?.standardizedFileURL }
     }
@@ -307,6 +339,29 @@ private final class ExerciseSheetWindow: NSWindow {
         undo?.endUndoGrouping()
         guard editor.currentSnapshot.text == before + suffix else { return false }
         editor.reveal(TextSpan(location: location, length: (suffix as NSString).length), select: false)
+        return true
+    }
+
+    static func claimRange(from source: ExerciseSource, in document: TabDocument) -> TextSpan? {
+        let isSource = source.fileURL.map { document.fileURL?.manuscriptURL == $0.manuscriptURL }
+            ?? (document.exerciseIdentity == source.documentID)
+        guard isSource, document.model.renderMode != .preview, let anchor = source.claimAnchor,
+              let snapshot = document.model.editor?.currentSnapshot else { return nil }
+        // Revision numbers restart across launches. Always relocate persisted anchors by their text and context.
+        return AnchorResolver.resolve(anchor, revision: snapshot.revision.next(), in: snapshot).range
+    }
+
+    static func replaceClaim(from source: ExerciseSource, with text: String, in document: TabDocument) -> Bool {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text != source.claimAnchor?.originalText,
+              let range = claimRange(from: source, in: document), let editor = document.model.editor else { return false }
+        let expected = (editor.currentSnapshot.text as NSString).replacingCharacters(in: range.nsRange, with: text)
+        let undo = editor.undoManager
+        (editor as? EditorCoordinator)?.textView?.breakUndoCoalescing()
+        undo?.beginUndoGrouping()
+        editor.replace(range, with: text, actionName: "Revise Scientific Claim")
+        undo?.endUndoGrouping()
+        guard editor.currentSnapshot.text == expected else { return false }
+        editor.reveal(TextSpan(location: range.location, length: text.utf16.count), select: false)
         return true
     }
 }

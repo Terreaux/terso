@@ -105,11 +105,14 @@ public struct PassiveVoiceRule: WritingRule {
     public let description = "A form of 'to be' followed by a past participle."
     public let category = AnnotationCategory.passiveVoice
 
-    public init() {}
+    private let scientificWording: Bool
+    public init(scientificWording: Bool = false) { self.scientificWording = scientificWording }
 
     public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
         let ns = ctx.prose.maskedNS
-        return PassiveDetector.find(in: ctx.prose).map { span in
+        let methodsSections = scientificWording ? Self.methodsRanges(in: ctx.prose) : []
+        return PassiveDetector.find(in: ctx.prose).compactMap { span in
+            if methodsSections.contains(where: { $0.contains(span.location) }) { return nil }
             let after = NSRange(location: span.upperBound, length: min(8, ns.length - span.upperBound))
             let byAgent = ns.substring(with: after).range(of: #"^\s+by\b"#, options: .regularExpression) != nil
             return WritingIssue(
@@ -121,6 +124,16 @@ public struct PassiveVoiceRule: WritingRule {
                 ranges: [span], originalText: ctx.text(span))
         }
     }
+
+    private static func methodsRanges(in prose: ProseText) -> [Range<Int>] {
+        let titles = ["methods", "materials and methods", "methods and materials", "experimental methods", "methodology"]
+        return prose.headings.enumerated().compactMap { index, heading in
+            guard titles.contains(heading.title.lowercased()) else { return nil }
+            let next = prose.headings.dropFirst(index + 1).first { $0.level <= heading.level }
+            return heading.range.location..<(next?.range.location ?? prose.original.utf16.count)
+        }
+    }
+
 }
 
 // MARK: - Adverbs
@@ -139,12 +152,15 @@ public struct AdverbRule: WritingRule {
     accordingly previously currently recently initially eventually approximately exactly directly
     """.split(whereSeparator: { $0 == " " || $0 == "\n" }).map(String.init))
 
-    public init() {}
+    static let scientificAdverbs = Set("statistically analytically numerically experimentally computationally approximately asymptotically locally globally independently conditionally identically uniformly weakly strongly linearly quadratically exponentially logarithmically dimensionally systematically randomly thermodynamically".split(separator: " ").map(String.init))
+    private let scientificWording: Bool
+    public init(scientificWording: Bool = false) { self.scientificWording = scientificWording }
 
     public func analyze(_ ctx: AnalysisContext) -> [WritingIssue] {
         let ns = ctx.prose.maskedNS
+        let excluded = scientificWording ? Self.exceptions.union(Self.scientificAdverbs) : Self.exceptions
         let hits = Self.re.matches(in: ctx.prose.masked, range: NSRange(location: 0, length: ns.length))
-            .filter { !Self.exceptions.contains(ns.substring(with: $0.range).lowercased()) }
+            .filter { !excluded.contains(ns.substring(with: $0.range).lowercased()) }
         // One adverb is fine. Flag them only when they are dense.
         let density = Double(hits.count) / Double(max(ctx.prose.words.count, 1)) * 1000
         guard hits.count >= 2, density >= 8 else { return [] }
@@ -197,12 +213,16 @@ public struct QualifierRule: PhraseListRule {
     let severity = Severity.info
     let message = "Qualifier"
     let removable = true
-    let entries: [PhraseEntry] = [
+    private static let phrases: [PhraseEntry] = [
         "very", "really", "quite", "rather", "somewhat", "fairly", "pretty much", "basically", "essentially",
         "actually", "literally", "totally", "extremely", "incredibly", "a bit", "a little", "kind of", "sort of",
         "I think that", "I believe that", "I feel that", "in my opinion", "arguably", "seemingly",
     ].map { PhraseEntry(phrase: $0, consider: nil) }
-    public init() {}
+    let entries: [PhraseEntry]
+    public init(scientificWording: Bool = false) {
+        let protected: Set<String> = ["essentially", "seemingly", "arguably", "somewhat"]
+        entries = scientificWording ? Self.phrases.filter { !protected.contains($0.phrase) } : Self.phrases
+    }
     func explanation(for e: PhraseEntry) -> String {
         "“\(e.phrase)” softens or inflates the claim without adding information. Keep it only if the hedge is deliberate."
     }
@@ -216,7 +236,7 @@ public struct FillerPhraseRule: PhraseListRule {
     let severity = Severity.suggestion
     let message = "Wordy phrase"
     let removable = true
-    let entries: [PhraseEntry] = [
+    private static let phrases: [PhraseEntry] = [
         ("in order to", "to"), ("due to the fact that", "because"), ("owing to the fact that", "because"),
         ("the fact that", nil), ("at this point in time", "now"), ("at the present time", "now"),
         ("in the event that", "if"), ("for the purpose of", "to / for"), ("with regard to", "about"),
@@ -229,7 +249,11 @@ public struct FillerPhraseRule: PhraseListRule {
         ("in close proximity to", "near"), ("prior to", "before"), ("subsequent to", "after"),
         ("on a daily basis", "daily"), ("until such time as", "until"), ("in light of the fact that", "because"),
     ].map { PhraseEntry(phrase: $0.0, consider: $0.1) }
-    public init() {}
+    let entries: [PhraseEntry]
+    public init(scientificWording: Bool = false) {
+        let protected: Set<String> = ["with respect to", "in terms of"]
+        entries = scientificWording ? Self.phrases.filter { !protected.contains($0.phrase) } : Self.phrases
+    }
     func explanation(for e: PhraseEntry) -> String {
         if let c = e.consider { return "“\(e.phrase)” can usually be “\(c)”." }
         return "“\(e.phrase)” adds length without meaning. The sentence usually reads better without it."
@@ -244,7 +268,7 @@ public struct ComplexWordRule: PhraseListRule {
     let severity = Severity.info
     let message = "Simpler word available"
     let removable = false
-    let entries: [PhraseEntry] = [
+    private static let phrases: [PhraseEntry] = [
         ("utilize", "use"), ("utilizes", "uses"), ("utilization", "use"), ("facilitate", "help / ease"),
         ("commence", "begin"), ("terminate", "end"), ("endeavor", "try"), ("ascertain", "find out"),
         ("approximately", "about"), ("demonstrate", "show"), ("numerous", "many"), ("sufficient", "enough"),
@@ -253,7 +277,11 @@ public struct ComplexWordRule: PhraseListRule {
         ("individuals", "people"), ("subsequently", "later"), ("nevertheless", "still"), ("aforementioned", "this / these"),
         ("notwithstanding", "despite"), ("predominantly", "mostly"), ("heretofore", "until now"),
     ].map { PhraseEntry(phrase: $0.0, consider: $0.1) }
-    public init() {}
+    let entries: [PhraseEntry]
+    public init(scientificWording: Bool = false) {
+        let protected: Set<String> = ["optimal", "sufficient", "approximately", "methodology", "individuals", "leverage"]
+        entries = scientificWording ? Self.phrases.filter { !protected.contains($0.phrase) } : Self.phrases
+    }
     func explanation(for e: PhraseEntry) -> String {
         "“\(e.phrase)” has a plainer alternative: “\(e.consider ?? "")”. Use the plain word unless the precise one is needed."
     }

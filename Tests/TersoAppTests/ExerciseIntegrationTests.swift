@@ -93,6 +93,78 @@ import TersoCore
         #expect(!ExerciseDraftReuse.append("", to: document))
     }
 
+    @Test func claimExercisePreviewsTheFinalParagraphAndReplacesWithOneUndo() async throws {
+        let (setup, store, state, directory) = try environment()
+        let tabs = DocumentTabs.shared
+        let host = tabs.newWorkspace()
+        let doc = TabDocument()
+        defer {
+            doc.close(); host.close(); tabs.remove(host); setup.close()
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let original = "This proves the approximation.\n\nKeep this paragraph."
+        doc.contents.text = original
+        host.insert(doc)
+        let view = doc.hostedEditor()
+        view.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
+        view.layoutSubtreeIfNeeded()
+        let deadline = ContinuousClock.now + .seconds(15)
+        while doc.model.currentScience?.claims.first == nil, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        let claim = try #require(doc.model.currentScience?.claims.first)
+        let editor = try #require(doc.model.editor)
+        let undo = try #require(doc.undoManager)
+        let presentation = ExercisePresentation(store: store, suggestions: state)
+        presentation.reviseClaim(in: doc.model, range: claim.sourceRange, evidence: ["results.tex: Table 1"])
+        let sheet = try #require(presentation.controller(in: host))
+        #expect(sheet.session?.template.id == "claim-evidence-uncertainty")
+        #expect(sheet.session?.source?.confirmedEvidence == ["results.tex: Table 1"])
+        #expect(sheet.session?.responses["claim"] == claim.text)
+        sheet.changeStep(3)
+        let revised = "The approximation agrees within the measured uncertainty."
+        sheet.edit(revised)
+        sheet.showReview()
+        sheet.previewingClaim = true
+        #expect(doc.contents.text == original)
+        let saved = try #require(sheet.session.flatMap { store.session($0.id) })
+        #expect(saved.source?.claimAnchor?.originalText == claim.text)
+        sheet.closeSaving()
+        undo.beginUndoGrouping()
+        editor.replace(.init(location: 0, length: 0), with: "Preface.\n\n", actionName: "Add preface")
+        undo.endUndoGrouping()
+        // Drain the native sheet transition and AppKit's outer typing undo group.
+        try await Task.sleep(for: .milliseconds(100))
+        presentation.open(in: host, sessionID: saved.id)
+        let resumed = try #require(presentation.controller(in: host))
+        resumed.showReview()
+        resumed.previewingClaim = true
+        resumed.replaceClaim()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(doc.contents.text == "Preface.\n\n" + revised + "\n\nKeep this paragraph.")
+        undo.undo()
+        #expect(doc.contents.text == "Preface.\n\n" + original)
+    }
+
+    @Test func revisedOrAmbiguousClaimWillNotReplaceOtherText() throws {
+        _ = NSApplication.shared
+        let doc = TabDocument(), other = TabDocument()
+        defer { doc.close(); other.close() }
+        let editor = ExerciseTestEditor("This proves agreement.")
+        doc.model.editor = editor
+        other.model.editor = editor
+        let anchor = try #require(TextAnchor(range: .init(location: 0, length: editor.text.utf16.count), in: editor.currentSnapshot))
+        let source = ExerciseSource(documentID: doc.exerciseIdentity, name: "Untitled", excerpt: editor.text, claimAnchor: anchor)
+        #expect(!ExerciseDraftReuse.replaceClaim(from: source, with: "Revised.", in: other))
+        var savedSource = source
+        savedSource.fileURL = URL(fileURLWithPath: "/paper/original.tex")
+        doc.fileURL = URL(fileURLWithPath: "/paper/copy.tex")
+        #expect(!ExerciseDraftReuse.replaceClaim(from: savedSource, with: "Revised.", in: doc))
+        editor.text = "This suggests agreement."
+        #expect(!ExerciseDraftReuse.replaceClaim(from: source, with: "Revised.", in: doc))
+        editor.text = anchor.originalText + "\n\n" + anchor.originalText
+        #expect(!ExerciseDraftReuse.replaceClaim(from: source, with: "Revised.", in: doc))
+        #expect(editor.replacements == 0)
+    }
+
 
     @Test func retryOfStandaloneSessionKeepsItsOptionalSource() throws {
         let (workspace, store, state, directory) = try environment()

@@ -154,6 +154,20 @@ import TersoCore
         #expect(!model.relationships.contains { $0.sourceID == claim.objectID && $0.kind == .cites })
     }
 
+    @Test func unrelatedDetectorLengthDoesNotClearClaimReview() {
+        let unrelated = analyze("This proves the approximation. The detector was 4 m long.").science
+        #expect(unrelated.quantities.count == 1)
+        #expect(unrelated.diagnostics.contains { $0.category == .evidence })
+        let cited = analyze(#"This demonstrates agreement with the reference data \cite{measurement}. The detector was 4 m long."#).science
+        #expect(cited.diagnostics.allSatisfy { $0.category != .evidence })
+        let snapshot = DocumentSnapshot(revision: .init(2), text: #"This demonstrates the result in \ref{fig:included}."#)
+        let local = WritingAnalyzer().analyze(snapshot)
+        #expect(local.science.diagnostics.contains { $0.category == .evidence })
+        let project = local.withManuscriptReferences([], snapshot: snapshot, resolvedLabels: ["fig:included"])
+        #expect(!project.issues.contains { $0.ruleID == "science.evidence.strong" })
+        #expect(!project.science.diagnostics.contains { $0.category == .evidence })
+    }
+
     @Test func overlappingClaimSignalsProduceOneReviewableClaim() throws {
         let model = analyze("We compute a smaller correction that proves the approximation.").science
         #expect(model.claims.count == 1)

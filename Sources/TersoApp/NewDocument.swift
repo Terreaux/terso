@@ -195,6 +195,7 @@ enum DocumentCreationRequest {
             document.contents.codec = PlainTextCodec()
             document.contents.text = scaffold.text
             document.model.initialSelection = scaffold.selection
+            if template == .researchPaper { document.model.setWritingRegister(.academic) }
             if template.isBook {
                 document.model.setWritingMode(.manutius)
                 document.model.showSidebar = true

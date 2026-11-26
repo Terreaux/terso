@@ -38,10 +38,12 @@ struct DocumentWindow: View {
         }
         .sheet(isPresented: $model.showBookOverview) { BookOverview(model: model) }
         .sheet(isPresented: $model.showBookDetails) { BookDetailsSheet(model: model) }
+        .sheet(isPresented: $model.showManuscript) { ManuscriptPanel(model: model) }
+        .onChange(of: ProjectStore.shared.projects) { _, _ in model.refreshManuscript() }
         .focusedSceneValue(\.workspace, model)
         .onAppear { model.fileURL = fileURL; RecentDocuments.shared.note(fileURL) }
         .onChange(of: fileURL) { _, new in model.fileURL = new; RecentDocuments.shared.note(new) }
-        .onChange(of: prefs.domain) { _, _ in model.scheduleAnalysis() }
+        .onChange(of: prefs.domain) { _, _ in model.defaultRegisterChanged() }
         .onChange(of: prefs.optionalRules) { _, _ in model.scheduleAnalysis() }
         .background(Color(nsColor: prefs.theme.background))
 
@@ -100,7 +102,7 @@ struct DocumentWindow: View {
                 if pages {
                     LaTeXBookPages(model: model, source: document.text, fileURL: fileURL)
                 } else if latex {
-                    TectonicPreview(source: document.text, fileURL: fileURL)
+                    TectonicPreview(source: document.text, fileURL: fileURL, revision: model.manuscriptPreviewRevision)
                 } else {
                     MarkdownPreviewPane(source: document.text, model: model).id(fileURL?.deletingLastPathComponent())
                 }

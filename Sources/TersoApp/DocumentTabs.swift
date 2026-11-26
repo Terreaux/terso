@@ -2,6 +2,7 @@
 import AppKit
 import SwiftUI
 import TersoDocument
+import TersoStyle
 
 @MainActor @Observable
 final class DocumentTabs {
@@ -116,6 +117,7 @@ final class DocumentTabs {
         var typeName: String?
         var bookMode: Bool?
         var identity: UUID? = nil
+        var register: WritingDomain? = nil
     }
     struct SavedWorkspace: Codable {
         var documents: [SavedDocument]
@@ -127,7 +129,7 @@ final class DocumentTabs {
         do {
             let saved = try workspaces.map { workspace in
                 SavedWorkspace(documents: try workspace.documents.map {
-                    SavedDocument(url: $0.fileURL, data: try $0.data(ofType: $0.fileType ?? "public.plain-text"), edited: $0.isDocumentEdited, typeName: $0.fileType, bookMode: $0.model.manutius, identity: $0.exerciseIdentity)
+                    SavedDocument(url: $0.fileURL, data: try $0.data(ofType: $0.fileType ?? "public.plain-text"), edited: $0.isDocumentEdited, typeName: $0.fileType, bookMode: $0.model.manutius, identity: $0.exerciseIdentity, register: $0.model.registerOverride)
                 }, selected: workspace.documents.firstIndex { $0 === workspace.selected } ?? 0)
             }
             try FileManager.default.createDirectory(at: recoveryURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -155,6 +157,7 @@ final class DocumentTabs {
                         document.fileType = typeName
                         try document.read(from: item.data, ofType: document.fileType!)
                     }
+                    if document.fileURL == nil, let register = item.register { document.model.setWritingRegister(register) }
                     if let identity = item.identity { document.exerciseIdentity = identity }
                     if let bookMode = item.bookMode { document.model.setWritingMode(bookMode ? .manutius : .hemingway) }
                     if typeName == "public.plain-text" { document.model.renderMode = .source }

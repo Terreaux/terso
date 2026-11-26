@@ -6,6 +6,7 @@ import Observation
 struct TectonicPreview: View {
     let source: String
     let fileURL: URL?
+    var revision = 0
     @State private var compiler = TectonicPreviewModel()
     var body: some View {
         VStack(spacing: 0) {
@@ -33,7 +34,7 @@ struct TectonicPreview: View {
                 }
             }
         }
-        .task(id: "\(fileURL?.path ?? ""):\(source)") { await compiler.compile(source: source, fileURL: fileURL) }
+        .task(id: "\(fileURL?.path ?? ""):\(source):\(revision)") { await compiler.compile(source: source, fileURL: fileURL) }
         .onDisappear { compiler.cancel() }
     }
 }
@@ -93,22 +94,33 @@ private struct CompiledPDF: NSViewRepresentable {
         defer { try? FileManager.default.removeItem(at: directory) }
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let input = directory.appendingPathComponent("source.tex")
-            try source.write(to: input, atomically: true, encoding: .utf8)
+            let input: URL
+            if let fileURL {
+                let index = try await ManuscriptContext.index(for: fileURL, source: source)
+                try Task.checkCancellation()
+                guard generation == request else { return }
+                let shadow = directory.appendingPathComponent("manuscript", isDirectory: true)
+                let stage = Task.detached(priority: .userInitiated) { try ManuscriptBuildTree.stage(index, in: shadow) }
+                input = try await withTaskCancellationHandler { try await stage.value } onCancel: { stage.cancel() }
+                try Task.checkCancellation()
+                guard generation == request else { return }
+            } else {
+                input = directory.appendingPathComponent("source.tex")
+                try source.write(to: input, atomically: true, encoding: .utf8)
+            }
             // An unsaved book compiles where it is written, beside Terso's
             // own terso-book.sty; a saved one uses the copy beside its file.
             if fileURL == nil, LaTeXBookDesign.line(in: source) != nil { _ = try? LaTeXBookDesign.install(in: directory) }
             let output = directory.appendingPathComponent("compiler.txt")
             FileManager.default.createFile(atPath: output.path, contents: nil)
             let writer = try FileHandle(forWritingTo: output)
-            let reader = try FileHandle(forReadingFrom: input)
-            defer { try? writer.close(); try? reader.close() }
+            defer { try? writer.close() }
             let task = Process()
             process = task
             task.executableURL = executable
-            task.currentDirectoryURL = fileURL?.deletingLastPathComponent() ?? directory
-            task.arguments = ["--untrusted", "--outdir", directory.path, "--keep-logs"] + (onlyCached ? ["--only-cached"] : []) + ["-"]
-            task.standardInput = reader; task.standardOutput = writer; task.standardError = writer
+            task.currentDirectoryURL = input.deletingLastPathComponent()
+            task.arguments = ["--untrusted", "--outdir", directory.path, "--keep-logs"] + (onlyCached ? ["--only-cached"] : []) + [input.lastPathComponent]
+            task.standardOutput = writer; task.standardError = writer
             let timeout = Task { @MainActor in
                 try? await Task.sleep(for: .seconds(45))
                 if !Task.isCancelled, task.isRunning { task.terminate() }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import Foundation
 import Observation
+import TersoCore
 
 /// A bundled sequence. Sessions retain a value snapshot so future catalog changes
 /// never replace instructions the writer has already used.
@@ -25,6 +26,9 @@ struct ExerciseSource: Codable, Equatable, Sendable {
     var name: String
     var fileURL: URL?
     var excerpt: String?
+    /// Present only for exercises opened on an explicit manuscript claim.
+    var claimAnchor: TextAnchor?
+    var confirmedEvidence: [String]?
 }
 
 struct ExerciseSession: Codable, Identifiable, Equatable, Sendable {

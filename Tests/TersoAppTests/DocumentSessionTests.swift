@@ -6,6 +6,54 @@ import TersoCore
 @testable import TersoApp
 
 @Suite @MainActor struct DocumentSessionTests {
+    /// Opt in with one flattened manuscript. The single measured edit is in memory.
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["TERSO_TEST_REFRESH_SOURCE"] != nil))
+    func editedManuscriptRefreshLatency() async throws {
+        let path = try #require(ProcessInfo.processInfo.environment["TERSO_TEST_REFRESH_SOURCE"])
+        let url = URL(fileURLWithPath: path).manuscriptURL
+        let source = try String(contentsOf: url, encoding: .utf8)
+        let suite = "Terso.RefreshTiming." + UUID().uuidString
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let model = WorkspaceModel(registerDefaults: defaults)
+        model.fileURL = url
+        model.setWritingRegister(.academic)
+        let editor = SessionEditor(model, text: source, fileName: url.lastPathComponent)
+        model.editor = editor
+
+        func waitForRefresh(_ revision: DocumentRevision) async throws {
+            let deadline = ContinuousClock.now + .seconds(300)
+            while model.currentScience?.revision != revision || model.documentStatistics?.revision != revision {
+                try #require(ContinuousClock.now < deadline, "Analysis did not publish diagnostics and statistics within 300 seconds")
+                try await Task.sleep(for: .milliseconds(10))
+            }
+        }
+
+        let opened = ContinuousClock.now
+        model.scheduleAnalysis()
+        try await waitForRefresh(model.revision)
+        let initialDuration = opened.duration(to: .now)
+        let initialWords = try #require(model.documentStatistics?.statistics.words)
+        let initialRevision = model.revision
+        let missingKey = "terso-refresh-latency-probe"
+        try #require(!source.contains(missingKey))
+        let position = editor.currentSnapshot.format == .latex ? LaTeXSyntax.trailer(in: source)?.location : nil
+        let insertion = TextSpan(location: position ?? source.utf16.count, length: 0)
+        let edit = "\n\nThe revised result appears in \\ref{" + missingKey + "}.\n\n"
+        let began = ContinuousClock.now
+        editor.replace(insertion, with: edit, actionName: "Insert reference")
+        let revision = model.revision
+        #expect(revision == initialRevision.next())
+        try await waitForRefresh(revision)
+        let stats = try #require(model.documentStatistics)
+        let findings = model.scienceDiagnostics
+        let latency = began.duration(to: .now)
+        print("Workspace refresh | file=\(url.lastPathComponent) | input_utf16=\(source.utf16.count) | words=\(stats.statistics.words) | diagnostics=\(findings.count) | initial=\(initialDuration) | edit_to_diagnostics_and_statistics=\(latency)")
+        #expect(findings.contains { $0.title.contains(missingKey) })
+        #expect(stats.statistics.words > initialWords)
+        withExtendedLifetime(editor) {}
+    }
+
     @Test func tenIndependentDocumentsAnalyzeWithoutFocusRouting() async throws {
         let models = (0..<10).map { _ in WorkspaceModel() }
         let editors = models.enumerated().map { index, model in
@@ -166,6 +214,117 @@ import TersoCore
         #expect(model.scienceReview.ignoredClaims.contains(claim.text))
     }
 
+    @Test func confirmedEvidencePersistsAndReopensReviewWhenAResultChanges() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let root = folder.appendingPathComponent("main.tex").manuscriptURL
+        let results = folder.appendingPathComponent("results.tex").manuscriptURL
+        let ledger = folder.appendingPathComponent("review.json")
+        let text = "This proves the approximation.\n\n\\input{results}"
+        let result = "The error was below 2 percent."
+        try text.write(to: root, atomically: true, encoding: .utf8)
+        try result.write(to: results, atomically: true, encoding: .utf8)
+        let first = WorkspaceModel(claimEvidence: ClaimEvidenceStore(url: ledger))
+        let editor = SessionEditor(first, text: text)
+        first.editor = editor
+        first.fileURL = root
+        try await eventually { first.manuscriptIndex?.sources[results] != nil }
+        let claim = try #require(first.currentScience?.claims.first)
+        let claimPassage = try #require(EvidencePassage(file: root, range: claim.sourceRange, text: text))
+        let supporting = try #require(EvidencePassage(file: results, range: .init(location: 0, length: result.utf16.count), text: result))
+        let link = ClaimEvidenceLink(claim: claimPassage, evidence: supporting, kind: .derivation)
+        #expect(first.scienceDiagnostics.contains { $0.category == .evidence })
+        #expect(first.claimEvidence.confirm(link, for: root))
+        #expect(!first.scienceDiagnostics.contains { $0.category == .evidence })
+        #expect(!first.allAnnotations.contains { $0.category == .evidence })
+
+        let reopened = WorkspaceModel(claimEvidence: ClaimEvidenceStore(url: ledger))
+        let later = SessionEditor(reopened, text: text)
+        reopened.editor = later
+        reopened.fileURL = root
+        try await eventually { reopened.manuscriptIndex != nil }
+        #expect(reopened.reviewedEvidence.first?.isCurrent == true)
+        #expect(reopened.claimEvidence.links(for: results).isEmpty)
+        try ("Revised heading.\n\n" + result).write(to: results, atomically: true, encoding: .utf8)
+        reopened.scheduleAnalysis()
+        try await eventually { reopened.manuscriptIndex?.sources[results]?.hasPrefix("Revised") == true }
+        #expect(reopened.reviewedEvidence.first?.evidenceRange?.location == "Revised heading.\n\n".utf16.count)
+        try "The error reached 12 percent.".write(to: results, atomically: true, encoding: .utf8)
+        reopened.scheduleAnalysis()
+        try await eventually { reopened.manuscriptIndex?.sources[results]?.contains("12 percent") == true }
+        #expect(reopened.reviewedEvidence.first?.isCurrent == false)
+        #expect(reopened.reviewedEvidence.first?.link.evidence.anchor.originalText == result)
+        #expect(reopened.scienceDiagnostics.contains { $0.category == .evidence })
+        #expect(reopened.allAnnotations.contains { $0.category == .evidence })
+    }
+
+    @Test func selectingLabelAttachesEntireFigureForCaptionChanges() throws {
+        let source = #"\begin{figure}\caption{Initial spectrum}\label{fig:spectrum}\end{figure}"#
+        let range = TextSpan((source as NSString).range(of: "fig:spectrum"))
+        let selected = EvidenceExcerptView.suggestedRange(in: source, at: range)
+        #expect((source as NSString).substring(with: selected) == source)
+        let url = URL(fileURLWithPath: "/paper/figure.tex").manuscriptURL
+        let anchor = try #require(EvidencePassage(file: url, range: TextSpan(selected), text: source))
+        #expect(anchor.locate(in: [url: source.replacingOccurrences(of: "Initial", with: "Revised")]) == nil)
+    }
+
+    @Test func figureReplacementAtTheSamePathReopensAConfirmedClaim() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let root = directory.appendingPathComponent("main.tex").manuscriptURL
+        let asset = directory.appendingPathComponent("spectrum.pdf").manuscriptURL
+        let figure = #"\begin{figure}\includegraphics{spectrum}\caption{Spectrum}\label{fig:spectrum}\end{figure}"#
+        let text = "This proves the approximation.\n\n" + figure
+        try text.write(to: root, atomically: true, encoding: .utf8)
+        try Data("%PDF-A".utf8).write(to: asset)
+        let claim = try #require(EvidencePassage(file: root, range: TextSpan((text as NSString).range(of: "This proves the approximation.")), text: text))
+        let excerpt = try #require(EvidencePassage(file: root, range: TextSpan((text as NSString).range(of: figure)), text: text))
+        var link = ClaimEvidenceLink(claim: claim, evidence: excerpt, kind: .figure)
+        let worker = Task.detached { try EvidenceAssets.baseline(for: excerpt, root: root) }
+        link.assets = try await worker.value
+        #expect(link.assets?[asset] != nil)
+        let ledger = directory.appendingPathComponent("review.json")
+        #expect(ClaimEvidenceStore(url: ledger).confirm(link, for: root))
+        let model = WorkspaceModel(claimEvidence: ClaimEvidenceStore(url: ledger))
+        let editor = SessionEditor(model, text: text)
+        model.editor = editor
+        model.fileURL = root
+        try await eventually { model.manuscriptIndex != nil && model.reviewedEvidence.first?.isCurrent == true }
+        try Data("%PDF-B".utf8).write(to: asset)
+        model.refreshManuscript()
+        try await eventually { model.reviewedEvidence.first?.changedAssets == [asset] }
+        #expect(model.reviewedEvidence.first?.evidenceRange != nil)
+        #expect(model.scienceDiagnostics.contains { $0.category == .evidence })
+
+        let markdown = "![Spectrum](spectrum.pdf)"
+        let md = directory.appendingPathComponent("paper.md")
+        let mdExcerpt = try #require(EvidencePassage(file: md, range: .init(location: 0, length: markdown.utf16.count), text: markdown))
+        let current = try EvidenceAssets.baseline(for: mdExcerpt, root: md)
+        #expect(current[asset] != nil && current[asset] != link.assets?[asset])
+    }
+
+    @Test func selectedFigureUsesRootGraphicsPathFromIncludedSection() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let figures = directory.appendingPathComponent("figures")
+        let sections = directory.appendingPathComponent("sections")
+        try FileManager.default.createDirectory(at: figures, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: sections, withIntermediateDirectories: true)
+        let root = directory.appendingPathComponent("main.tex").manuscriptURL
+        let section = sections.appendingPathComponent("results.tex").manuscriptURL
+        let asset = figures.appendingPathComponent("spectrum.pdf").manuscriptURL
+        try Data("%PDF-figure".utf8).write(to: asset)
+        let source = #"\begin{figure}\includegraphics{spectrum}\caption{Spectrum}\end{figure}"#
+        try source.write(to: section, atomically: true, encoding: .utf8)
+        try #"\graphicspath{{figures/}}\input{sections/results}"#.write(to: root, atomically: true, encoding: .utf8)
+        let index = try ManuscriptIndex(root: root)
+        let excerpt = try #require(EvidencePassage(file: section, range: .init(location: 0, length: source.utf16.count), text: source))
+        let assets = try EvidenceAssets.baseline(for: excerpt, root: root, index: index)
+        #expect(Set(assets.keys) == [asset])
+    }
+
     @Test func analysisHoverIsTransientLocalAndDoesNotNavigate() async throws {
         let model = WorkspaceModel(), other = WorkspaceModel()
         let editor = SessionEditor(model, text: "See \\eqref{eq:missing}. This proves the approximation.")
@@ -230,9 +389,19 @@ import TersoCore
     var selection = TextSpan(location: 0, length: 0)
     var revealedRange: TextSpan?
     let undoManager: UndoManager? = UndoManager()
-    var currentSnapshot: DocumentSnapshot { .init(revision: model.revision, text: text) }
-    init(_ model: WorkspaceModel, text: String) { self.model = model; self.text = text }
-    func replace(_ range: TextSpan, with text: String, actionName: String) {}
+    let fileName: String?
+    var currentSnapshot: DocumentSnapshot { .init(revision: model.revision, text: text, fileName: fileName) }
+
+    init(_ model: WorkspaceModel, text: String, fileName: String? = nil) {
+        self.model = model
+        self.text = text
+        self.fileName = fileName
+    }
+
+    func replace(_ range: TextSpan, with replacement: String, actionName: String) {
+        text = (text as NSString).replacingCharacters(in: range.nsRange, with: replacement)
+        model.textDidChange()
+    }
     func reveal(_ range: TextSpan, select: Bool) { revealedRange = range; if select { selection = range } }
     func wrapSelection(prefix: String, suffix: String, placeholder: String) {}
     func prefixLines(_ marker: String) {}

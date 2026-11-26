@@ -224,7 +224,7 @@ struct SuggestionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if let k = suggestion.kind { Text(k.uppercased()).font(.caption2.weight(.semibold)).tracking(0.6).foregroundStyle(.tertiary) }
-            SuggestionDiff(original: suggestion.originalText, proposed: suggestion.proposedText)
+            SuggestionDiff(original: suggestion.originalText, proposed: suggestion.proposedText, scientific: model.writingRegister == .academic)
             if let why = suggestion.explanation {
                 Text("WHY").font(.caption2.weight(.semibold)).tracking(0.6).foregroundStyle(.tertiary)
                 Text(why).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

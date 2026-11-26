@@ -12,6 +12,28 @@ import TersoStyle
         return DocumentStatisticsAggregator.aggregate(documentID: UUID(), snapshot: source, prose: ProseText(source))
     }
 
+    @Test func sectionCountsPreserveTeXAbstractBoundsAndExcludeEquations() {
+        let result = aggregate(#"""
+        \documentclass{article}
+        \begin{document}
+        \begin{abstract}
+        Three abstract words.
+        \end{abstract}
+        \section{Methods}
+        Calculate $x^2$ now.
+        \subsection{Checks}
+        Repeat.
+        \end{document}
+        """#, name: "paper.tex")
+        #expect(result.sectionWords.map(\.title) == ["Abstract", "Methods", "Checks"])
+        #expect(result.sectionWords.map(\.words) == [3, 2, 1])
+        #expect(result.sectionWords.map(\.words).reduce(0, +) == result.statistics.words)
+
+        let markdown = aggregate("First.\n\n# Results\n\nTwo words.\n\n## Results\n\nAnother.")
+        #expect(markdown.sectionWords.map(\.words) == [1, 2, 1])
+        #expect(Set(markdown.sectionWords.map(\.id)).count == 3)
+    }
+
     @Test func countsFollowExistingProseSemantics() {
         let text = """
         # A heading that does not enter prose statistics

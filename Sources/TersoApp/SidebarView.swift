@@ -120,6 +120,7 @@ struct SidebarView: View {
             Text("Projects")
             Spacer()
             Menu {
+                Button("Open Manuscript…") { openManuscript() }
                 Button("New Project…") { prompt(.new(with: [])) }
                 Button("New Project with This Document…") { prompt(.new(with: fileURL.map { [$0] } ?? [])) }
                     .disabled(fileURL == nil)
@@ -170,7 +171,7 @@ struct SidebarView: View {
         Button("Add This Document") { store.add([fileURL!], to: project.id); expanded.insert(project.id) }
             .disabled(fileURL == nil || store.contains(fileURL!, in: project.id))
         Button("Add Documents…") { chooseDocuments(for: project) }
-        Button("Open All") { project.documents.filter(\.exists).forEach { DocumentTabs.shared.open($0.url) } }
+        Button("Open All") { project.documents.filter { $0.exists && manuscriptText($0.url) }.forEach { DocumentTabs.shared.open($0.url) } }
             .disabled(!project.documents.contains(where: \.exists))
         Divider()
         Button("Rename…") { prompt(.rename(project)) }
@@ -180,9 +181,9 @@ struct SidebarView: View {
     private func projectDocument(_ doc: ProjectDocument, in project: TersoProject) -> some View {
         let missing = !doc.exists
         return Button {
-            if missing { NSSound.beep() } else { DocumentTabs.shared.open(doc.url) }
+            if missing { NSSound.beep() } else if manuscriptText(doc.url) { DocumentTabs.shared.open(doc.url) } else { NSWorkspace.shared.open(doc.url) }
         } label: {
-            Label(doc.title, systemImage: missing ? "questionmark.folder" : "doc.text")
+            Label(doc.title, systemImage: missing ? "questionmark.folder" : project.manuscriptRootID == doc.id ? "doc.richtext" : "doc")
                 .fontWeight(doc.url == fileURL?.standardizedFileURL ? .semibold : .regular)
                 .foregroundStyle(missing ? .tertiary : .primary)
                 .lineLimit(1)
@@ -190,6 +191,13 @@ struct SidebarView: View {
         .buttonStyle(.plain)
         .help(missing ? "Not found: \(doc.path)" : doc.url.path)
         .contextMenu {
+            if ["tex", "latex", "md", "markdown"].contains(doc.url.pathExtension.lowercased()) {
+                if project.manuscriptRootID == doc.id {
+                    Button("Clear Manuscript Root") { store.setManuscriptRoot(nil, in: project.id) }
+                } else {
+                    Button("Set as Manuscript Root") { store.setManuscriptRoot(doc.id, in: project.id) }
+                }
+            }
             Button("Remove from Project") { store.remove(doc.id, from: project.id) }
             if !missing { revealButton(doc.url) }
         }
@@ -222,6 +230,10 @@ struct SidebarView: View {
         Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
     }
 
+    private func manuscriptText(_ url: URL) -> Bool {
+        ["md", "markdown", "txt", "tex", "latex", "terso", "bib"].contains(url.pathExtension.lowercased())
+    }
+
     private var openTabURLs: [URL] {
         DocumentTabs.shared.activeWorkspace?.documents.compactMap(\.fileURL) ?? []
     }
@@ -244,11 +256,26 @@ struct SidebarView: View {
         naming = nil
     }
 
+    private func openManuscript() {
+        let panel = NSOpenPanel()
+        panel.title = "Open Manuscript"
+        panel.message = "Choose the main LaTeX or Markdown file."
+        panel.allowedContentTypes = ["tex", "latex", "md", "markdown"].compactMap { UTType(filenameExtension: $0) }
+        guard panel.runModal() == .OK, let root = panel.url else { return }
+        let project = store.projects.first { $0.manuscriptRoot?.url.manuscriptURL == root.manuscriptURL }
+            ?? store.create(named: root.deletingLastPathComponent().lastPathComponent, with: [root])
+        if let id = project.documents.first(where: { $0.url.manuscriptURL == root.manuscriptURL })?.id {
+            store.setManuscriptRoot(id, in: project.id)
+        }
+        expanded.insert(project.id)
+        DocumentTabs.shared.open(root)
+    }
+
     private func chooseDocuments(for project: TersoProject) {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.allowedContentTypes = ["md", "markdown", "txt", "tex", "latex", "terso"].compactMap { UTType(filenameExtension: $0) }
+        panel.allowedContentTypes = ["md", "markdown", "txt", "tex", "latex", "terso", "bib", "sty", "cls", "bst", "pdf", "png", "jpg", "jpeg", "eps", "svg"].compactMap { UTType(filenameExtension: $0) }
         panel.prompt = "Add to \(project.name)"
         guard panel.runModal() == .OK else { return }
         store.add(panel.urls, to: project.id)

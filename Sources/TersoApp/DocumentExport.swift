@@ -48,7 +48,8 @@ enum DocumentExport {
         let ext = format.fileExtension(latex: latex)
         panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .data]
         panel.canCreateDirectories = true
-        panel.nameFieldStringValue = (document.fileURL?.deletingPathExtension().lastPathComponent ?? document.displayName) + "." + ext
+        let suggestedURL = latex && format == .pdf ? document.model.manuscriptIndex?.root ?? document.fileURL : document.fileURL
+        panel.nameFieldStringValue = (suggestedURL?.deletingPathExtension().lastPathComponent ?? document.displayName) + "." + ext
         panel.directoryURL = document.fileURL?.deletingLastPathComponent()
         let window = document.workspace?.window
         let completion: (NSApplication.ModalResponse) -> Void = { response in
@@ -62,7 +63,7 @@ enum DocumentExport {
         else { completion(panel.runModal()) }
     }
 
-    private static func write(_ document: TabDocument, as format: ExportFormat, latex: Bool, to url: URL, window: NSWindow?) async throws {
+    static func write(_ document: TabDocument, as format: ExportFormat, latex: Bool, to url: URL, window: NSWindow?) async throws {
         let text = document.contents.text
         let directory = document.fileURL?.deletingLastPathComponent()
         switch format {

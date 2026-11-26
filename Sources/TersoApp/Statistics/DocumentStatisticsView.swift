@@ -215,7 +215,7 @@ struct DocumentStatisticsView: View {
             } else {
                 KPIRow {
                     KPITile(label: "Flesch–Kincaid", value: DocumentReport.grade(s.statistics), symbol: "graduationcap",
-                            caption: s.statistics.gradeLevel.map { "Grade \(number($0)) · \(model.prefs.domain.title) register" }
+                            caption: s.statistics.gradeLevel.map { "Grade \(number($0)) · \(model.writingRegister.title) register" }
                                 ?? "Needs 30 words and two sentences")
                     KPITile(label: "Reading ease", value: readingEase(s).map(number) ?? "—", symbol: "book",
                             caption: readingEaseBand(s) ?? "Needs a few more sentences")
