@@ -26,7 +26,7 @@ struct DocumentRegisterPicker: View {
     let model: WorkspaceModel
 
     var body: some View {
-        Picker("Writing register", selection: Binding(get: { model.registerOverride }, set: model.setWritingRegister)) {
+        Picker("Writing register", selection: Binding(get: { model.registerOverride }, set: { model.setWritingRegister($0) })) {
             if model.registerManuscriptRoot != nil {
                 Text("Manuscript (\((model.inheritedRegister ?? model.prefs.domain).title))").tag(Optional<WritingDomain>.none)
             } else {
