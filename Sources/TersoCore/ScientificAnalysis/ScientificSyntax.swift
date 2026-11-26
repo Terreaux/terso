@@ -68,7 +68,8 @@ public struct ScientificSyntax: Sendable {
         while i < u.count {
             let start = i
             // Code takes precedence over all TeX syntax.
-            if (i == 0 || u[i - 1] == 10), let m = try! NSRegularExpression(pattern: #"^[ \t]*(`{3,}|~{3,})[^\n]*(?:\n|$)"#).firstMatch(in: snapshot.text, options: .anchored, range: NSRange(location: i, length: u.count - i)) {
+            if (i == 0 || u[i - 1] == 10), (u[i] == 96 || u[i] == 126 || u[i] == 32 || u[i] == 9),
+               let m = try! NSRegularExpression(pattern: #"^[ \t]*(`{3,}|~{3,})[^\n]*(?:\n|$)"#).firstMatch(in: snapshot.text, options: .anchored, range: NSRange(location: i, length: u.count - i)) {
                 let fence = ns.substring(with: m.range(at: 1))
                 var end = m.range.upperBound
                 while end < u.count {
