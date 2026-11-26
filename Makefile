@@ -34,7 +34,8 @@ run: app ## Build the app and open DOC in it
 	open -a "$(CURDIR)/$(APP)" "$(CURDIR)/$(DOC)"
 
 test: ## Run the unit tests
-	swift test
+	# AppKit and WebKit integration tests share process-wide UI resources.
+	swift test --no-parallel
 
 test-live: ## Live test against Apple's on-device model (free, local)
 	TERSO_LIVE_APPLE=1 swift test --filter LiveAppleTests
