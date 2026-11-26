@@ -152,7 +152,15 @@ final class WorkspaceModel {
 
     /// Shared transient hover; does not change selection, focus, or scroll.
     func previewAnnotation(_ id: UUID?) {
-        let valid = id.flatMap { candidate in visibleAnnotations.first { $0.id == candidate }?.id }
+        let valid = id.flatMap { candidate -> UUID? in
+            if let finding = localAnnotations.first(where: { $0.id == candidate }),
+               let diagnosticID = finding.metadata["scienceDiagnosticID"] {
+                // The Science inspector lists findings even when their persistent highlights are off.
+                guard finding.revision == revision, scienceDiagnostics.contains(where: { $0.id == diagnosticID }) else { return nil }
+                return candidate
+            }
+            return visibleAnnotations.first { $0.id == candidate }?.id
+        }
         guard previewAnnotationID != valid else { return }
         previewAnnotationID = valid
         editor?.refreshDecorations()
