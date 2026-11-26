@@ -10,6 +10,7 @@ struct StatisticsInspector: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                DocumentRegisterPicker(model: model)
                 DocumentSummary(model: model)
                 WritingStatistics(model: model)
                 SpecificityStatistics(model: model)
@@ -18,6 +19,23 @@ struct StatisticsInspector: View {
             .padding(16)
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+struct DocumentRegisterPicker: View {
+    let model: WorkspaceModel
+
+    var body: some View {
+        Picker("Writing register", selection: Binding(get: { model.registerOverride }, set: model.setWritingRegister)) {
+            if model.registerManuscriptRoot != nil {
+                Text("Manuscript (\((model.inheritedRegister ?? model.prefs.domain).title))").tag(Optional<WritingDomain>.none)
+            } else {
+                Text("Default (\(model.prefs.domain.title))").tag(Optional<WritingDomain>.none)
+            }
+            ForEach(WritingDomain.allCases) { domain in Text(domain.title).tag(Optional(domain)) }
+        }
+        .help(model.registerManuscriptRoot.map { "Inherit the register of \($0.lastPathComponent), or choose a register for this section." }
+              ?? "Set the writing register for this document and its included sections.")
     }
 }
 
@@ -152,7 +170,6 @@ struct AIStyleStatistics: View {
     @State private var exploring = false
 
     var body: some View {
-        @Bindable var prefs = model.prefs
         VStack(alignment: .leading, spacing: 10) {
             SectionLabel("AI-style signals")
             Divider()
@@ -187,11 +204,6 @@ struct AIStyleStatistics: View {
                 .help("Show every measurement against its human range, and mark the passages that contribute")
 
                 if exploring {
-                    Picker("Register", selection: $prefs.domain) {
-                        ForEach(WritingDomain.allCases) { d in
-                            Text(d.title + (BaselineLibrary.profile(for: d) == nil ? " (no data)" : "")).tag(d)
-                        }
-                    }
                     VStack(alignment: .leading, spacing: 14) {
                         ForEach(r.measurements) { m in FeatureRow(m: m) }
                     }

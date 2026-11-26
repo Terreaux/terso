@@ -13,6 +13,11 @@ final class ScienceReviewState {
     var ignoredClaims: Set<String> = []
     var dismissalKeys: Set<String> = []
     var occurrencePositions: [String: Int] = [:]
+    @ObservationIgnored var cachedEvidence: (EvidenceRevision, [ClaimEvidenceReview])?
+    @ObservationIgnored var assetTask: Task<Void, Never>?
+    @ObservationIgnored var assetKey: EvidenceAssetKey?
+    @ObservationIgnored var assetDigests: [URL: String]?
+    var assetVersion = 0
 }
 
 extension WorkspaceModel {
@@ -31,8 +36,9 @@ extension WorkspaceModel {
             guard let id = annotation.metadata["scienceDiagnosticID"] else { return nil }
             return (id, annotation.dismissalKey)
         }, uniquingKeysWith: { first, _ in first })
+        let confirmed = confirmedSupportDiagnosticIDs
         return science.diagnostics.filter { diagnostic in
-            keys[diagnostic.id].map { !dismissed.contains($0) } ?? true
+            !confirmed.contains(diagnostic.id) && (keys[diagnostic.id].map { !dismissed.contains($0) } ?? true)
         }
     }
 

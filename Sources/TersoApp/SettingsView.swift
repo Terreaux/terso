@@ -101,7 +101,7 @@ struct AnalysisSettings: View {
                 }
             }
             Section("Style reference") {
-                Picker("Register", selection: $prefs.domain) {
+                Picker("Default writing register", selection: $prefs.domain) {
                     ForEach(WritingDomain.allCases) { d in Text(d.title + (BaselineLibrary.profile(for: d) == nil ? " — no reference data yet" : "")).tag(d) }
                 }
                 Text("Human reference ranges come from measured corpora. Registers without measured data show raw values only; Terso does not invent baselines.")

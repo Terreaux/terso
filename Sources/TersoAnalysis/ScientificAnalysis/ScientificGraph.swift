@@ -218,8 +218,15 @@ extension ScientificDocumentModel {
                 relationships.append(.init(sourceID: claim.objectID, targetID: item.id, kind: .nearbyEvidence))
             }
             for reference in claim.nearbyReferences where reference.isCitation && claim.sourceRange.intersects(reference.sourceRange) { relationships.append(.init(sourceID: claim.objectID, targetID: "reference:\(reference.id)", kind: .cites)) }
-            if claim.category != .authorStatement && ((claim.type == .strongConclusion && !claim.nearbyEvidence.contains { [.citation, .reference, .quantity].contains($0.kind) }) || (claim.type == .novelty && !claim.nearbyEvidence.contains { $0.kind == .citation })) {
-                diagnostics.append(diagnostic(claim.type == .novelty ? "claims.novelty" : "evidence.strong", claim.type == .novelty ? .claims : .evidence, "Claim support needs review", "No explicit \(claim.type == .novelty ? "citation" : "citation, resolved cross-reference, or quantity") was detected in the same paragraph. Proximity is not proof; inspect the wording and its support.", claim.sourceRange, [claim.objectID], confidence: .low))
+            if claim.category != .authorStatement {
+                let directlyLinked = claim.nearbyEvidence.contains {
+                    [.citation, .reference, .quantity].contains($0.kind) && claim.sourceRange.intersects($0.sourceRange)
+                }
+                if claim.type == .strongConclusion && !directlyLinked {
+                    diagnostics.append(diagnostic("evidence.strong", .evidence, "Claim support needs review", "This claim has no citation, resolved cross-reference, or quantity in its sentence. Review nearby evidence or attach a supporting passage.", claim.sourceRange, [claim.objectID], confidence: .low))
+                } else if claim.type == .novelty && !claim.nearbyEvidence.contains(where: { $0.kind == .citation }) {
+                    diagnostics.append(diagnostic("claims.novelty", .claims, "Claim support needs review", "Review the basis for this novelty claim. Its paragraph has no explicit citation.", claim.sourceRange, [claim.objectID], confidence: .low))
+                }
             }
         }
         for (_, values) in Dictionary(grouping: quantities.filter { $0.symbol != nil && $0.normalizedUnit != nil }, by: { "\($0.symbol!)|\($0.normalizedUnit!)" }) where Set(values.map(\.numericValue)).count > 1 {

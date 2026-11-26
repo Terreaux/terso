@@ -116,7 +116,7 @@ struct ThesaurusView: View {
                 Text(selected == nil ? "Choose a word to preview the change." : "Preview · this occurrence only")
                     .font(.caption).foregroundStyle(.secondary)
                 if let selected {
-                    ChangeView(original: preview.original, proposed: preview.proposed(selected))
+                    ChangeView(original: preview.original, proposed: preview.proposed(selected), scientific: model.writingRegister == .academic)
                 } else {
                     Text(preview.original).font(.system(size: 13, design: .serif)).foregroundStyle(.secondary)
                 }

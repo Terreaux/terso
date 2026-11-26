@@ -26,6 +26,21 @@ struct DocumentReport: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 20) {
+            DocumentRegisterPicker(model: model)
+            if model.writingRegister == .academic {
+                ManuscriptFindingsSummary(model: model)
+                if let sections = model.documentStatistics?.sectionWords, !sections.isEmpty {
+                    DisclosureGroup("Words by section in this file") {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 5) {
+                                ForEach(sections) { section in
+                                    DetailRow(label: section.title, value: section.words.formatted())
+                                }
+                            }.padding(.top, 4)
+                        }.frame(maxHeight: 130)
+                    }
+                }
+            }
             if let s = model.local?.statistics, s.words > 0 {
                 HStack(alignment: .top, spacing: 12) {
                     FeaturedStat(value: s.words.formatted(), label: s.words == 1 ? "word" : "words") {
@@ -47,7 +62,7 @@ struct DocumentReport: View {
                     DetailRow(label: "Characters", value: s.characters.formatted())
                     DetailRow(label: "Speaking time", value: speakingTime(s))
                         .help("At 150 words per minute, a typical presentation pace")
-                    if let r = model.style, let level = r.summary.level {
+                    if model.writingRegister != .academic, let r = model.style, let level = r.summary.level {
                         DetailRow(label: "AI-style signals", value: "\(r.summary.aiSideCount) of \(r.summary.bandedCount) · \(level.rawValue)")
                             .help(StyleSignalSummary.disclaimer)
                     }
@@ -109,6 +124,55 @@ struct DocumentReport: View {
     }
 }
 
+extension WorkspaceModel {
+    /// Findings for the current file already have local anchors and dismissal state.
+    var otherManuscriptFindings: [ManuscriptFinding] {
+        guard let index = manuscriptIndex else { return [] }
+        return index.findings.filter { $0.location.url.manuscriptURL != fileURL?.manuscriptURL }
+    }
+
+    var manuscriptFindingCount: Int? {
+        guard currentScience != nil else { return nil }
+        return scienceDiagnostics.count + otherManuscriptFindings.count
+    }
+}
+
+private struct ManuscriptFindingsSummary: View {
+    let model: WorkspaceModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("Manuscript review")
+            if let count = model.manuscriptFindingCount {
+                let local = model.scienceDiagnostics
+                if count == 0 {
+                    Text("No outstanding findings").font(.callout).foregroundStyle(.secondary)
+                }
+                ForEach(local.prefix(3)) { finding in
+                    Button(finding.title) {
+                        model.openFromDocumentReport(.localDiagnostic(finding.id))
+                    }
+                    .buttonStyle(.link)
+                }
+                ForEach(model.otherManuscriptFindings.prefix(max(0, 3 - local.count))) { finding in
+                    Button("\(finding.title) · \(finding.location.url.lastPathComponent), line \(finding.location.line)") {
+                        model.openFromDocumentReport(.otherFile(finding))
+                    }
+                    .buttonStyle(.link)
+                }
+                if model.manuscriptIndex != nil {
+                    Button("Open manuscript review") { model.openFromDocumentReport(.manuscript) }
+                } else if local.count > 3 {
+                    Button("Review all \(local.count) findings") {
+                        model.openFromDocumentReport(.localDiagnostic(local[0].id))
+                    }
+                }
+            } else {
+                ProgressView("Checking manuscript…").controlSize(.small)
+            }
+        }
+    }
+}
+
 /// The document in the header, beside today's words: its length as a dial
 /// against its word target (the Stats target, else the book's goal), its
 /// reading level, and how many AI-style signals sit outside the human range
@@ -125,7 +189,9 @@ struct DocumentReportButton: View {
         let words = s?.words ?? 0
         let measured = words > 0 && s?.gradeLevel != nil
         let grade = measured ? DocumentReport.grade(s!) : "—"
-        let flags = Self.flags(model.style)
+        let academic = model.writingRegister == .academic
+        let findings = academic ? model.manuscriptFindingCount : nil
+        let flags = academic ? nil : Self.flags(model.style)
         Button { model.showDocumentReport = true } label: {
             HStack(spacing: 6) {
                 if let target {
@@ -136,9 +202,14 @@ struct DocumentReportButton: View {
                 }
                 if density != .minimal {
                     Text(words.formatted()).monospacedDigit()
-                    Text(grade).monospacedDigit().foregroundStyle(.secondary)
+                    if !academic { Text(grade).monospacedDigit().foregroundStyle(.secondary) }
                 }
-                if density == .full, measured, let s { Text(s.readingTimeLabel).foregroundStyle(.secondary) }
+                if !academic, density == .full, measured, let s { Text(s.readingTimeLabel).foregroundStyle(.secondary) }
+                if let findings {
+                    Label(density == .full ? "\(findings) \(findings == 1 ? "finding" : "findings")" : findings.formatted(),
+                          systemImage: "doc.text.magnifyingglass")
+                        .foregroundStyle(findings > 0 ? Color.accentColor : .secondary)
+                }
                 if let flags {
                     HStack(spacing: 2) {
                         Image(systemName: "sparkles")
@@ -154,8 +225,8 @@ struct DocumentReportButton: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help(help(words: words, grade: measured ? grade : nil, flags: flags))
-        .accessibilityLabel(accessibility(words: words, grade: measured ? grade : nil, flags: flags))
+        .help(academic ? "Open manuscript findings and document statistics" : help(words: words, grade: measured ? grade : nil, flags: flags))
+        .accessibilityLabel(academic ? "\(words) words. \(findings.map { "\($0) manuscript findings" } ?? "Analyzing manuscript"). Open document report." : accessibility(words: words, grade: measured ? grade : nil, flags: flags))
     }
 
     /// AI-style signals worth a glance: moderate or elevated under the

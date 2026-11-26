@@ -20,11 +20,17 @@ public struct WritingAnalyzer: Sendable {
     public let rules: [any WritingRule]
     public let profile: ScientificProfile
 
-    public static let defaultRules: [any WritingRule] = [
-        SentenceDifficultyRule(), PassiveVoiceRule(), AdverbRule(), QualifierRule(), FillerPhraseRule(),
-        ComplexWordRule(), MisusedWordRule(), LoosePronounRule(), RepeatedWordRule(), RepeatedPhraseRule(), SentenceVariationRule(), ParagraphLengthRule(),
-        ScientificRule(.notation), ScientificRule(.quantities), ScientificRule(.references), ScientificRule(.claims), ScientificRule(.evidence),
-    ]
+    public static let defaultRules = standardRules(scientificWording: false)
+
+    public static func standardRules(scientificWording: Bool) -> [any WritingRule] {
+        [
+            SentenceDifficultyRule(), PassiveVoiceRule(scientificWording: scientificWording),
+            AdverbRule(scientificWording: scientificWording), QualifierRule(scientificWording: scientificWording),
+            FillerPhraseRule(scientificWording: scientificWording), ComplexWordRule(scientificWording: scientificWording),
+            MisusedWordRule(), LoosePronounRule(), RepeatedWordRule(), RepeatedPhraseRule(), SentenceVariationRule(), ParagraphLengthRule(),
+            ScientificRule(.notation), ScientificRule(.quantities), ScientificRule(.references), ScientificRule(.claims), ScientificRule(.evidence),
+        ]
+    }
 
     /// Advice the writer turns on in Settings; none of it runs by default.
     public static let optionalRules: [any WritingRule] = [SincerityMarkerRule(), NegatedSetupRule()]

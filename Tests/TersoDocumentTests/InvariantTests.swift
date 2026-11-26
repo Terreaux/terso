@@ -10,6 +10,26 @@ import TersoAI
 @Suite struct SafetyInvariantTests {
     let original = "The experiment was very clearly able to demonstrate the effect. Results were good."
 
+    @Test func reviewedScientificChangesDescribeTheExactAcceptedPassage() throws {
+        let original = #"The signal is not resolved \cite{Lee2020}."#
+        let proposed = #"The signal is resolved \cite{Lee2021}."#
+        let buffer = TextBuffer("Introduction. " + original + " Discussion.")
+        let snapshot = buffer.currentSnapshot
+        let range = TextSpan((snapshot.text as NSString).range(of: original))
+        let ctx = ContextPayload.make(scope: .selection, snapshot: snapshot, selection: range)
+        let proposal = ProposedRevision(original: original, proposed: proposed, explanation: nil, kind: "clarity")
+        let built = SuggestionBuilder.build([proposal], context: ctx, snapshot: snapshot, provider: ProviderID("fixture"))
+        let review = SuggestionReview()
+        review.add(built.suggestions)
+        let displayed = try #require(review.pending.first)
+        let changes = ScientificRevisionChange.compare(displayed.originalText, displayed.proposedText)
+        #expect(changes.map(\.kind) == [.negation, .citation])
+        #expect(changes.first { $0.kind == .negation }?.before == ["not"])
+        #expect(changes.first { $0.kind == .citation }?.after == ["Lee2021"])
+        try review.accept(displayed.id, in: buffer)
+        #expect(buffer.text == "Introduction. " + proposed + " Discussion.")
+    }
+
     func suggestionsFromProvider(_ buffer: TextBuffer) async throws -> [WritingSuggestion] {
         let provider = ScriptedProvider { _ in
             #"{"message":"m","suggestions":[{"original":"was very clearly able to demonstrate","proposed":"demonstrated","explanation":"Removes qualifiers."},{"original":"Results were good.","proposed":"The results held.","explanation":"x"}]}"#

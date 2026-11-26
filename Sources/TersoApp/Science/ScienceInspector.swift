@@ -37,6 +37,8 @@ struct ScienceInspector: View {
         }
         .font(.system(size: 12))
         .environment(\.mathMacros, MathPresentation.macros(in: model.editor?.currentSnapshot.text ?? ""))
+        .onAppear { model.checkEvidenceAssets() }
+        .onChange(of: model.claimEvidence.generation) { _, _ in model.checkEvidenceAssets() }
     }
 
     private var header: some View {
@@ -91,6 +93,10 @@ struct ScienceInspector: View {
     }
 
     @ViewBuilder private func overview(_ science: ScientificDocumentModel) -> some View {
+        if model.manuscriptIndex != nil || model.manuscriptProblem != nil {
+            Button("Manuscript references…") { model.manuscriptStartsWithCitations = false; model.showManuscript = true }
+                .buttonStyle(.borderless)
+        }
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 SectionLabel("Needs attention")
@@ -120,6 +126,7 @@ struct ScienceInspector: View {
             modelSection("Claims", count: science.claims.count, science: science)
             modelSection("Evidence", count: science.evidence.count, science: science)
         }
+        PaperEvidenceList(model: model)
         Divider()
         Button { model.scienceDetailSection = "Scientific Map" } label: {
             HStack { Text("Scientific Map"); Spacer(); Image(systemName: "arrow.right").font(.caption) }
@@ -318,8 +325,15 @@ private extension ScienceInspector {
             property("Kind", reference.isCitation ? "Citation" : "Cross-reference")
             property("Key", reference.key)
             if reference.isCitation {
-                Text("Bibliography checks use definitions available in this document; external files are not loaded.")
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                if let index = model.manuscriptIndex {
+                    ForEach(index.bibliography.filter { $0.key == reference.key }) { entry in
+                        Button(entry.title.isEmpty ? "Open bibliography entry" : entry.title) {
+                            ManuscriptContext.reveal(entry.location)
+                        }.buttonStyle(.borderless)
+                    }
+                } else {
+                    Text("This file uses local bibliography checks.").font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
         let equation = science.equations.first(where: { $0.id == node.id })
@@ -341,9 +355,10 @@ private extension ScienceInspector {
         VStack(alignment: .leading, spacing: 8) {
             property("Type", model.scienceReview.authorStatements.contains(claim.text) ? "Author statement" : claimCategory(claim.category))
             property("Classification", model.scienceReview.authorStatements.contains(claim.text) ? "Author override" : "Local pattern · low confidence")
-            property("Review", model.scienceReview.authorStatements.contains(claim.text) ? "Marked as author statement" : model.scienceReview.ignoredClaims.contains(claim.text) ? "Warning ignored" : "Unreviewed")
+            property("Review", model.reviewedEvidence(for: claim).contains(where: \.isCurrent) ? "Evidence confirmed by author" : model.scienceReview.authorStatements.contains(claim.text) ? "Marked as author statement" : model.scienceReview.ignoredClaims.contains(claim.text) ? "Warning ignored" : "Unreviewed")
             Text((claim.category == .authorStatement || model.scienceReview.authorStatements.contains(claim.text)) ? "Author experience or opinion; no automatic support warning." : claim.nearbyEvidence.isEmpty ? "No explicit support detected in this paragraph." : "\(claim.nearbyEvidence.count) nearby evidence candidates. Inspect Relationships to assess their relevance.")
                 .foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            ClaimEvidenceActions(model: model, claim: claim)
             Button("Find support…") { model.findScienceSupport(claim) }
                 .buttonStyle(.borderless).disabled(!model.prefs.aiEnabled || model.prefs.selectedProvider == nil)
                 .help("Ask the configured Assistant about this claim, sending the whole document as context; existing AI data-access settings apply.")

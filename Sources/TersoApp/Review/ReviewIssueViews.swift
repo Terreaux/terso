@@ -489,7 +489,9 @@ struct SuggestionDetail: View {
                 }
                 .controlSize(.regular)
             } else {
-                ChangeView(original: excerpt(suggestion, in: model, limit: 2000), proposed: suggestion.consider ?? "")
+                if let edit = model.review.suggestions.first(where: { $0.id == suggestion.id }) {
+                    ChangeView(original: edit.originalText, proposed: edit.proposedText, scientific: model.writingRegister == .academic)
+                }
                 if let why = suggestion.explanation { Why(text: why) }
                 HStack {
                     Button("Accept") { note = model.accept(suggestion.id) }
@@ -521,9 +523,22 @@ struct ChangeView: View {
     let original: String
     let proposed: String
 
+    var scientific = false
+
     var body: some View {
-        let segments = WordDiff.diff(original, proposed)
-        if WordDiff.isReliable(segments, original: original) {
+        if scientific {
+            ForEach(ScientificRevisionChange.compare(original, proposed)) { change in
+                Label {
+                    Text("\(change.kind.rawValue) · \(summary(change.before)) → \(summary(change.after))")
+                        .font(.callout)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
+                }
+                .accessibilityLabel("\(change.kind.rawValue) changed from \(summary(change.before)) to \(summary(change.after))")
+            }
+        }
+        let segments = original.utf16.count < 2000 && proposed.utf16.count < 2000 ? WordDiff.diff(original, proposed) : []
+        if !segments.isEmpty && WordDiff.isReliable(segments, original: original) {
             Text(inline(segments))
                 .font(.system(size: 13, design: .serif))
                 .fixedSize(horizontal: false, vertical: true)
@@ -538,6 +553,11 @@ struct ChangeView: View {
             }
             .accessibilityElement(children: .combine)
         }
+    }
+
+    private func summary(_ values: [String]) -> String {
+        guard !values.isEmpty else { return "none" }
+        return values.joined(separator: ", ")
     }
 
     /// Removed words struck through in a muted red; added words underlined in
@@ -565,5 +585,6 @@ struct ChangeView: View {
 struct SuggestionDiff: View {
     let original: String
     let proposed: String
-    var body: some View { ChangeView(original: original, proposed: proposed) }
+    var scientific = false
+    var body: some View { ChangeView(original: original, proposed: proposed, scientific: scientific) }
 }

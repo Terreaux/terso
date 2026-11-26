@@ -84,6 +84,16 @@ struct TersoCommands: Commands {
             Divider()
         }
         CommandMenu("Writing") {
+            Button("Manuscript References…") {
+                model?.manuscriptStartsWithCitations = false
+                model?.showManuscript = true
+            }.disabled(model?.fileURL == nil)
+            Button("Insert Citation…") {
+                model?.manuscriptStartsWithCitations = true
+                model?.showManuscript = true
+            }.keyboardShortcut("k", modifiers: [.option, .command])
+                .disabled(model?.fileURL == nil || model?.renderMode == .preview)
+            Divider()
             Button("Alternatives for Selection…") { model?.showAlternatives() }
                 .keyboardShortcut("t", modifiers: [.command, .option])
                 .disabled(model == nil)

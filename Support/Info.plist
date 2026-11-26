@@ -18,6 +18,13 @@
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
+            <key>CFBundleTypeName</key><string>BibTeX Bibliography</string>
+            <key>CFBundleTypeRole</key><string>Editor</string>
+            <key>NSDocumentClass</key><string>TersoTabDocument</string>
+            <key>LSHandlerRank</key><string>Alternate</string>
+            <key>LSItemContentTypes</key><array><string>org.tug.bibtex</string></array>
+        </dict>
+		<dict>
 			<key>CFBundleTypeName</key><string>Terso Document</string>
 			<key>CFBundleTypeRole</key><string>Editor</string>
 			<key>NSDocumentClass</key><string>TersoTabDocument</string>
@@ -60,6 +67,12 @@
 	</array>
 	<key>UTImportedTypeDeclarations</key>
 	<array>
+		<dict>
+            <key>UTTypeIdentifier</key><string>org.tug.bibtex</string>
+            <key>UTTypeDescription</key><string>BibTeX Bibliography</string>
+            <key>UTTypeConformsTo</key><array><string>public.plain-text</string></array>
+            <key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>bib</string></array></dict>
+        </dict>
 		<dict>
 			<key>UTTypeIdentifier</key><string>org.tug.tex</string>
 			<key>UTTypeDescription</key><string>LaTeX Document</string>

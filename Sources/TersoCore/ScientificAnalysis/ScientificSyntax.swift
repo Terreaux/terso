@@ -17,17 +17,23 @@ public struct ScientificRegion: Sendable, Hashable, Codable {
 /// A bounded structural scanner, never a TeX interpreter. Regions partition
 /// the source; offsets always refer to the original UTF-16 document.
 public struct ScientificSyntax: Sendable {
+    public let revision: DocumentRevision
     public let regions: [ScientificRegion]
     public let maskedProse: String
 
     public init(_ snapshot: DocumentSnapshot) {
+        revision = snapshot.revision
         let ns = snapshot.text as NSString
         let u = Array(snapshot.text.utf16)
         var masked = u
         var result: [ScientificRegion] = []
         func has(_ s: String, _ i: Int) -> Bool {
-            let v = Array(s.utf16)
-            return i + v.count <= u.count && u[i..<i + v.count].elementsEqual(v)
+            var offset = i
+            for unit in s.utf16 {
+                guard offset < u.count, u[offset] == unit else { return false }
+                offset += 1
+            }
+            return true
         }
         func escaped(_ i: Int) -> Bool {
             var j = i, count = 0
@@ -85,7 +91,8 @@ public struct ScientificSyntax: Sendable {
                 while i + count < u.count && u[i + count] == 96 { count += 1 }
                 let marker = String(repeating: "`", count: count)
                 var end = i + count
-                while end < lineEnd(i) && !has(marker, end) { end += 1 }
+                let limit = lineEnd(i)
+                while end < limit && !has(marker, end) { end += 1 }
                 if has(marker, end) { end += count }
                 flush(i); emit(.code, i, end); i = end; proseStart = i; continue
             }
@@ -96,7 +103,7 @@ public struct ScientificSyntax: Sendable {
                let end = groupEnd(i, open: 40, close: 41) {
                 flush(i); emit(.linkDestination, i, end); i = end; proseStart = i; continue
             }
-            if has("https://", i) || has("http://", i) {
+            if u[i] == 104 && (has("https://", i) || has("http://", i)) {
                 var end = i, depth = 0
                 while end < u.count {
                     let c = u[end]
@@ -114,7 +121,7 @@ public struct ScientificSyntax: Sendable {
                 flush(i); emit(.comment, i, end); i = end; proseStart = i; continue
             }
             var opening: String?, closing: String?, kind = ScientificRegionKind.inlineMath
-            if !escaped(i) {
+            if (u[i] == 36 || u[i] == 92) && !escaped(i) {
                 if has("$$", i) { opening = "$$"; closing = "$$"; kind = .displayMath }
                 else if has(#"\("#, i) { opening = #"\("#; closing = #"\)"# }
                 else if has(#"\["#, i) { opening = #"\["#; closing = #"\]"#; kind = .displayMath }
@@ -183,5 +190,16 @@ public struct ScientificSyntax: Sendable {
         flush(u.count)
         regions = result
         maskedProse = String(utf16CodeUnits: masked, count: masked.count)
+    }
+
+    /// Regions partition the source in increasing offset order.
+    public func region(at location: Int) -> ScientificRegion? {
+        var lo = 0, hi = regions.count
+        while lo < hi {
+            let mid = (lo + hi) / 2
+            if regions[mid].range.upperBound <= location { lo = mid + 1 } else { hi = mid }
+        }
+        guard lo < regions.count, regions[lo].range.contains(location) else { return nil }
+        return regions[lo]
     }
 }

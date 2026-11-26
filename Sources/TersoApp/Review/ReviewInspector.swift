@@ -40,7 +40,7 @@ struct ReviewInspector: View {
                     .buttonStyle(.borderless).font(ReviewType.meta)
                     .help("Review passages one at a time (⌘⇧E)")
             }
-            if model.prefs.domain == .fiction {
+            if model.writingRegister == .fiction {
                 Button("Story checks") { showStoryChecks.toggle() }
                     .buttonStyle(.borderless).font(ReviewType.meta)
                     .help("Questions for reviewing fiction by hand")

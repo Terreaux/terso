@@ -9,6 +9,8 @@ struct TersoProject: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String
     var documents: [ProjectDocument] = []
+    var manuscriptRootID: ProjectDocument.ID?
+    var manuscriptRoot: ProjectDocument? { documents.first { $0.id == manuscriptRootID } }
 }
 
 /// A linked file. The bookmark follows renames and moves; the path is the
@@ -82,8 +84,15 @@ final class ProjectStore {
         save()
     }
 
+    func setManuscriptRoot(_ document: ProjectDocument.ID?, in id: TersoProject.ID) {
+        guard let i = index(id), document == nil || projects[i].documents.contains(where: { $0.id == document }) else { return }
+        projects[i].manuscriptRootID = document
+        save()
+    }
+
     func remove(_ document: ProjectDocument.ID, from id: TersoProject.ID) {
         guard let i = index(id) else { return }
+        if projects[i].manuscriptRootID == document { projects[i].manuscriptRootID = nil }
         projects[i].documents.removeAll { $0.id == document }
         save()
     }

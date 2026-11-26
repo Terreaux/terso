@@ -64,7 +64,7 @@ public struct ScientificReference: Sendable, Hashable, Codable, Identifiable {
     public let command: String
     public let sourceRange: TextSpan
     public let section: String?
-    public var isCitation: Bool { ["cite", "citep", "citet"].contains(command) }
+    public var isCitation: Bool { ManuscriptReferenceSyntax.isCitationCommand(command) }
 }
 public struct ScientificObject: Sendable, Hashable, Codable, Identifiable {
     public var id: Int { sourceRange.location }
@@ -116,7 +116,8 @@ public struct ScientificDocumentModel: Sendable, Codable {
 
     public init(snapshot: DocumentSnapshot, prose: ProseText, profile: ScientificProfile = .general) {
         revision = snapshot.revision; self.profile = profile
-        let syntax = ScientificSyntax(snapshot)
+        let syntax = prose.scientificSyntax.revision == snapshot.revision && prose.original.utf8.elementsEqual(snapshot.text.utf8)
+            ? prose.scientificSyntax : ScientificSyntax(snapshot)
         regions = syntax.regions
         let ns = snapshot.text as NSString
         // Exclude code, comments, link targets and front matter from every scientific index.
@@ -137,7 +138,14 @@ public struct ScientificDocumentModel: Sendable, Codable {
             headings.append((m.range.location, cleanNS.substring(with: r)))
         }
         headings.sort { $0.0 < $1.0 }
-        func section(_ location: Int) -> String? { headings.last { $0.0 <= location }?.1 }
+        func section(_ location: Int) -> String? {
+            var lo = 0, hi = headings.count
+            while lo < hi {
+                let mid = (lo + hi) / 2
+                if headings[mid].0 <= location { lo = mid + 1 } else { hi = mid }
+            }
+            return lo == 0 ? nil : headings[lo - 1].1
+        }
         func context(_ range: TextSpan) -> String {
             let r = ns.paragraphRange(for: range.nsRange)
             return ns.substring(with: r).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -254,7 +262,7 @@ public struct ScientificDocumentModel: Sendable, Codable {
             guard unit != nil || uncertainty != nil || rawNumber.contains("^") || rawNumber.lowercased().contains("e") || binding != nil else { continue }
             let r = TextSpan(m.range)
             // Ignore command arguments (labels, image filenames, citation keys).
-            guard !regions.contains(where: { [.command, .citation, .reference].contains($0.kind) && $0.range.contains(r.location) }) else { continue }
+            if let region = syntax.region(at: r.location), [.command, .citation, .reference].contains(region.kind) { continue }
             guard let value = SciencePattern.number(rawNumber), value.isFinite else { continue }
             let inverse = m.range(at: 5).location != NSNotFound || m.range(at: 6).location != NSNotFound
             qs.append(ScientificQuantity(rawText: ns.substring(with: m.range), numericValue: value, uncertainty: uncertainty, unit: unit, normalizedUnit: unit.map { raw in
@@ -264,12 +272,12 @@ public struct ScientificDocumentModel: Sendable, Codable {
         }
         quantities = qs
         var refs: [ScientificReference] = [], labels: [(String, TextSpan)] = []
-        for m in SciencePattern.matches(#"\\(citep|citet|cite|eqref|ref|autoref|cref|label)\*?(?:\s*\[[^\]]*\])*\s*\{([^{}]+)\}"#, clean) {
-            let command = cleanNS.substring(with: m.range(at: 1))
-            let keys = cleanNS.substring(with: m.range(at: 2)).split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            for key in keys where !key.isEmpty {
-                if command == "label" { labels.append((key, TextSpan(m.range))) }
-                else { refs.append(ScientificReference(key: key, command: command, sourceRange: TextSpan(m.range), section: section(m.range.location))) }
+        for token in ManuscriptReferenceSyntax.tokens(in: clean, markdown: snapshot.format == .markdown) {
+            switch token.kind {
+            case .label: labels.append((token.key, token.range))
+            case .citation, .reference:
+                refs.append(ScientificReference(key: token.key, command: token.command, sourceRange: token.range, section: section(token.range.location)))
+            case .bibitem: break
             }
         }
         references = refs
@@ -356,11 +364,27 @@ public struct ScientificDocumentModel: Sendable, Codable {
 }
 
 enum SciencePattern {
-    static func matches(_ pattern: String, _ text: String) -> [NSTextCheckingResult] {
-        let re = try! NSRegularExpression(pattern: pattern)
-        return re.matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+    // NSCache is thread-safe. A bound also limits the lifetime of expressions
+    // assembled from author-defined terminology and unit profiles.
+    nonisolated(unsafe) private static let expressions: NSCache<NSString, NSRegularExpression> = {
+        let cache = NSCache<NSString, NSRegularExpression>()
+        cache.countLimit = 256
+        return cache
+    }()
+
+    private static func expression(_ pattern: String) -> NSRegularExpression {
+        let key = pattern as NSString
+        if let existing = expressions.object(forKey: key) { return existing }
+        let compiled = try! NSRegularExpression(pattern: pattern)
+        expressions.setObject(compiled, forKey: key)
+        return compiled
     }
-    static func has(_ pattern: String, _ text: String) -> Bool { !matches(pattern, text).isEmpty }
+    static func matches(_ pattern: String, _ text: String) -> [NSTextCheckingResult] {
+        expression(pattern).matches(in: text, range: NSRange(location: 0, length: text.utf16.count))
+    }
+    static func has(_ pattern: String, _ text: String) -> Bool {
+        expression(pattern).firstMatch(in: text, range: NSRange(location: 0, length: text.utf16.count)) != nil
+    }
     static func canonical(_ text: String) -> String {
         let compact = text.replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
         return compact.replacingOccurrences(of: #"([_^])\{([A-Za-z0-9])\}"#, with: "$1$2", options: .regularExpression)

@@ -177,6 +177,7 @@ final class TabDocument: NSDocument, ObservableObject, Identifiable {
 
     override func close() {
         workspace?.remove(self)
+        model.notifyManuscriptReaders()
         editorHost = nil
         super.close()
         DocumentTabs.shared.scheduleRecovery()
@@ -200,6 +201,10 @@ final class TabDocumentController: NSDocumentController {
         let document = TabDocument()
         document.fileType = typeName
         return document
+    }
+    override func typeForContents(of url: URL) throws -> String {
+        if url.pathExtension.lowercased() == "bib" { return "org.tug.bibtex" }
+        return try super.typeForContents(of: url)
     }
     override func makeDocument(withContentsOf url: URL, ofType typeName: String) throws -> NSDocument {
         try TabDocument(contentsOf: url, ofType: typeName)

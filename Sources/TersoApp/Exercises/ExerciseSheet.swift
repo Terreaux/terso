@@ -18,7 +18,8 @@ struct ExerciseSheet: View {
             Divider()
             if let session = controller.session {
                 sessionHeader(session)
-                if controller.reuse { reuse(session) }
+                if controller.previewingClaim { claimPreview(session) }
+                else if controller.reuse { reuse(session) }
                 else if controller.review { review(session) }
                 else { active(session) }
             } else { chooser }
@@ -27,8 +28,9 @@ struct ExerciseSheet: View {
                     Image(systemName: "exclamationmark.circle")
                     Text(message).textSelection(.enabled)
                     Spacer()
-                    Button("Retry save") { _ = controller.flush(explicit: true) }
-                        .disabled(controller.session == nil)
+                    if controller.saveState == "Could not save" {
+                        Button("Retry save") { _ = controller.flush(explicit: true) }
+                    }
                 }.font(.caption).padding(12).foregroundStyle(.red)
             }
             Divider()
@@ -91,7 +93,7 @@ struct ExerciseSheet: View {
     }
 
     private var orderedTemplates: [ExerciseTemplate] {
-        let recommended = ExerciseCatalog.recommended(register: Preferences.shared.domain.rawValue)
+        let recommended = ExerciseCatalog.recommended(register: (controller.workspace?.selected?.model.writingRegister ?? Preferences.shared.domain).rawValue)
         return [recommended] + ExerciseCatalog.templates.filter { $0.id != recommended.id }
     }
 
@@ -152,6 +154,12 @@ struct ExerciseSheet: View {
                             .frame(maxHeight: 90)
                     }.font(.caption).foregroundStyle(.secondary)
                 }
+                if let evidence = source.confirmedEvidence, !evidence.isEmpty {
+                    DisclosureGroup("Attached evidence") {
+                        ScrollView { Text(evidence.joined(separator: "\n\n")).textSelection(.enabled) }
+                            .frame(maxHeight: 90)
+                    }.font(.caption).foregroundStyle(.secondary)
+                }
             }
         }.padding(.horizontal, 24).padding(.vertical, 14)
     }
@@ -199,6 +207,10 @@ struct ExerciseSheet: View {
             Text("Review writing").font(.headline)
             Text("Select responses to copy or use in a draft.").font(.caption).foregroundStyle(.secondary)
             responseList(session, editable: true)
+            if session.source?.claimAnchor != nil {
+                Button("Preview claim revision…") { controller.previewingClaim = true }
+                    .disabled((session.responses["paragraph"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
             HStack {
                 Button("Keep writing") { controller.review = false }
                 Button(session.completed ? "Completed" : "Mark complete") { controller.markComplete() }.disabled(session.completed)
@@ -210,6 +222,33 @@ struct ExerciseSheet: View {
                 VStack(alignment: .leading, spacing: 8) { copyActions(session) }
             }
         }.padding(.horizontal, 24).padding(.bottom, 16).frame(maxHeight: .infinity)
+    }
+
+    private func claimPreview(_ session: ExerciseSession) -> some View {
+        let original = session.source?.claimAnchor?.originalText ?? ""
+        let replacement = session.responses["paragraph"] ?? ""
+        let available = session.source.map { source in
+            ExerciseDraftReuse.resolve(source).flatMap { ExerciseDraftReuse.claimRange(from: source, in: $0) } != nil
+        } ?? false
+        return VStack(alignment: .leading, spacing: 12) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Original passage").font(.headline)
+                    Text(original).textSelection(.enabled)
+                    Divider()
+                    Text("Your revision").font(.headline)
+                    Text(replacement).textSelection(.enabled)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if !available { Text("Open the source draft with the original passage to replace it.").font(.caption) }
+            HStack {
+                Button("Back to review") { controller.previewingClaim = false; controller.message = nil }
+                Spacer()
+                Button("Copy revision") { controller.copy(replacement) }
+                Button("Replace original passage") { controller.replaceClaim() }
+                    .disabled(!available || original == replacement)
+            }
+        }.padding(.horizontal, 24).padding(.bottom, 16)
     }
 
     @ViewBuilder private func copyActions(_ session: ExerciseSession) -> some View {
@@ -313,7 +352,18 @@ final class ExerciseTextView: NSTextView {
     private let history = UndoManager()
     override var undoManager: UndoManager? { history }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        if let action = EditorHistoryAction(keyEvent: event), action.perform(in: window) { return true }
-        return super.performKeyEquivalent(with: event)
+        guard window?.firstResponder === self else { return super.performKeyEquivalent(with: event) }
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        switch (event.charactersIgnoringModifiers?.lowercased(), modifiers) {
+        case ("z", .command):
+            breakUndoCoalescing()
+            if history.canUndo { history.undo() }
+        case ("y", .command), ("z", [.command, .shift]):
+            breakUndoCoalescing()
+            if history.canRedo { history.redo() }
+        default:
+            return super.performKeyEquivalent(with: event)
+        }
+        return true
     }
 }

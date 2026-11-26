@@ -14,6 +14,7 @@ struct DocumentStatisticsSnapshot: Sendable {
     let languageCode: String?
     let readabilityAvailable: Bool
     let sentences: [StatisticsSentence]
+    let sectionWords: [SectionWordCount]
     let sentenceBuckets: [SentenceLengthBucket]
     let paragraphs: [StatisticsParagraph]
     let sentenceLengths: LengthStatistics
@@ -37,6 +38,44 @@ struct StatisticsSentence: Identifiable, Sendable {
     let range: TextSpan
     let wordCount: Int
     let preview: String
+}
+
+struct SectionWordCount: Identifiable, Sendable {
+    let id: Int
+    let title: String
+    var words: Int
+
+    /// Count each prose word once under its nearest heading. The abstract
+    /// environment has explicit bounds and can precede all numbered sections.
+    static func sections(in prose: ProseText, format: SourceFormat) -> [Self] {
+        var sections = [Self(id: -1, title: "Unsectioned prose", words: 0)]
+        sections += prose.headings.map { Self(id: $0.range.location, title: $0.title, words: 0) }
+        var abstracts: [Range<Int>] = []
+        if format == .latex {
+            var opening: Int?
+            for region in prose.scientificSyntax.regions where region.kind == .command {
+                switch region.rawText {
+                case #"\begin{abstract}"#: opening = region.range.location
+                case #"\end{abstract}"#:
+                    if let start = opening { abstracts.append(start..<region.range.upperBound) }
+                    opening = nil
+                default: continue
+                }
+            }
+            if let opening { abstracts.append(opening..<prose.original.utf16.count) }
+        }
+        guard sections.count > 1 || !abstracts.isEmpty else { return [] }
+        var abstractCounts = abstracts.map { Self(id: $0.lowerBound, title: "Abstract", words: 0) }
+        var section = 0, abstract = 0
+        for word in prose.words {
+            while section + 1 < sections.count, sections[section + 1].id <= word.location { section += 1 }
+            while abstract < abstracts.count, abstracts[abstract].upperBound <= word.location { abstract += 1 }
+            if abstract < abstracts.count, abstracts[abstract].contains(word.location) { abstractCounts[abstract].words += 1 }
+            else { sections[section].words += 1 }
+        }
+        if sections[0].words == 0 { sections.removeFirst() }
+        return (sections + abstractCounts).sorted { $0.id < $1.id }
+    }
 }
 
 struct SentenceLengthBucket: Identifiable, Sendable {
@@ -224,6 +263,7 @@ enum DocumentStatisticsAggregator {
         return DocumentStatisticsSnapshot(documentID: documentID, revision: snapshot.revision,
             documentName: snapshot.fileName ?? "Untitled", statistics: statistics,
             languageCode: recognizer.dominantLanguage?.rawValue, readabilityAvailable: english, sentences: sentences,
+            sectionWords: SectionWordCount.sections(in: prose, format: snapshot.format),
             sentenceBuckets: buckets, paragraphs: paragraphs,
             sentenceLengths: LengthStatistics(sentences.map(\.wordCount)),
             paragraphLengths: LengthStatistics(blockWords), readabilityWindows: windows,

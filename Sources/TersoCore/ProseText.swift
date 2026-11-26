@@ -24,25 +24,35 @@ public struct ProseText: Sendable {
 
     public let original: String
     public let masked: String
+    public let scientificSyntax: ScientificSyntax
     public let headings: [Heading]
     public let blocks: [Block]
     public let sentences: [Sentence]
     public let words: [TextSpan]
     public let codeBlockCount: Int
+    private let sentenceRanges: [Range<Int>]
 
     public var maskedNS: NSString { masked as NSString }
 
     public func string(_ r: TextSpan) -> String { (original as NSString).substring(with: r.nsRange) }
     public func maskedString(_ r: TextSpan) -> String { (masked as NSString).substring(with: r.nsRange) }
 
-    public func sentences(inBlock index: Int) -> [Sentence] { sentences.filter { $0.blockIndex == index } }
+    public func sentences(inBlock index: Int) -> [Sentence] {
+        guard sentenceRanges.indices.contains(index) else { return [] }
+        return Array(sentences[sentenceRanges[index]])
+    }
 
     public init(markdown text: String) { self.init(text, format: .markdown) }
     public init(latex text: String) { self.init(text, format: .latex) }
     /// Prose for a snapshot, read as LaTeX or Markdown according to its name.
-    public init(_ snapshot: DocumentSnapshot) { self.init(snapshot.text, format: snapshot.format) }
+    public init(_ snapshot: DocumentSnapshot) { self.init(snapshot, format: snapshot.format) }
 
     public init(_ text: String, format: SourceFormat) {
+        self.init(DocumentSnapshot(revision: DocumentRevision(0), text: text), format: format)
+    }
+
+    private init(_ snapshot: DocumentSnapshot, format: SourceFormat) {
+        let text = snapshot.text
         original = text
         let ns = text as NSString
         var units = Array(text.utf16)
@@ -64,7 +74,8 @@ public struct ProseText: Sendable {
         if format == .markdown, let r = MarkdownSyntax.frontMatter(in: text) { blank(r) }
         // One structural scan gives code precedence over LaTeX and preserves
         // all UTF-16 offsets for rules, statistics, and spelling.
-        let syntax = ScientificSyntax(DocumentSnapshot(revision: DocumentRevision(0), text: text))
+        let syntax = ScientificSyntax(snapshot)
+        scientificSyntax = syntax
         syntax.regions.filter { $0.kind != .prose }.forEach { blank($0.range.nsRange) }
         let fencedCode = syntax.regions.filter {
             let raw = $0.rawText.trimmingCharacters(in: .whitespaces)
@@ -178,16 +189,20 @@ public struct ProseText: Sendable {
 
         // Sentences and words.
         var sentences: [Sentence] = []
+        var sentenceRanges: [Range<Int>] = []
         var allWords: [TextSpan] = []
         for (bi, block) in blocks.enumerated() {
+            let start = sentences.count
             for sr in Self.splitSentences(block.range.nsRange, in: mns) {
                 let w = Self.words(in: sr, of: mns)
                 guard !w.isEmpty else { continue }
                 sentences.append(Sentence(range: TextSpan(sr), blockIndex: bi, words: w))
                 allWords.append(contentsOf: w)
             }
+            sentenceRanges.append(start..<sentences.count)
         }
         self.sentences = sentences
+        self.sentenceRanges = sentenceRanges
         self.words = allWords
     }
 

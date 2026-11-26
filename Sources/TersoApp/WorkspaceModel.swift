@@ -74,7 +74,7 @@ struct MapMarker: Identifiable, Hashable {
 /// Compose the document's analysis rules from its register and the writer's
 /// opt-in advice. Kept in one place so a register change cannot drop either.
 func analysisRules(domain: WritingDomain, optionalRuleIDs: Set<String>) -> [any WritingRule] {
-    WritingAnalyzer.defaultRules
+    WritingAnalyzer.standardRules(scientificWording: domain == .academic)
         + (domain == .fiction ? StoryShape.rules : [])
         + WritingAnalyzer.optionalRules.filter { optionalRuleIDs.contains($0.id) }
 }
@@ -92,8 +92,100 @@ final class WorkspaceModel {
     /// Consumed when a new document's text view is first created.
     var initialSelection: NSRange?
 
-    init(wordTargets: WritingStats = .shared) {
+    private let registerDefaults: UserDefaults
+    private(set) var registerOverride: WritingDomain?
+    private var registerChosenBeforeSave = false
+
+    private(set) var registerManuscriptRoot: URL?
+    private(set) var inheritedRegister: WritingDomain?
+    var writingRegister: WritingDomain { registerOverride ?? inheritedRegister ?? prefs.domain }
+
+    func setWritingRegister(_ value: WritingDomain?) {
+        guard value != registerOverride else { return }
+        let previous = writingRegister
+        registerOverride = value
+        if let fileURL {
+            saveRegister(for: fileURL)
+            let changed = fileURL.manuscriptURL
+            for document in DocumentTabs.shared.workspaces.flatMap(\.documents)
+                where document.model !== self && document.model.registerManuscriptRoot == changed {
+                let reader = document.model
+                if reader.loadInheritedRegister(from: changed) { reader.scheduleAnalysis() }
+            }
+        } else { registerChosenBeforeSave = true }
+        if writingRegister != previous { invalidateRegisterAnalysis() }
+        scheduleAnalysis()
+        DocumentTabs.shared.scheduleRecovery()
+    }
+
+    /// Read only the stored preference here. The background manuscript index
+    /// determines actual include membership before any rules or baselines run.
+    @discardableResult
+    private func loadInheritedRegister(from root: URL?) -> Bool {
+        let previous = writingRegister
+        let inherited = root.flatMap { url in
+            registerDefaults.string(forKey: registerKey(for: url)).flatMap(WritingDomain.init(rawValue:))
+        }
+        if registerManuscriptRoot != root { registerManuscriptRoot = root }
+        if inheritedRegister != inherited { inheritedRegister = inherited }
+        guard previous != writingRegister else { return false }
+        invalidateRegisterAnalysis()
+        return true
+    }
+
+    func defaultRegisterChanged() {
+        guard registerOverride == nil, inheritedRegister == nil else { return }
+        invalidateRegisterAnalysis()
+        scheduleAnalysis()
+    }
+
+    private func invalidateRegisterAnalysis() {
+        style = nil
+        styleAnnotations = []
+        local = nil
+        localAnnotations = []
+        documentStatistics = nil
+        editor?.refreshDecorations()
+    }
+
+    private func registerKey(for url: URL) -> String {
+        "documentWritingRegister." + url.standardizedFileURL.resolvingSymlinksInPath().path
+    }
+
+    private func saveRegister(for url: URL) {
+        // Each file has its own key; concurrent writes for other papers stay independent.
+        registerDefaults.set(registerOverride?.rawValue, forKey: registerKey(for: url))
+    }
+
+    let claimEvidence: ClaimEvidenceStore
+
+    init(wordTargets: WritingStats = .shared, registerDefaults: UserDefaults = .standard, claimEvidence: ClaimEvidenceStore = .shared) {
         self.wordTargets = wordTargets
+        self.registerDefaults = registerDefaults
+        self.claimEvidence = claimEvidence
+    }
+
+    private(set) var manuscriptIndex: ManuscriptIndex?
+    var manuscriptProblem: String?
+    var showManuscript = false
+    var manuscriptStartsWithCitations = false
+    var manuscriptPreviewRevision = 0
+    @ObservationIgnored private var pendingManuscriptInputs: Set<URL> = []
+
+    func notifyManuscriptReaders() {
+        guard let changed = fileURL?.manuscriptURL else { return }
+        for doc in DocumentTabs.shared.workspaces.flatMap(\.documents) where doc.model !== self {
+            let reader = doc.model
+            if reader.pendingManuscriptInputs.contains(changed) || reader.manuscriptIndex?.sources[changed] != nil
+                || reader.manuscriptIndex?.bibliographySources[changed] != nil {
+                reader.refreshManuscript()
+            }
+        }
+    }
+
+    func refreshManuscript() {
+        manuscriptPreviewRevision += 1
+        scheduleAnalysis(delay: .milliseconds(300))
     }
 
     var showSidebar = false
@@ -107,7 +199,19 @@ final class WorkspaceModel {
                 self.pendingWordTarget = nil
             }
             // Save As can change the source format without a text edit.
-            if fileURL != oldValue { scheduleAnalysis() }
+            if fileURL != oldValue {
+                loadInheritedRegister(from: nil)
+                if let fileURL {
+                    if registerChosenBeforeSave || oldValue != nil {
+                        // Keep the document's choice through its first save and Save As.
+                        saveRegister(for: fileURL)
+                    } else {
+                        registerOverride = registerDefaults.string(forKey: registerKey(for: fileURL)).flatMap(WritingDomain.init(rawValue:))
+                    }
+                    registerChosenBeforeSave = false
+                }
+                scheduleAnalysis()
+            }
         }
     }
     private var pendingWordTarget: Int?
@@ -301,6 +405,7 @@ final class WorkspaceModel {
 
     func textDidChange() {
         revision = revision.next()
+        notifyManuscriptReaders()
         documentStatistics = nil
         statisticsNavigation = nil
         refreshDocumentBook()
@@ -319,20 +424,49 @@ final class WorkspaceModel {
         let generation = UUID()
         analysisGeneration = generation
         guard let snap = editor?.currentSnapshot else { return }
-        let domain = prefs.domain
         let scienceProfile = scienceProfile
         let optionalRules = prefs.optionalRules
         let documentID = statisticsDocumentID
         analysisTask = Task { [weak self] in
             if delay > .zero { try? await Task.sleep(for: delay) }
             guard !Task.isCancelled else { return }
-            // Analysis runs off the main actor on an immutable snapshot.
+            guard let self else { return }
+            let manuscriptRequest = self.fileURL.map { ManuscriptContext.request(for: $0, source: snap.text) }
+            let index: ManuscriptIndex?
+            let indexError: String?
+            if let request = manuscriptRequest, request.isPaper {
+                self.pendingManuscriptInputs = Set(request.buffers.keys)
+                let indexTask = Task.detached(priority: .utility) { try request.load() }
+                do {
+                    index = try await withTaskCancellationHandler { try await indexTask.value } onCancel: { indexTask.cancel() }
+                    indexError = nil
+                } catch {
+                    index = nil
+                    indexError = error.localizedDescription
+                }
+            } else {
+                index = nil
+                indexError = nil
+            }
+            guard !Task.isCancelled, self.analysisGeneration == generation else { return }
+            // Declared roots and % !TEX root directives pass through the same
+            // index. An unrelated document in the same directory indexes itself.
+            let active = manuscriptRequest?.active
+            self.loadInheritedRegister(from: index?.root == active ? nil : index?.root)
+            let domain = self.writingRegister
             let work = Task.detached(priority: .utility) {
                 try Task.checkCancellation()
                 let prose = ProseText(snap)
                 try Task.checkCancellation()
                 let rules = analysisRules(domain: domain, optionalRuleIDs: optionalRules)
-                let local = WritingAnalyzer(rules: rules, profile: scienceProfile).analyze(snap, prose: prose)
+                var local = WritingAnalyzer(rules: rules, profile: scienceProfile).analyze(snap, prose: prose)
+                if let index, let active {
+                    let findings = index.findings.filter { $0.location.url == active }.map {
+                        (rule: $0.rule, title: $0.title, detail: $0.detail, range: $0.location.range)
+                    }
+                    let uniqueLabels = Set(index.labels.compactMap { $0.value.count == 1 ? $0.key : nil })
+                    local = local.withManuscriptReferences(findings, snapshot: snap, resolvedLabels: uniqueLabels)
+                }
                 try Task.checkCancellation()
                 let style = StyleEngine().analyze(snap, domain: domain, prose: prose)
                 try Task.checkCancellation()
@@ -347,8 +481,12 @@ final class WorkspaceModel {
                 work.cancel()
             }
             guard let (local, style, statistics, masked, sentences, headings) = result else { return }
-            guard let self, !Task.isCancelled, self.revision == snap.revision, self.analysisGeneration == generation else { return }
+            guard !Task.isCancelled, self.revision == snap.revision, self.analysisGeneration == generation else { return }
             self.local = local
+            self.pendingManuscriptInputs = []
+            self.manuscriptIndex = index
+            self.checkEvidenceAssets()
+            self.manuscriptProblem = indexError
             self.documentStatistics = statistics
             self.sentenceSpans = sentences
             self.headingSpans = headings
@@ -383,7 +521,11 @@ final class WorkspaceModel {
     }
 
     var allAnnotations: [TextAnnotation] {
-        localAnnotations + styleAnnotations + spelling + aiSuggestionAnnotations
+        let confirmed = confirmedSupportDiagnosticIDs
+        let local = confirmed.isEmpty ? localAnnotations : localAnnotations.filter {
+            $0.metadata["scienceDiagnosticID"].map(confirmed.contains) != true
+        }
+        return local + styleAnnotations + spelling + aiSuggestionAnnotations
     }
 
     /// Findings on enabled layers, minus dismissed ones. Layers are
@@ -477,7 +619,30 @@ final class WorkspaceModel {
         showDocumentReport = false
     }
 
+    enum ManuscriptReportDestination {
+        case manuscript, localDiagnostic(String), otherFile(ManuscriptFinding)
+    }
+
+    @ObservationIgnored private var manuscriptReportDestination: ManuscriptReportDestination?
+
+    func openFromDocumentReport(_ destination: ManuscriptReportDestination) {
+        manuscriptReportDestination = destination
+        showDocumentReport = false
+    }
+
     func documentReportDidDismiss() {
+        if let destination = manuscriptReportDestination {
+            manuscriptReportDestination = nil
+            switch destination {
+            case .manuscript:
+                manuscriptStartsWithCitations = false
+                showManuscript = true
+            case .localDiagnostic(let id):
+                if let finding = scienceDiagnostics.first(where: { $0.id == id }) { selectScienceDiagnostic(finding) }
+            case .otherFile(let finding):
+                ManuscriptContext.reveal(finding.location)
+            }
+        }
         showDocumentStatistics = false
         let pending = statisticsNavigation
         statisticsNavigation = nil

@@ -173,6 +173,11 @@ enum PDFChapterPages {
         }
     }
 
+    func manuscriptChanged(_ source: String, fileURL: URL?) {
+        typeset = nil
+        schedule(source, fileURL: fileURL)
+    }
+
     /// Compiles again, fetching packages Tectonic hasn't cached.
     func fetchMissing() {
         fetch = true; typeset = nil
@@ -284,6 +289,7 @@ struct LaTeXBookPages: View {
             book.schedule(source, fileURL: fileURL)
         }
         .onChange(of: source) { _, new in book.schedule(new, fileURL: fileURL) }
+        .onChange(of: model.manuscriptPreviewRevision) { _, _ in book.manuscriptChanged(source, fileURL: fileURL) }
         .onChange(of: fileURL) { _, new in book.schedule(source, fileURL: new) }
         .accessibilityLabel("Typeset pages")
     }
