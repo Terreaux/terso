@@ -15,9 +15,15 @@ struct UserTemplate: Identifiable, Codable, Hashable {
     /// The format a document can be saved as a template in, or nil when Terso
     /// can't create that kind of document from scratch.
     static func kind(forFileType fileType: String?) -> NewDocumentKind? {
-        guard let type = fileType.flatMap(UTType.init) else { return nil }
-        // Markdown and LaTeX also conform to plain text, so check them first.
-        return [NewDocumentKind.terso, .latex, .markdown, .text].first { type.conforms(to: $0.contentType) }
+        guard let fileType else { return nil }
+        // Terso can create its own formats before Launch Services has registered them.
+        let formats: [NewDocumentKind] = [.terso, .latex, .markdown, .text]
+        if let exact = formats.first(where: { $0.contentType.identifier.caseInsensitiveCompare(fileType) == .orderedSame }) {
+            return exact
+        }
+        guard let type = UTType(fileType) else { return nil }
+        // Check specialized formats before falling back to plain text.
+        return formats.first { type.conforms(to: $0.contentType) }
     }
 
     @MainActor func makeDocument() -> TabDocument {
