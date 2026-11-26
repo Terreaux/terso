@@ -287,8 +287,8 @@ struct EditorView: NSViewRepresentable {
         tv.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         tv.isRichText = false
         tv.importsGraphics = false
-        tv.documentUndoManager = model.documentUndoManager
         tv.allowsUndo = true
+        tv.documentUndoManager = model.documentUndoManager
         tv.usesFindBar = true
         tv.isIncrementalSearchingEnabled = true
         // Spelling and grammar are drawn by Terso's own toggleable layer.
@@ -347,7 +347,7 @@ struct EditorView: NSViewRepresentable {
         let c = context.coordinator
         c.textBinding = $text
         guard let tv = c.textView else { return }
-        if tv.string != text {
+        if !(tv.string as NSString).isEqual(to: text) {
             // External change (revert, reload from disk).
             tv.string = text
             model.textDidChange()
@@ -390,11 +390,48 @@ final class EditorCoordinator: NSObject, NSTextViewDelegate, NSTextStorageDelega
     var undoManager: UndoManager? { textView?.undoManager }
 
     func replace(_ range: TextSpan, with text: String, actionName: String) {
-        guard let tv = textView, range.upperBound <= (tv.string as NSString).length else { return }
-        guard tv.shouldChangeText(in: range.nsRange, replacementString: text) else { return }
-        tv.textStorage?.replaceCharacters(in: range.nsRange, with: text)
-        tv.didChangeText()
-        tv.undoManager?.setActionName(actionName)
+        guard let tv = textView, let storage = tv.textStorage,
+              range.location >= 0, range.length >= 0, range.location <= storage.length,
+              range.length <= storage.length - range.location else { return }
+        // Standalone editors use their text view's native history. A retained
+        // document owns commands across replacement views and mode changes.
+        guard let history = model.documentUndoManager, tv.undoManager === history, model.editor === self else {
+            guard model.editor == nil || model.editor === self,
+                  tv.shouldChangeText(in: range.nsRange, replacementString: text) else { return }
+            storage.replaceCharacters(in: range.nsRange, with: text)
+            tv.didChangeText()
+            tv.undoManager?.setActionName(actionName)
+            return
+        }
+        let source = storage.string as NSString
+        guard source.isEqual(to: textBinding.wrappedValue) else { return }
+        let old = source.substring(with: range.nsRange)
+        guard !(old as NSString).isEqual(to: text) else { return }
+        // Explicit commands belong to the document. A preview or split-view
+        // transition can replace the NSTextView that AppKit would register.
+        history.disableUndoRegistration()
+        let allowed = (!tv.isEditable && model.renderMode == .preview)
+            || tv.shouldChangeText(in: range.nsRange, replacementString: text)
+        if allowed {
+            storage.replaceCharacters(in: range.nsRange, with: text)
+            tv.didChangeText()
+        }
+        history.enableUndoRegistration()
+        guard allowed else { return }
+        let edited = TextSpan(location: range.location, length: text.utf16.count)
+        let start = max(0, edited.location - TextAnchor.contextLength)
+        let end = min(storage.length, edited.upperBound + TextAnchor.contextLength)
+        let context = TextSpan(location: start, length: end - start)
+        let expected = (storage.string as NSString).substring(with: context.nsRange)
+        let length = storage.length
+        history.registerUndo(withTarget: model) { document in
+            guard let editor = document.editor else { return }
+            let snapshot = editor.currentSnapshot
+            guard snapshot.utf16Length == length, let current = snapshot.substring(context),
+                  (current as NSString).isEqual(to: expected) else { return }
+            editor.replace(edited, with: old, actionName: actionName)
+        }
+        history.setActionName(actionName)
     }
 
     func reveal(_ range: TextSpan, select: Bool) {

@@ -140,7 +140,7 @@ final class TabDocument: NSDocument, ObservableObject, Identifiable {
 
     private func editorView() -> DocumentWindow {
         let binding = Binding<MarkdownDocument>(get: { [unowned self] in self.contents }, set: { [unowned self] value in
-            guard self.contents.text != value.text else { return }
+            guard !(self.contents.text as NSString).isEqual(to: value.text) else { return }
             self.contents = value
             // NSDocument observes this editor's undo manager and updates its
             // change count when groups close/undo/redo. Counting here as well
