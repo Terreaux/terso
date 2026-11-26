@@ -144,6 +144,41 @@ import TersoCore
         #expect(doc.contents.text == "Preface.\n\n" + original)
     }
 
+    @Test func commandUndoPreservesUnicodeAndLeavesReloadedTextAlone() throws {
+        _ = NSApplication.shared
+        let document = TabDocument()
+        defer { document.close() }
+        let model = document.model
+        let text = Binding<String>(get: { document.contents.text }, set: { document.contents.text = $0 })
+        let editor = EditorCoordinator(model: model, text: text)
+        let view = TersoTextView(frame: .zero)
+        let history = try #require(document.undoManager)
+        history.groupsByEvent = false
+        view.isRichText = false
+        view.documentUndoManager = history
+        view.allowsUndo = true
+        editor.textView = view
+        view.delegate = editor
+        model.editor = editor
+        document.contents.text = "é."
+        view.string = document.contents.text
+        history.beginUndoGrouping()
+        editor.replace(.init(location: 0, length: 1), with: "e\u{301}", actionName: "Revise")
+        history.endUndoGrouping()
+        #expect(document.contents.text.utf16.count == 3)
+        history.undo()
+        #expect(document.contents.text.utf16.count == 2)
+        history.redo()
+        #expect(document.contents.text.utf16.count == 3)
+
+        // A disk reload may keep the same length and change the saved passage.
+        view.string = "AB."
+        document.contents.text = view.string
+        #expect(history.canUndo)
+        history.undo()
+        #expect(document.contents.text == "AB.")
+    }
+
     @Test func revisedOrAmbiguousClaimWillNotReplaceOtherText() throws {
         _ = NSApplication.shared
         let doc = TabDocument(), other = TabDocument()
